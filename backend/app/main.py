@@ -10,6 +10,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:4173",
+        "https://splinters1974.github.io",
         "https://*.netlify.app",
         "https://*.vercel.app",
     ],

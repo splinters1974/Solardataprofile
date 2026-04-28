@@ -1,7 +1,13 @@
 import axios from 'axios';
 import type { UploadResponse, SolarSizeResponse } from '../types';
 
-const api = axios.create({ baseURL: '/api' });
+// In dev: Vite proxies /api → localhost:8000
+// In production: set VITE_API_URL to your deployed backend URL (e.g. https://your-app.onrender.com)
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
+const api = axios.create({ baseURL: API_BASE });
 
 export async function uploadHHFile(file: File): Promise<UploadResponse> {
   const form = new FormData();
