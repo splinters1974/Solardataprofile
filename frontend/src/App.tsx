@@ -106,7 +106,11 @@ export default function App() {
                 data={uploadResult.monthly_totals}
                 annualKwh={uploadResult.annual_kwh}
               />
-              <DailyLineChart data={uploadResult.daily_series} />
+              <DailyLineChart
+                hhSeries={uploadResult.hh_series}
+                dailySeries={uploadResult.daily_series}
+                monthlyTotals={uploadResult.monthly_totals}
+              />
               <UsageHeatmap data={uploadResult.heatmap} />
             </div>
           </section>

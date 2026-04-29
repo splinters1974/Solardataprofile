@@ -1,9 +1,9 @@
 import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
-from app.models.schemas import UploadResponse, MonthlyTotal, HeatmapData, DailyPoint
+from app.models.schemas import UploadResponse, MonthlyTotal, HeatmapData, DailyPoint, HHPoint
 from app.services.excel_parser import load_and_normalise
-from app.services.usage_analytics import monthly_totals, heatmap_matrix, daily_series
+from app.services.usage_analytics import monthly_totals, heatmap_matrix, daily_series, hh_series
 from app.state import SESSION_STORE
 
 router = APIRouter()
@@ -38,6 +38,7 @@ async def upload_hh_data(file: UploadFile = File(...)):
     totals = monthly_totals(df)
     hm = heatmap_matrix(df)
     ds = daily_series(df)
+    hhs = hh_series(df)
 
     return UploadResponse(
         session_id=session_id,
@@ -47,5 +48,6 @@ async def upload_hh_data(file: UploadFile = File(...)):
         monthly_totals=[MonthlyTotal(**t) for t in totals],
         heatmap=HeatmapData(**hm),
         daily_series=[DailyPoint(**d) for d in ds],
+        hh_series=[HHPoint(**h) for h in hhs],
         warnings=warnings,
     )

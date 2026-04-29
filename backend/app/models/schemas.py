@@ -18,6 +18,11 @@ class DailyPoint(BaseModel):
     kwh: float  # daily total
 
 
+class HHPoint(BaseModel):
+    datetime: str  # "2024-01-01T00:00"
+    kwh: float     # half-hourly kWh
+
+
 class UploadResponse(BaseModel):
     session_id: str
     detected_format: str
@@ -25,7 +30,8 @@ class UploadResponse(BaseModel):
     annual_kwh: float
     monthly_totals: list[MonthlyTotal]
     heatmap: HeatmapData
-    daily_series: list[DailyPoint]  # 365 daily totals for line chart
+    daily_series: list[DailyPoint]
+    hh_series: list[HHPoint]
     warnings: list[str]
 
 

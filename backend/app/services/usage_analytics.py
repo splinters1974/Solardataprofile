@@ -1,6 +1,21 @@
 import pandas as pd
 
 
+def hh_series(df: pd.DataFrame) -> list[dict]:
+    """Return every half-hourly reading as {datetime, kwh} for granular charting."""
+    result = []
+    for date_ts, row in df.iterrows():
+        date_str = date_ts.strftime("%Y-%m-%d")
+        for slot in range(min(48, len(row))):
+            hour = slot // 2
+            minute = (slot % 2) * 30
+            result.append({
+                "datetime": f"{date_str}T{hour:02d}:{minute:02d}",
+                "kwh": round(float(row.iloc[slot]), 3),
+            })
+    return result
+
+
 def daily_series(df: pd.DataFrame) -> list[dict]:
     """Return daily kWh totals as list of {date, kwh} for line chart."""
     daily = df.sum(axis=1)
