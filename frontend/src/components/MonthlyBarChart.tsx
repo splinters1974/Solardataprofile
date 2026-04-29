@@ -48,7 +48,7 @@ export default function MonthlyBarChart({ data, annualKwh }: Props) {
             label={{ value: 'kWh', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 12, fill: '#94a3b8' } }}
           />
           <Tooltip
-            formatter={(value: number) => [`${value.toLocaleString()} kWh`, 'Consumption']}
+            formatter={(value) => [`${Number(value).toLocaleString()} kWh`, 'Consumption']}
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
           <Bar dataKey="kwh" fill="#10b981" radius={[4, 4, 0, 0]} />

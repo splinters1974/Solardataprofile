@@ -41,7 +41,7 @@ export default function SizingCurveChart({ data, recommendedKwp }: Props) {
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip
-            formatter={(value: number) => [`${value}%`, 'Self-consumption']}
+            formatter={(value) => [`${value}%`, 'Self-consumption']}
             labelFormatter={(label) => `${label} kWp`}
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />

@@ -32,8 +32,8 @@ export default function GenerationChart({ data, systemKwp }: Props) {
             label={{ value: 'kWh', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 12, fill: '#94a3b8' } }}
           />
           <Tooltip
-            formatter={(value: number, name: string) => [
-              `${value.toLocaleString()} kWh`,
+            formatter={(value, name) => [
+              `${Number(value).toLocaleString()} kWh`,
               name === 'consumption_kwh' ? 'Consumption'
                 : name === 'self_consumed_kwh' ? 'Self-consumed'
                 : 'Exported',

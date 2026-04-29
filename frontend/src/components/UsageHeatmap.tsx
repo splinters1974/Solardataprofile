@@ -18,9 +18,6 @@ export default function UsageHeatmap({ data }: Props) {
   const minVal = Math.min(...allValues);
   const maxVal = Math.max(...allValues);
 
-  // Show every 4th HH label (every 2 hours)
-  const xLabels = data.hh_labels.filter((_, i) => i % 4 === 0);
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       <div className="mb-4">
