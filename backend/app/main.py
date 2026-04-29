@@ -7,13 +7,7 @@ app = FastAPI(title="Solar Data Profile API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:4173",
-        "https://splinters1974.github.io",
-        "https://*.netlify.app",
-        "https://*.vercel.app",
-    ],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
