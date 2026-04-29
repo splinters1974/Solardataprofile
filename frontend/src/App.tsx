@@ -4,6 +4,7 @@ import type { UploadResponse, SolarSizeResponse } from './types';
 import FileUpload from './components/FileUpload';
 import MonthlyBarChart from './components/MonthlyBarChart';
 import UsageHeatmap from './components/UsageHeatmap';
+import DailyLineChart from './components/DailyLineChart';
 import SolarSizingForm from './components/SolarSizingForm';
 import SolarResultsPanel from './components/SolarResultsPanel';
 import GenerationChart from './components/GenerationChart';
@@ -103,6 +104,7 @@ export default function App() {
                 data={uploadResult.monthly_totals}
                 annualKwh={uploadResult.annual_kwh}
               />
+              <DailyLineChart data={uploadResult.daily_series} />
               <UsageHeatmap data={uploadResult.heatmap} />
             </div>
           </section>

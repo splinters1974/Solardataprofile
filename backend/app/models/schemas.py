@@ -13,6 +13,11 @@ class HeatmapData(BaseModel):
     matrix: list[list[float]]  # shape (7, 48)
 
 
+class DailyPoint(BaseModel):
+    date: str   # "2024-01-01"
+    kwh: float  # daily total
+
+
 class UploadResponse(BaseModel):
     session_id: str
     detected_format: str
@@ -20,6 +25,7 @@ class UploadResponse(BaseModel):
     annual_kwh: float
     monthly_totals: list[MonthlyTotal]
     heatmap: HeatmapData
+    daily_series: list[DailyPoint]  # 365 daily totals for line chart
     warnings: list[str]
 
 

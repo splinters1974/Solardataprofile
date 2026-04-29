@@ -9,6 +9,11 @@ export interface HeatmapData {
   matrix: number[][];
 }
 
+export interface DailyPoint {
+  date: string;  // "2024-01-01"
+  kwh: number;
+}
+
 export interface UploadResponse {
   session_id: string;
   detected_format: string;
@@ -16,6 +21,7 @@ export interface UploadResponse {
   annual_kwh: number;
   monthly_totals: MonthlyTotal[];
   heatmap: HeatmapData;
+  daily_series: DailyPoint[];
   warnings: string[];
 }
 

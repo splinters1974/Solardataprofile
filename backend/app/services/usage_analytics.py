@@ -1,5 +1,13 @@
 import pandas as pd
-import numpy as np
+
+
+def daily_series(df: pd.DataFrame) -> list[dict]:
+    """Return daily kWh totals as list of {date, kwh} for line chart."""
+    daily = df.sum(axis=1)
+    return [
+        {"date": ts.strftime("%Y-%m-%d"), "kwh": round(float(kwh), 2)}
+        for ts, kwh in daily.items()
+    ]
 
 
 def monthly_totals(df: pd.DataFrame) -> list[dict]:
