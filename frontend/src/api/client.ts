@@ -14,15 +14,19 @@ const api = axios.create({
   timeout: 120_000, // 2 min — covers Render cold start (~30s) + PVGIS call (~30s)
 });
 
-// Ping /healthz to wake the Render backend. Returns true when the server
-// responds successfully, false if it timed out or errored.
+// Ping /healthz to wake the Render backend. Retries up to 3 times with
+// increasing timeouts to handle Render free-tier cold starts (~50–70 s).
 export async function warmupBackend(): Promise<boolean> {
-  try {
-    await axios.get(HEALTH_URL, { timeout: 60_000 });
-    return true;
-  } catch {
-    return false;
+  const attempts = [90_000, 60_000, 30_000]; // ms per attempt
+  for (const timeout of attempts) {
+    try {
+      await axios.get(HEALTH_URL, { timeout });
+      return true;
+    } catch {
+      // continue to next attempt
+    }
   }
+  return false;
 }
 
 export async function uploadHHFile(file: File): Promise<UploadResponse> {

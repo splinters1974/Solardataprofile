@@ -22,6 +22,17 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(solar.router, prefix="/api")
 
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Solar Data Profile API",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/healthz",
+        "note": "The web app is at https://splinters1974.github.io/Solardataprofile/",
+    }
+
+
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok", "version": "0.1.0"}
