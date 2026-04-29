@@ -5,10 +5,23 @@ const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
 
+const HEALTH_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/healthz`
+  : '/healthz';
+
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 120_000, // 2 min — covers Render cold start (~30s) + PVGIS call (~30s)
 });
+
+// Silently wake the Render backend as soon as the app loads.
+// Render free tier sleeps after inactivity; this ensures it's warm
+// by the time the user clicks "Size Solar System".
+export function warmupBackend(): void {
+  axios.get(HEALTH_URL, { timeout: 60_000 }).catch(() => {
+    // Ignore errors — this is best-effort only
+  });
+}
 
 export async function uploadHHFile(file: File): Promise<UploadResponse> {
   const form = new FormData();

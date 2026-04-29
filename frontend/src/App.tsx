@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { uploadHHFile, sizeSystem, friendlyError } from './api/client';
+import { useState, useEffect } from 'react';
+import { uploadHHFile, sizeSystem, friendlyError, warmupBackend } from './api/client';
 import type { UploadResponse, SolarSizeResponse } from './types';
 import FileUpload from './components/FileUpload';
 import MonthlyBarChart from './components/MonthlyBarChart';
@@ -11,6 +11,8 @@ import GenerationChart from './components/GenerationChart';
 import SizingCurveChart from './components/SizingCurveChart';
 
 export default function App() {
+  useEffect(() => { warmupBackend(); }, []);
+
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [solarResult, setSolarResult] = useState<SolarSizeResponse | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
