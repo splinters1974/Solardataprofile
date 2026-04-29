@@ -9,19 +9,28 @@ from app.state import SESSION_STORE
 router = APIRouter()
 
 
+ACCEPTED_EXTENSIONS = (".xlsx", ".xls", ".csv", ".txt")
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_hh_data(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(400, "Only .xlsx and .xls files are accepted.")
+    filename = file.filename or ""
+    if not any(filename.lower().endswith(ext) for ext in ACCEPTED_EXTENSIONS):
+        raise HTTPException(
+            400,
+            f"Unsupported file type. Please upload an Excel (.xlsx, .xls) or CSV (.csv) file.",
+        )
 
     contents = await file.read()
     if len(contents) == 0:
         raise HTTPException(400, "Uploaded file is empty.")
 
     try:
-        df, fmt, warnings = load_and_normalise(contents)
+        df, fmt, warnings = load_and_normalise(contents, filename=filename)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(422, f"Could not parse Excel file: {e}")
+        raise HTTPException(422, f"Could not parse file: {e}")
 
     session_id = str(uuid.uuid4())
     SESSION_STORE[session_id] = df

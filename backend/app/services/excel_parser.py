@@ -1,5 +1,6 @@
 import re
 import io
+import csv
 import warnings
 from datetime import date, timedelta
 
@@ -8,89 +9,177 @@ import pandas as pd
 
 
 def _count_time_strings(series: pd.Series) -> int:
-    pattern = re.compile(r"^\d{1,2}:\d{2}$|^HH\s*\d{1,2}$", re.IGNORECASE)
+    pattern = re.compile(r"^\d{1,2}:\d{2}$|^HH\s*\d{1,2}$|^Period\s*\d+$", re.IGNORECASE)
     return sum(1 for v in series.dropna() if pattern.match(str(v).strip()))
 
 
-def _strip_headers(raw: pd.DataFrame) -> pd.DataFrame:
-    """Drop leading rows/cols that are entirely non-numeric."""
+def _is_date_like(val) -> bool:
+    """Return True if val looks like a date (datetime object or date string)."""
+    if isinstance(val, (pd.Timestamp, date)):
+        return True
+    s = str(val).strip()
+    date_patterns = [
+        r"^\d{4}-\d{2}-\d{2}$",
+        r"^\d{2}/\d{2}/\d{4}$",
+        r"^\d{2}-\d{2}-\d{4}$",
+        r"^\d{1,2}/\d{1,2}/\d{2,4}$",
+    ]
+    return any(re.match(p, s) for p in date_patterns)
+
+
+def _strip_headers(raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Strip non-data header rows and a leading date/label column.
+    Returns (cleaned_body, warnings).
+    """
     df = raw.copy()
-    # Drop rows where fewer than 10% of cells are numeric
-    for i in range(min(5, len(df))):
-        numeric_count = pd.to_numeric(df.iloc[0], errors="coerce").notna().sum()
-        if numeric_count < 0.1 * len(df.columns):
+    warn_msgs: list[str] = []
+
+    # Drop up to 5 leading rows where < 10% of cells are numeric
+    for _ in range(5):
+        if len(df) == 0:
+            break
+        row0 = df.iloc[0]
+        numeric_frac = pd.to_numeric(row0, errors="coerce").notna().mean()
+        if numeric_frac < 0.1:
             df = df.iloc[1:].reset_index(drop=True)
         else:
             break
-    # Drop columns where fewer than 10% of cells are numeric
-    for _ in range(min(5, len(df.columns))):
-        numeric_count = pd.to_numeric(df.iloc[:, 0], errors="coerce").notna().sum()
-        if numeric_count < 0.1 * len(df):
+
+    # Drop a leading column if it looks like dates or labels (non-numeric)
+    for _ in range(3):
+        if df.shape[1] == 0:
+            break
+        col0 = df.iloc[:, 0]
+        numeric_frac = pd.to_numeric(col0, errors="coerce").notna().mean()
+        date_count = sum(1 for v in col0.dropna() if _is_date_like(v))
+        if numeric_frac < 0.1 or date_count > len(col0) * 0.3:
             df = df.iloc[:, 1:].reset_index(drop=True)
         else:
             break
-    return df
+
+    return df, warn_msgs
 
 
 def _detect_format(raw: pd.DataFrame) -> str:
-    body = _strip_headers(raw)
+    body, _ = _strip_headers(raw)
     nrows, ncols = body.shape
 
+    # Exact match first
     if abs(nrows - 365) <= 15 and abs(ncols - 48) <= 4:
         return "A"
     if abs(nrows - 48) <= 4 and abs(ncols - 365) <= 15:
         return "B"
-    if abs(nrows - 366) <= 2 and abs(ncols - 48) <= 4:
+    if abs(nrows - 366) <= 3 and abs(ncols - 48) <= 4:
         return "A"
-    if abs(nrows - 48) <= 4 and abs(ncols - 366) <= 2:
+    if abs(nrows - 48) <= 4 and abs(ncols - 366) <= 3:
         return "B"
 
-    # Tiebreak via time-string detection
+    # Tiebreak: look for time-like strings in first row or column of raw
     first_col_times = _count_time_strings(raw.iloc[:, 0])
     first_row_times = _count_time_strings(raw.iloc[0])
-    return "B" if first_col_times > first_row_times else "A"
+    if first_col_times > first_row_times:
+        return "B"
+
+    # Final fallback: whichever dimension is closer to 48
+    if abs(nrows - 48) < abs(ncols - 48):
+        return "B"
+    return "A"
 
 
-def _to_numeric_body(raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+def _read_csv(file_bytes: bytes) -> pd.DataFrame:
+    """Try to read as CSV, detecting delimiter automatically."""
+    text = file_bytes.decode("utf-8", errors="replace")
+    dialect = csv.Sniffer().sniff(text[:4096], delimiters=",\t;|")
+    return pd.read_csv(io.StringIO(text), header=None, sep=dialect.delimiter)
+
+
+def _to_numeric_body(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     warn_msgs: list[str] = []
-    body = _strip_headers(raw)
-
-    numeric = body.apply(pd.to_numeric, errors="coerce")
-    n_bad = numeric.isna().sum().sum()
+    numeric = df.apply(pd.to_numeric, errors="coerce")
+    n_bad = int(numeric.isna().sum().sum())
     if n_bad > 0:
-        warn_msgs.append(f"{n_bad} non-numeric cells filled with 0.")
-    numeric = numeric.fillna(0.0)
-    return numeric, warn_msgs
+        warn_msgs.append(f"{n_bad} non-numeric cells replaced with 0.")
+    return numeric.fillna(0.0), warn_msgs
 
 
 def load_and_normalise(
     file_bytes: bytes,
+    filename: str = "",
 ) -> tuple[pd.DataFrame, str, list[str]]:
     """
+    Parse an uploaded HH data file (xlsx, xls, or csv).
+
     Returns:
-        df:        DataFrame shape (N_days, 48), DatetimeIndex, columns 0..47
-        fmt:       detected format "A" or "B"
-        warnings:  list of warning strings
+        df:       DataFrame (N_days × 48), DatetimeIndex, columns 0..47
+        fmt:      detected format "A" or "B"
+        warnings: list of user-facing warning strings
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        raw = pd.read_excel(io.BytesIO(file_bytes), header=None, engine="openpyxl")
+    all_warnings: list[str] = []
 
+    # --- Read raw data ---
+    lower = filename.lower()
+    if lower.endswith(".csv") or lower.endswith(".txt"):
+        try:
+            raw = _read_csv(file_bytes)
+        except Exception as e:
+            raise ValueError(f"Could not parse CSV: {e}")
+    else:
+        # Try openpyxl (xlsx) then xlrd (xls)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                raw = pd.read_excel(
+                    io.BytesIO(file_bytes), header=None, engine="openpyxl"
+                )
+            except Exception:
+                try:
+                    raw = pd.read_excel(
+                        io.BytesIO(file_bytes), header=None, engine="xlrd"
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        f"Could not read file. Please save as .xlsx or .csv and try again. ({e})"
+                    )
+
+    if raw.empty:
+        raise ValueError("The file appears to be empty.")
+
+    # --- Detect format before stripping (uses raw headers for clues) ---
     fmt = _detect_format(raw)
-    body, warn_msgs = _to_numeric_body(raw)
 
+    # --- Strip headers and date columns ---
+    body, strip_warns = _strip_headers(raw)
+    all_warnings.extend(strip_warns)
+
+    # --- Convert to numeric ---
+    numeric, num_warns = _to_numeric_body(body)
+    all_warnings.extend(num_warns)
+
+    # --- Orient to (days × 48) ---
     if fmt == "B":
-        # Rows = 48 HH periods, cols = days → transpose to (days, 48)
-        body = body.T.reset_index(drop=True)
+        numeric = numeric.T.reset_index(drop=True)
 
-    # body is now (N_days, 48) — trim to exactly 48 columns
-    body = body.iloc[:, :48].copy()
-    body.columns = list(range(48))
+    # Trim to exactly 48 HH columns
+    if numeric.shape[1] < 48:
+        raise ValueError(
+            f"Expected 48 half-hour columns but found {numeric.shape[1]}. "
+            "Please check the file format."
+        )
+    numeric = numeric.iloc[:, :48].copy()
+    numeric.columns = list(range(48))
 
-    # Build a synthetic DatetimeIndex starting from Jan 1 of year 1
-    n_days = len(body)
-    start = date(2024, 1, 1)  # use a non-leap year as reference
+    # Warn on partial year
+    n_days = len(numeric)
+    if n_days < 300:
+        all_warnings.append(
+            f"Only {n_days} days of data found (expected ~365). "
+            "Results are based on a partial year."
+        )
+
+    # Build DatetimeIndex
+    start = date(2024, 1, 1)
     idx = pd.DatetimeIndex([start + timedelta(days=i) for i in range(n_days)])
-    body.index = idx
+    numeric.index = idx
 
-    return body, fmt, warn_msgs
+    return numeric, fmt, all_warnings

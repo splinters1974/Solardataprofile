@@ -24,6 +24,8 @@ export default function FileUpload({ onUpload, loading }: Props) {
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
+      'text/csv': ['.csv'],
+      'text/plain': ['.txt'],
     },
     multiple: false,
     disabled: loading,
@@ -51,7 +53,7 @@ export default function FileUpload({ onUpload, loading }: Props) {
             <p className="text-slate-700 font-medium">
               {isDragActive ? 'Drop your HH data file here' : 'Drag & drop your HH Excel file here'}
             </p>
-            <p className="text-slate-400 text-sm">or click to browse — .xlsx / .xls accepted</p>
+            <p className="text-slate-400 text-sm">or click to browse — .xlsx, .xls, .csv accepted</p>
           </>
         )}
       </div>

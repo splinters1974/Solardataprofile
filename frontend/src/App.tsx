@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { uploadHHFile, sizeSystem } from './api/client';
+import { uploadHHFile, sizeSystem, friendlyError } from './api/client';
 import type { UploadResponse, SolarSizeResponse } from './types';
 import FileUpload from './components/FileUpload';
 import MonthlyBarChart from './components/MonthlyBarChart';
@@ -25,7 +25,7 @@ export default function App() {
       const result = await uploadHHFile(file);
       setUploadResult(result);
     } catch (e: any) {
-      setUploadError(e?.response?.data?.detail ?? 'Failed to parse file. Please check the format.');
+      setUploadError(friendlyError(e, 'Failed to parse file. Please check the format.'));
     } finally {
       setUploadLoading(false);
     }
@@ -45,7 +45,7 @@ export default function App() {
       const result = await sizeSystem({ session_id: uploadResult.session_id, ...values });
       setSolarResult(result);
     } catch (e: any) {
-      setSolarError(e?.response?.data?.detail ?? 'Sizing failed. Check your postcode and try again.');
+      setSolarError(friendlyError(e, 'Sizing failed. Check your postcode and try again.'));
     } finally {
       setSolarLoading(false);
     }
