@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { uploadHHFile, sizeSystem, friendlyError, warmupBackend } from './api/client';
 import type { UploadResponse, SolarSizeResponse } from './types';
 import FileUpload from './components/FileUpload';
@@ -10,15 +10,34 @@ import SolarResultsPanel from './components/SolarResultsPanel';
 import GenerationChart from './components/GenerationChart';
 import SizingCurveChart from './components/SizingCurveChart';
 
-export default function App() {
-  useEffect(() => { warmupBackend(); }, []);
+type BackendStatus = 'connecting' | 'ready' | 'unreachable';
 
+type SizingValues = {
+  postcode: string;
+  target_sc_min: number;
+  target_sc_max: number;
+  roof_tilt: number;
+  roof_aspect: number;
+};
+
+export default function App() {
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('connecting');
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [solarResult, setSolarResult] = useState<SolarSizeResponse | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [solarLoading, setSolarLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [solarError, setSolarError] = useState<string | null>(null);
+  const [lastSizingValues, setLastSizingValues] = useState<SizingValues | null>(null);
+
+  const pingBackend = useCallback(async () => {
+    setBackendStatus('connecting');
+    const ok = await warmupBackend();
+    setBackendStatus(ok ? 'ready' : 'unreachable');
+    return ok;
+  }, []);
+
+  useEffect(() => { pingBackend(); }, [pingBackend]);
 
   async function handleUpload(file: File) {
     setUploadLoading(true);
@@ -27,31 +46,34 @@ export default function App() {
     try {
       const result = await uploadHHFile(file);
       setUploadResult(result);
+      setBackendStatus('ready'); // successful response = backend is alive
     } catch (e: any) {
+      if (!e?.response) setBackendStatus('unreachable');
       setUploadError(friendlyError(e, 'Failed to parse file. Please check the format.'));
     } finally {
       setUploadLoading(false);
     }
   }
 
-  async function handleSizingSubmit(values: {
-    postcode: string;
-    target_sc_min: number;
-    target_sc_max: number;
-    roof_tilt: number;
-    roof_aspect: number;
-  }) {
+  async function handleSizingSubmit(values: SizingValues) {
     if (!uploadResult) return;
+    setLastSizingValues(values);
     setSolarLoading(true);
     setSolarError(null);
     try {
       const result = await sizeSystem({ session_id: uploadResult.session_id, ...values });
       setSolarResult(result);
+      setBackendStatus('ready');
     } catch (e: any) {
+      if (!e?.response) setBackendStatus('unreachable');
       setSolarError(friendlyError(e, 'Sizing failed. Check your postcode and try again.'));
     } finally {
       setSolarLoading(false);
     }
+  }
+
+  async function retrySizing() {
+    if (lastSizingValues) await handleSizingSubmit(lastSizingValues);
   }
 
   return (
@@ -64,12 +86,61 @@ export default function App() {
               <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
             </svg>
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold text-slate-800">Solar Data Profile</h1>
             <p className="text-xs text-slate-400">HH consumption analysis & solar sizing</p>
           </div>
+          {/* Backend status indicator */}
+          {backendStatus === 'connecting' && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Server starting…
+            </div>
+          )}
+          {backendStatus === 'unreachable' && (
+            <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+              <span>Server offline</span>
+              <button
+                onClick={pingBackend}
+                className="underline font-medium hover:text-red-800"
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Banner when unreachable */}
+      {backendStatus === 'unreachable' && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <p className="text-sm text-red-700">
+              The server is sleeping (Render free tier). It usually wakes within 30–60 seconds.
+              Click <strong>Retry</strong> to check again, then try your request.
+            </p>
+            <button
+              onClick={pingBackend}
+              className="shrink-0 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 rounded-lg px-4 py-1.5 transition-colors"
+            >
+              Retry connection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {backendStatus === 'connecting' && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+          <div className="max-w-5xl mx-auto">
+            <p className="text-sm text-amber-700">
+              Connecting to server — this can take up to 60 seconds on first load. Please wait before uploading your file.
+            </p>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {/* Step 1: Upload */}
@@ -80,9 +151,17 @@ export default function App() {
           </div>
           <FileUpload onUpload={handleUpload} loading={uploadLoading} />
           {uploadError && (
-            <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-              {uploadError}
-            </p>
+            <div className="mt-2 flex items-start gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+              <span className="flex-1">{uploadError}</span>
+              {backendStatus === 'unreachable' && (
+                <button
+                  onClick={pingBackend}
+                  className="shrink-0 font-medium underline hover:text-red-800"
+                >
+                  Retry connection
+                </button>
+              )}
+            </div>
           )}
         </section>
 
@@ -125,9 +204,18 @@ export default function App() {
             </div>
             <SolarSizingForm onSubmit={handleSizingSubmit} loading={solarLoading} />
             {solarError && (
-              <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                {solarError}
-              </p>
+              <div className="mt-2 flex items-start gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+                <span className="flex-1">{solarError}</span>
+                {lastSizingValues && (
+                  <button
+                    onClick={retrySizing}
+                    disabled={solarLoading}
+                    className="shrink-0 font-medium underline hover:text-red-800 disabled:opacity-50"
+                  >
+                    Try again
+                  </button>
+                )}
+              </div>
             )}
           </section>
         )}
