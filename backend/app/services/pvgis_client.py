@@ -12,6 +12,11 @@ log = logging.getLogger(__name__)
 
 PVGIS_URL = "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc"
 
+# A single actual weather year, not a synthesised typical one. Say so in
+# anything client-facing: a sunnier or duller year moves output either way.
+PVGIS_WEATHER_YEAR = 2020
+DEFAULT_SYSTEM_LOSS = 14  # %, PVGIS applies this to the 1 kWp output
+
 # PVGIS is slow (~30s) and its answer for a given location and roof geometry
 # does not change, so cache it. This is what lets a report be rebuilt after a
 # restart without making the user wait on the API again.
@@ -58,7 +63,7 @@ async def fetch_generation_profile(
     lon: float,
     tilt: int = 35,
     aspect: int = 0,
-    loss: int = 14,
+    loss: int = DEFAULT_SYSTEM_LOSS,
 ) -> pd.DataFrame:
     """
     Fetch hourly generation for 1 kWp from PVGIS and return a (365, 48)
@@ -101,8 +106,8 @@ async def _fetch_pvgis(
         "loss": loss,
         "angle": tilt,
         "aspect": aspect,
-        "startyear": 2020,
-        "endyear": 2020,
+        "startyear": PVGIS_WEATHER_YEAR,
+        "endyear": PVGIS_WEATHER_YEAR,
         "components": 0,
     }
 

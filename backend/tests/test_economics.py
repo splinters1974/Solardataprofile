@@ -117,6 +117,52 @@ class TestEconomicSelection:
             assert alt["kwp"] >= r["kwp"]
             assert alt["self_consumed_kwh"] >= r["self_consumed_kwh"]
 
+    def test_a_small_site_gets_a_small_array(self):
+        """
+        Regression: the search used to start at 0.5 kWp whatever the site.
+        A 900 kWh/year flat load exports most of a 0.5 kWp array at midday,
+        so no candidate reached the target and the tool answered "0.5 kWp,
+        could not reach 80%" when the real answer was a fraction of that.
+        """
+        cons = _consumption("2024-01-01", level=0.05)  # ~876 kWh/year
+        r = recommend_system_size(cons, _uk_generation_profile(),
+                                  target_sc_min=0.80, target_sc_max=0.90)
+
+        assert r["warning"] is None
+        assert 0.80 <= r["sc_rate"] <= 0.90
+        # The grid has to resolve below the old 0.5 kWp floor to find this.
+        assert r["sizing_curve"][0]["kwp"] < 0.1
+
+    def test_the_answer_scales_with_the_load(self):
+        """A site ten times bigger wants an array ten times bigger."""
+        gen = _uk_generation_profile()
+        small = recommend_system_size(_consumption("2024-01-01", level=1.0), gen)
+        large = recommend_system_size(_consumption("2024-01-01", level=10.0), gen)
+
+        assert large["kwp"] == pytest.approx(small["kwp"] * 10, rel=0.15)
+        assert large["sc_rate"] == pytest.approx(small["sc_rate"], abs=0.05)
+
+    @pytest.mark.parametrize("level", [0.01, 0.05, 0.5, 5.0, 50.0, 500.0])
+    def test_a_flat_load_is_sizeable_at_every_scale(self, level):
+        """Flat profiles are the simplest input anyone will test with."""
+        cons = _consumption("2024-01-01", level=level)
+        r = recommend_system_size(cons, _uk_generation_profile(),
+                                  target_sc_min=0.80, target_sc_max=0.90)
+
+        assert r["warning"] is None, f"{level} kWh/HH: {r['warning']}"
+        assert 0.80 <= r["sc_rate"] <= 0.90
+        assert r["kwp"] > 0
+
+    def test_the_search_starts_well_below_the_full_offset_size(self):
+        cons = _consumption("2024-01-01", level=1.0)
+        gen = _uk_generation_profile()
+        curve = recommend_system_size(cons, gen)["sizing_curve"]
+
+        full_offset = cons.values.sum() / gen.values.sum()
+        assert curve[0]["kwp"] < full_offset * 0.1
+        assert curve[0]["sc_rate"] > 0.98  # a tiny array is fully absorbed
+        assert len(set(p["kwp"] for p in curve)) == len(curve)  # no collisions
+
     def test_inverted_band_is_rejected(self):
         with pytest.raises(ValueError):
             recommend_system_size(
