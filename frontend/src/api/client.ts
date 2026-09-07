@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { UploadResponse, SolarSizeResponse } from '../types';
+import type { UploadResponse, SolarSizeResponse, SizingValues } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -38,16 +38,31 @@ export async function uploadHHFile(file: File): Promise<UploadResponse> {
   return data;
 }
 
-export async function sizeSystem(payload: {
-  session_id: string;
-  postcode: string;
-  target_sc_min: number;
-  target_sc_max: number;
-  roof_tilt: number;
-  roof_aspect: number;
-}): Promise<SolarSizeResponse> {
+export async function sizeSystem(
+  payload: SizingValues & { session_id: string },
+): Promise<SolarSizeResponse> {
   const { data } = await api.post<SolarSizeResponse>('/solar/size', payload);
   return data;
+}
+
+// The PDF is built server-side so the report and the on-screen numbers can
+// never drift apart.
+export async function downloadReport(sessionId: string, siteName: string) {
+  const { data } = await api.get('/report/pdf', {
+    params: { session_id: sessionId },
+    responseType: 'blob',
+  });
+
+  const slug = (siteName || 'site').replace(/[^a-zA-Z0-9 _-]/g, '').trim()
+    .replace(/\s+/g, '-') || 'site';
+  const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${slug}-solar-appraisal.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function friendlyError(e: unknown, fallback: string): string {

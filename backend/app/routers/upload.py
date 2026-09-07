@@ -4,7 +4,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.models.schemas import UploadResponse, MonthlyTotal, HeatmapData, DailyPoint, HHPoint
 from app.services.excel_parser import load_and_normalise
 from app.services.usage_analytics import monthly_totals, heatmap_matrix, daily_series, hh_series
-from app.state import SESSION_STORE
+from app.state import SESSION_STORE, Session
 
 router = APIRouter()
 
@@ -33,7 +33,9 @@ async def upload_hh_data(file: UploadFile = File(...)):
         raise HTTPException(422, f"Could not parse file: {e}")
 
     session_id = str(uuid.uuid4())
-    SESSION_STORE[session_id] = df
+    SESSION_STORE[session_id] = Session(
+        consumption=df, filename=filename, warnings=warnings
+    )
 
     totals = monthly_totals(df)
     hm = heatmap_matrix(df)
@@ -44,6 +46,8 @@ async def upload_hh_data(file: UploadFile = File(...)):
         session_id=session_id,
         detected_format=fmt,
         days_parsed=len(df),
+        date_from=df.index[0].strftime("%Y-%m-%d"),
+        date_to=df.index[-1].strftime("%Y-%m-%d"),
         annual_kwh=round(df.values.sum(), 1),
         monthly_totals=[MonthlyTotal(**t) for t in totals],
         heatmap=HeatmapData(**hm),
