@@ -1,4 +1,5 @@
-import pandas as pd
+"""Kept as the import site the routers already use."""
 
-# In-memory session store: session_id → normalised HH DataFrame (N_days × 48)
-SESSION_STORE: dict[str, pd.DataFrame] = {}
+from app.services.session_store import SESSION_STORE, Session, SessionStore
+
+__all__ = ["SESSION_STORE", "Session", "SessionStore"]

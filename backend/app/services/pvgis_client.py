@@ -1,9 +1,56 @@
+import logging
+import os
+import tempfile
 from datetime import date, timedelta
+from pathlib import Path
 
 import httpx
+import numpy as np
 import pandas as pd
 
+log = logging.getLogger(__name__)
+
 PVGIS_URL = "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc"
+
+# PVGIS is slow (~30s) and its answer for a given location and roof geometry
+# does not change, so cache it. This is what lets a report be rebuilt after a
+# restart without making the user wait on the API again.
+CACHE_DIR = Path(
+    os.environ.get("PVGIS_CACHE_DIR", Path(tempfile.gettempdir()) / "sdp-pvgis")
+)
+
+
+def _cache_key(lat: float, lon: float, tilt: int, aspect: int, loss: int) -> str:
+    # ~100 m of resolution: finer than that makes no difference to irradiance.
+    return f"{lat:.3f}_{lon:.3f}_{tilt}_{aspect}_{loss}".replace("-", "m")
+
+
+def _read_cache(key: str) -> pd.DataFrame | None:
+    path = CACHE_DIR / f"{key}.npz"
+    if not path.exists():
+        return None
+    try:
+        with np.load(path, allow_pickle=False) as data:
+            return pd.DataFrame(
+                data["values"],
+                index=pd.DatetimeIndex(data["index"]),
+                columns=list(range(data["values"].shape[1])),
+            )
+    except (OSError, ValueError, KeyError) as e:
+        log.warning("Discarding unreadable PVGIS cache %s: %s", path, e)
+        return None
+
+
+def _write_cache(key: str, profile: pd.DataFrame) -> None:
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            CACHE_DIR / f"{key}.npz",
+            values=profile.to_numpy(dtype=float),
+            index=profile.index.to_numpy().astype("datetime64[ns]"),
+        )
+    except (OSError, ValueError) as e:
+        log.warning("Could not cache PVGIS profile: %s", e)
 
 
 async def fetch_generation_profile(
@@ -19,10 +66,17 @@ async def fetch_generation_profile(
 
     Tries PVGIS-SARAH2 first; falls back to ERA5 if unavailable.
     """
+    key = _cache_key(lat, lon, tilt, aspect, loss)
+    cached = _read_cache(key)
+    if cached is not None:
+        return cached
+
     for db in ("PVGIS-SARAH2", "ERA5"):
         try:
             df = await _fetch_pvgis(lat, lon, tilt, aspect, loss, db)
-            return _hourly_to_halfhourly(df)
+            profile = _hourly_to_halfhourly(df)
+            _write_cache(key, profile)
+            return profile
         except Exception:
             continue
 
@@ -95,7 +149,10 @@ def _hourly_to_halfhourly(hourly: pd.Series) -> pd.DataFrame:
         hh_series_df.index.hour * 2 + hh_series_df.index.minute // 30
     )
     pivot = hh_series_df.pivot(index="day", columns="slot", values="kwh")
-    pivot.index = pd.DatetimeIndex(pivot.index)
+    # Normalise the index so a freshly fetched profile and one read back from
+    # the cache are identical, not merely equivalent.
+    pivot.index = pd.DatetimeIndex(pivot.index).astype("datetime64[ns]")
+    pivot.index.name = None
     pivot.columns = list(range(48))
 
     # Trim to 365 days (PVGIS 2020 is a leap year)

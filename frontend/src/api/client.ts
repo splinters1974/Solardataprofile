@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
-import type { UploadResponse, SolarSizeResponse } from '../types';
+import type { UploadResponse, SolarSizeResponse, SizingValues } from '../types';
+import { rememberUpload, recallUpload } from './sessionCache';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -35,19 +36,70 @@ export async function uploadHHFile(file: File): Promise<UploadResponse> {
   const { data } = await api.post<UploadResponse>('/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  await rememberUpload(file);
   return data;
 }
 
-export async function sizeSystem(payload: {
-  session_id: string;
-  postcode: string;
-  target_sc_min: number;
-  target_sc_max: number;
-  roof_tilt: number;
-  roof_aspect: number;
-}): Promise<SolarSizeResponse> {
+function isMissingSession(e: unknown): boolean {
+  const err = e as AxiosError<{ detail?: string }>;
+  return (
+    err.response?.status === 404 &&
+    (err.response?.data?.detail ?? '').toLowerCase().includes('session')
+  );
+}
+
+/**
+ * Run a request; if the server has forgotten the session, re-upload the
+ * cached file and try once more with the new session id.
+ *
+ * Render's free tier drops the instance (and its disk) when it sleeps, so a
+ * session going missing is routine rather than exceptional. The user should
+ * not have to go and find their spreadsheet again because of it.
+ */
+export async function withSessionRecovery<T>(
+  sessionId: string,
+  run: (id: string) => Promise<T>,
+  onNewSession: (upload: UploadResponse) => void,
+): Promise<T> {
+  try {
+    return await run(sessionId);
+  } catch (e) {
+    if (!isMissingSession(e)) throw e;
+
+    const file = await recallUpload();
+    if (!file) throw e;
+
+    const upload = await uploadHHFile(file);
+    onNewSession(upload);
+    return await run(upload.session_id);
+  }
+}
+
+export async function sizeSystem(
+  payload: SizingValues & { session_id: string },
+): Promise<SolarSizeResponse> {
   const { data } = await api.post<SolarSizeResponse>('/solar/size', payload);
   return data;
+}
+
+// The PDF is built server-side so the report and the on-screen numbers can
+// never drift apart.
+export async function downloadReport(sessionId: string, siteName: string) {
+  const { data } = await api.get('/report/pdf', {
+    params: { session_id: sessionId },
+    responseType: 'blob',
+  });
+
+  const slug = (siteName || 'site').replace(/[^a-zA-Z0-9 _-]/g, '').trim()
+    .replace(/\s+/g, '-') || 'site';
+  const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${slug}-solar-appraisal.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function friendlyError(e: unknown, fallback: string): string {
@@ -61,4 +113,3 @@ export function friendlyError(e: unknown, fallback: string): string {
   }
   return fallback;
 }
-
