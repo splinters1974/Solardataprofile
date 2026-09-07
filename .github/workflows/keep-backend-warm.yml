@@ -1,0 +1,44 @@
+name: Keep Backend Warm
+
+# Render's free tier spins a service down after ~15 minutes idle, and the
+# cold start costs the user 30-60 seconds on their first request. Ping
+# /healthz through the working day so the instance is already up.
+#
+# Set the BACKEND_URL repository variable (Settings > Secrets and variables >
+# Actions > Variables) to the Render base URL, e.g. https://your-app.onrender.com
+
+on:
+  schedule:
+    # Every 10 minutes, 06:00-19:00 UTC, Monday to Friday.
+    - cron: '*/10 6-19 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-backend-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL variable is not set — skipping."
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$BACKEND_URL/healthz" || echo 000)
+            echo "Attempt $attempt: HTTP $code"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Backend did not respond with 200 after 3 attempts."
+          exit 1

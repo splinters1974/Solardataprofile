@@ -34,16 +34,20 @@ async def size_solar_system(req: SolarSizeRequest):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
 
-    result = recommend_system_size(
-        consumption_df,
-        gen_1kwp,
-        target_sc_min=req.target_sc_min,
-        target_sc_max=req.target_sc_max,
-    )
+    try:
+        result = recommend_system_size(
+            consumption_df,
+            gen_1kwp,
+            target_sc_min=req.target_sc_min,
+            target_sc_max=req.target_sc_max,
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
 
     return SolarSizeResponse(
         recommended_kwp=result["kwp"],
         sc_rate=result["sc_rate"],
+        offset_rate=result["offset_rate"],
         annual_generation_kwh=result["annual_generation_kwh"],
         self_consumed_kwh=result["self_consumed_kwh"],
         exported_kwh=result["exported_kwh"],

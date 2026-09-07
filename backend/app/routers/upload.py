@@ -9,7 +9,7 @@ from app.state import SESSION_STORE
 router = APIRouter()
 
 
-ACCEPTED_EXTENSIONS = (".xlsx", ".xls", ".csv", ".txt")
+ACCEPTED_EXTENSIONS = (".xlsx", ".xlsm", ".xls", ".csv", ".txt")
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -18,7 +18,7 @@ async def upload_hh_data(file: UploadFile = File(...)):
     if not any(filename.lower().endswith(ext) for ext in ACCEPTED_EXTENSIONS):
         raise HTTPException(
             400,
-            f"Unsupported file type. Please upload an Excel (.xlsx, .xls) or CSV (.csv) file.",
+            f"Unsupported file type. Please upload an Excel (.xlsx, .xlsm, .xls) or CSV (.csv) file.",
         )
 
     contents = await file.read()

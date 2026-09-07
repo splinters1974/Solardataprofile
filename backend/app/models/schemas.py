@@ -55,6 +55,7 @@ class MonthlySolarPoint(BaseModel):
 class SizingCurvePoint(BaseModel):
     kwp: float
     sc_rate: float
+    offset_rate: float = 0.0
     annual_generation_kwh: float
     exported_kwh: float
     summer_export_kwh: float
@@ -69,6 +70,7 @@ class LocationInfo(BaseModel):
 class SolarSizeResponse(BaseModel):
     recommended_kwp: float
     sc_rate: float
+    offset_rate: float = 0.0
     annual_generation_kwh: float
     self_consumed_kwh: float
     exported_kwh: float
