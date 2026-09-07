@@ -13,6 +13,7 @@ const KEY = 'last-upload';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface CachedUpload {
+  sessionId: string;
   name: string;
   type: string;
   bytes: ArrayBuffer;
@@ -33,14 +34,14 @@ function openDb(): Promise<IDBDatabase> {
 }
 
 /** Never let a storage problem break the upload the user just made. */
-export async function rememberUpload(file: File): Promise<void> {
+export async function rememberUpload(file: File, sessionId: string): Promise<void> {
   try {
     const bytes = await file.arrayBuffer();
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).put(
-        { name: file.name, type: file.type, bytes, savedAt: Date.now() },
+        { sessionId, name: file.name, type: file.type, bytes, savedAt: Date.now() },
         KEY,
       );
       tx.oncomplete = () => resolve();
@@ -53,7 +54,14 @@ export async function rememberUpload(file: File): Promise<void> {
   }
 }
 
-export async function recallUpload(): Promise<File | null> {
+/**
+ * Return the cached file only if it is the one that created `sessionId`.
+ *
+ * Without that check, recovery could re-upload a previous site's data after
+ * a failed upload left an older file in the cache, and the user would be
+ * looking at the wrong numbers with no sign anything was wrong.
+ */
+export async function recallUpload(sessionId: string): Promise<File | null> {
   try {
     const db = await openDb();
     const cached = await new Promise<CachedUpload | undefined>((resolve, reject) => {
@@ -65,6 +73,7 @@ export async function recallUpload(): Promise<File | null> {
     db.close();
 
     if (!cached || Date.now() - cached.savedAt > MAX_AGE_MS) return null;
+    if (cached.sessionId !== sessionId) return null;
     return new File([cached.bytes], cached.name, { type: cached.type });
   } catch {
     return null;

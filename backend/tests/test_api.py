@@ -82,6 +82,54 @@ class TestUpload:
         response = client.post("/api/upload", files={"file": ("hh.csv", b"")})
         assert response.status_code == 400
 
+    def test_upload_echoes_the_filename(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        assert body["filename"] == "hh.csv"
+
+    def test_each_upload_gets_its_own_session(self, client, hh_csv):
+        """A second file must not land in the first one's session."""
+        first = _upload(client, hh_csv)
+        second = _upload(client, hh_csv)
+        assert first["session_id"] != second["session_id"]
+
+    def test_a_rejected_upload_leaves_the_previous_one_alone(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        client.post("/api/upload", files={"file": ("bad.csv", b"nonsense,data\n1,2")})
+
+        # The good session is untouched and still sizes.
+        assert _size(client, body["session_id"]).status_code == 200
+
+
+class TestForgetSession:
+    def test_clearing_removes_the_session(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        assert _size(client, body["session_id"]).status_code == 200
+
+        assert client.delete(f"/api/session/{body['session_id']}").status_code == 204
+        assert _size(client, body["session_id"]).status_code == 404
+
+    def test_the_report_goes_with_it(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        _size(client, body["session_id"])
+        client.delete(f"/api/session/{body['session_id']}")
+
+        response = client.get(
+            "/api/report/pdf", params={"session_id": body["session_id"]}
+        )
+        assert response.status_code == 404
+
+    def test_clearing_an_unknown_session_is_not_an_error(self, client):
+        """The UI resets regardless, so this must never fail the request."""
+        assert client.delete("/api/session/never-existed").status_code == 204
+
+    def test_clearing_one_session_leaves_others(self, client, hh_csv):
+        keep = _upload(client, hh_csv)
+        drop = _upload(client, hh_csv)
+
+        client.delete(f"/api/session/{drop['session_id']}")
+        assert _size(client, keep["session_id"]).status_code == 200
+        assert _size(client, drop["session_id"]).status_code == 404
+
 
 class TestSizing:
     def test_headline_numbers_are_finite(self, client, hh_csv):
