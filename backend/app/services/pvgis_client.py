@@ -30,6 +30,27 @@ def _cache_key(lat: float, lon: float, tilt: int, aspect: int, loss: int) -> str
     return f"{lat:.3f}_{lon:.3f}_{tilt}_{aspect}_{loss}".replace("-", "m")
 
 
+# Annual yield bounds for 1 kWp, kWh. A north-facing vertical wall in
+# Scotland still manages a couple of hundred; anything below the floor means
+# the fetch failed rather than the roof being poor.
+MIN_PLAUSIBLE_YIELD = 50.0
+MAX_PLAUSIBLE_YIELD = 3_000.0
+
+
+def _is_plausible(profile: pd.DataFrame) -> bool:
+    """
+    Reject a profile that cannot be real irradiance.
+
+    A silently-zero profile is worse than an error: the sizing engine
+    happily reports "0 kWp, could not reach 70% self-consumption", which
+    reads as a finding about the site rather than a broken data feed.
+    """
+    if profile.empty or profile.isna().any().any():
+        return False
+    total = float(profile.values.sum())
+    return MIN_PLAUSIBLE_YIELD <= total <= MAX_PLAUSIBLE_YIELD
+
+
 def _read_cache(key: str) -> pd.DataFrame | None:
     path = CACHE_DIR / f"{key}.npz"
     if not path.exists():
@@ -73,20 +94,33 @@ async def fetch_generation_profile(
     """
     key = _cache_key(lat, lon, tilt, aspect, loss)
     cached = _read_cache(key)
-    if cached is not None:
+    if cached is not None and _is_plausible(cached):
         return cached
 
+    failures: list[str] = []
     for db in ("PVGIS-SARAH2", "ERA5"):
         try:
             df = await _fetch_pvgis(lat, lon, tilt, aspect, loss, db)
             profile = _hourly_to_halfhourly(df)
-            _write_cache(key, profile)
-            return profile
-        except Exception:
+        except Exception as e:
+            failures.append(f"{db}: {type(e).__name__}: {e}")
             continue
 
+        if not _is_plausible(profile):
+            # Cache nothing. A bad profile stored here would keep serving a
+            # broken appraisal long after the underlying fault was fixed.
+            failures.append(
+                f"{db}: implausible yield "
+                f"{profile.values.sum():.0f} kWh/kWp/year"
+            )
+            continue
+
+        _write_cache(key, profile)
+        return profile
+
     raise RuntimeError(
-        f"PVGIS returned no usable data for lat={lat:.4f}, lon={lon:.4f}"
+        f"Could not get usable irradiance data for lat={lat:.4f}, lon={lon:.4f}. "
+        + " | ".join(failures)
     )
 
 
@@ -100,6 +134,9 @@ async def _fetch_pvgis(
         "browser": 0,
         "outputformat": "json",
         "usehorizon": 1,
+        # Without this PVGIS returns irradiance only and no PV power field.
+        # Omitting it is why every profile came back as zeros.
+        "pvcalculation": 1,
         "peakpower": 1,
         "pvtechnology": "crystSi",
         "mountingplace": "building",
@@ -117,6 +154,9 @@ async def _fetch_pvgis(
         data = r.json()
 
     hourly = data["outputs"]["hourly"]
+    if not hourly:
+        raise ValueError("PVGIS returned no hourly rows.")
+
     times, powers = [], []
     for entry in hourly:
         # time format: "20200101:0010"
@@ -129,7 +169,15 @@ async def _fetch_pvgis(
             minute=int(t_str[11:13]),
         )
         times.append(dt)
-        powers.append(float(entry.get("P", 0)))  # W for 1 kWp
+        # Never default a missing power to zero. Doing that turned a wrong
+        # request into a plausible-looking profile of all zeros, which the
+        # sizing engine then reported as "0 kWp, could not reach 70%".
+        if "P" not in entry:
+            raise ValueError(
+                "PVGIS response has no PV power field. "
+                "Check that pvcalculation=1 is being sent."
+            )
+        powers.append(float(entry["P"]))  # W for 1 kWp
 
     series = pd.Series(powers, index=pd.DatetimeIndex(times), name="power_w")
     # Convert W to kWh/h

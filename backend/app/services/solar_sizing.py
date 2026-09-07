@@ -203,6 +203,17 @@ def recommend_system_size(
             "Minimum self-consumption cannot be higher than the maximum."
         )
 
+    # Last line of defence against a broken irradiance feed. Without this a
+    # zero-generation profile produces a complete, confident-looking report
+    # recommending 0 kWp — an answer about the data feed dressed up as an
+    # answer about the site.
+    if float(gen_1kwp.values.sum()) <= 0:
+        raise ValueError(
+            "The generation profile for this location is empty, so the array "
+            "cannot be sized. This is a problem with the irradiance data, not "
+            "with your consumption file. Please try again."
+        )
+
     assumptions = assumptions or Assumptions()
     gen_1kwp = align_generation(consumption, gen_1kwp)
     summer_mask = np.isin(consumption.index.month.to_numpy(), SUMMER_MONTHS)
