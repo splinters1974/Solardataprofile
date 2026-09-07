@@ -3,8 +3,6 @@ import pandas as pd
 
 from app.services.economics import Appraisal, Assumptions, appraise
 
-PERFORMANCE_RATIO = 0.80
-
 SUMMER_MONTHS = (6, 7, 8)
 
 
@@ -126,33 +124,52 @@ def _monthly_chart(
     return months
 
 
+CANDIDATE_COUNT = 100
+# How far past "generates the whole annual demand" to keep searching. Past
+# this the array is exporting most of what it makes and the curve is flat.
+SEARCH_HEADROOM = 2.5
+
+
 def _candidate_sizes(consumption: pd.DataFrame, gen_1kwp: pd.DataFrame) -> list[float]:
     """
-    Size the search range from the site itself.
+    Size the search range from the site itself, at every scale.
 
-    A fixed 0.5–20 kWp ladder is fine for a house and useless for a leisure
-    centre. Cap the search where generation would reach twice annual demand,
-    which is well past any sensible self-consumption-led recommendation.
+    The range is set as a proportion of the array that would generate the
+    site's whole annual demand, so a 900 kWh flat load and a 1 GWh leisure
+    centre both get the same resolution relative to their size.
+
+    Do not put an absolute floor on this. An earlier version started the
+    search at 0.5 kWp, which is already too big for a site drawing a couple
+    of hundred watts: every candidate exported at midday, no size reached
+    the self-consumption target, and the tool reported 0.5 kWp with "could
+    not reach 80%" when the honest answer was a fraction of that.
     """
     annual_cons = float(consumption.values.sum())
     yield_per_kwp = float(gen_1kwp.values.sum())
-    if yield_per_kwp <= 0:
+    if yield_per_kwp <= 0 or annual_cons <= 0:
         return [round(s * 0.5, 1) for s in range(1, 41)]
 
-    max_kwp = max(20.0, (2.0 * annual_cons) / yield_per_kwp)
-    max_kwp = min(max_kwp, 5000.0)
+    kwp_full_offset = annual_cons / yield_per_kwp
+    top = min(kwp_full_offset * SEARCH_HEADROOM, 20_000.0)
+    step = top / CANDIDATE_COUNT
 
-    # ~60 evenly spaced candidates, rounded to a sane increment for the scale.
-    step = max_kwp / 60.0
-    if step < 0.5:
-        step = 0.5
-    elif step < 5:
-        step = round(step * 2) / 2
+    # Round to a precision that suits the scale, but never so coarsely that
+    # candidates collide and the search loses resolution.
+    if step >= 5:
+        decimals = 0
+    elif step >= 0.5:
+        decimals = 1
+    elif step >= 0.05:
+        decimals = 2
     else:
-        step = float(round(step))
+        decimals = 3
 
-    n = int(max_kwp / step) + 1
-    return [round(step * i, 1) for i in range(1, n + 1)]
+    sizes: list[float] = []
+    for i in range(1, CANDIDATE_COUNT + 1):
+        value = round(step * i, decimals)
+        if value > 0 and (not sizes or value > sizes[-1]):
+            sizes.append(value)
+    return sizes
 
 
 def _payback_key(r: dict) -> float:

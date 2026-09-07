@@ -17,6 +17,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from app.services.pvgis_client import DEFAULT_SYSTEM_LOSS, PVGIS_WEATHER_YEAR
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
@@ -41,8 +42,8 @@ DISCLAIMER = (
     "This report is an indicative desktop appraisal produced from the "
     "half-hourly consumption data supplied and modelled irradiance for the "
     "site postcode. It is not a design, a quotation, or a guarantee of "
-    "performance. Generation is modelled from PVGIS using a typical "
-    "meteorological year, so actual output will vary year to year. Costs, "
+    "performance. Generation is modelled from PVGIS for a single weather "
+    "year, so a sunnier or duller year will shift output either way. Costs, "
     "tariffs and discount rates are the assumptions listed in this report "
     "and should be replaced with project-specific figures before the "
     "numbers are relied on. No allowance has been made for roof area, "
@@ -276,6 +277,7 @@ def build_report(
     tilt: int,
     aspect: int,
     data_warnings: list[str],
+    system_loss: int = DEFAULT_SYSTEM_LOSS,
 ) -> bytes:
     styles = _styles()
     appraisal = result["_appraisal"]
@@ -462,7 +464,8 @@ def build_report(
         ["Annual output degradation", _pct(assumptions.degradation_rate, 2)],
         ["Grid carbon factor", f"{assumptions.carbon_factor:.3f} kgCO2e/kWh"],
         ["Roof pitch and orientation", f"{tilt}° at {_aspect_label(aspect)}"],
-        ["Irradiance source", "PVGIS typical meteorological year"],
+        ["Irradiance source",
+         f"PVGIS, {PVGIS_WEATHER_YEAR} weather year, {system_loss}% system loss"],
         ["Consumption data", f"{days_analysed} days, {date_from} to {date_to}"],
     ], [doc.width * 0.42, doc.width * 0.58]))
 
