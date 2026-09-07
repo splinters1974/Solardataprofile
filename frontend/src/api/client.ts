@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import type { UploadResponse, SolarSizeResponse, SizingValues } from '../types';
+import { rememberUpload, recallUpload } from './sessionCache';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -35,7 +36,43 @@ export async function uploadHHFile(file: File): Promise<UploadResponse> {
   const { data } = await api.post<UploadResponse>('/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  await rememberUpload(file);
   return data;
+}
+
+function isMissingSession(e: unknown): boolean {
+  const err = e as AxiosError<{ detail?: string }>;
+  return (
+    err.response?.status === 404 &&
+    (err.response?.data?.detail ?? '').toLowerCase().includes('session')
+  );
+}
+
+/**
+ * Run a request; if the server has forgotten the session, re-upload the
+ * cached file and try once more with the new session id.
+ *
+ * Render's free tier drops the instance (and its disk) when it sleeps, so a
+ * session going missing is routine rather than exceptional. The user should
+ * not have to go and find their spreadsheet again because of it.
+ */
+export async function withSessionRecovery<T>(
+  sessionId: string,
+  run: (id: string) => Promise<T>,
+  onNewSession: (upload: UploadResponse) => void,
+): Promise<T> {
+  try {
+    return await run(sessionId);
+  } catch (e) {
+    if (!isMissingSession(e)) throw e;
+
+    const file = await recallUpload();
+    if (!file) throw e;
+
+    const upload = await uploadHHFile(file);
+    onNewSession(upload);
+    return await run(upload.session_id);
+  }
 }
 
 export async function sizeSystem(
@@ -76,4 +113,3 @@ export function friendlyError(e: unknown, fallback: string): string {
   }
   return fallback;
 }
-

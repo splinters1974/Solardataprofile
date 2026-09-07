@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { uploadHHFile, sizeSystem, friendlyError, warmupBackend, downloadReport } from './api/client';
+import {
+  uploadHHFile,
+  sizeSystem,
+  friendlyError,
+  warmupBackend,
+  downloadReport,
+  withSessionRecovery,
+} from './api/client';
 import type { UploadResponse, SolarSizeResponse, SizingValues } from './types';
 import FileUpload from './components/FileUpload';
 import MonthlyBarChart from './components/MonthlyBarChart';
@@ -53,7 +60,13 @@ export default function App() {
     setSolarLoading(true);
     setSolarError(null);
     try {
-      const result = await sizeSystem({ session_id: uploadResult.session_id, ...values });
+      // If the server has forgotten the session (Render sleeps and takes its
+      // disk with it), the cached upload is re-sent behind the scenes.
+      const result = await withSessionRecovery(
+        uploadResult.session_id,
+        (id) => sizeSystem({ session_id: id, ...values }),
+        setUploadResult,
+      );
       setSolarResult(result);
       setBackendStatus('ready');
     } catch (e: any) {
@@ -70,7 +83,19 @@ export default function App() {
 
   async function handleDownloadReport() {
     if (!uploadResult) return;
-    await downloadReport(uploadResult.session_id, lastSizingValues?.site_name ?? '');
+    await withSessionRecovery(
+      uploadResult.session_id,
+      async (id) => {
+        // A recovered session has no sizing behind it yet, so re-run it
+        // before asking for the report.
+        if (id !== uploadResult.session_id && lastSizingValues) {
+          const result = await sizeSystem({ session_id: id, ...lastSizingValues });
+          setSolarResult(result);
+        }
+        await downloadReport(id, lastSizingValues?.site_name ?? '');
+      },
+      setUploadResult,
+    );
   }
 
   return (

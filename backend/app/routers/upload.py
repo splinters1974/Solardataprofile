@@ -32,10 +32,15 @@ async def upload_hh_data(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(422, f"Could not parse file: {e}")
 
+    SESSION_STORE.purge_expired()
+
     session_id = str(uuid.uuid4())
-    SESSION_STORE[session_id] = Session(
-        consumption=df, filename=filename, warnings=warnings
-    )
+    SESSION_STORE.save(session_id, Session(
+        consumption=df,
+        filename=filename,
+        warnings=warnings,
+        detected_format=fmt,
+    ))
 
     totals = monthly_totals(df)
     hm = heatmap_matrix(df)

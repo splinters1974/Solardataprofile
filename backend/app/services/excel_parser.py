@@ -264,6 +264,11 @@ def load_and_normalise(
             "Seasonal solar matching may be shifted if that is wrong."
         )
 
+    # Pin the index to nanosecond resolution. pandas picks microseconds for
+    # some inputs, and that difference would otherwise survive into the
+    # session store and show up as a dtype mismatch on reload.
+    numeric.index = numeric.index.astype("datetime64[ns]")
+
     n_days = len(numeric)
     if n_days == 0:
         raise ValueError("No readings found in the file.")

@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-import app.routers.solar as solar_router
+import app.services.sizing_service as sizing_service
 from app.main import app
 
 from test_parser_and_sizing import _csv_bytes, _uk_generation_profile
@@ -26,8 +26,8 @@ def stub_external(monkeypatch):
     async def fake_generation(lat, lon, tilt=35, aspect=0, loss=14):
         return profile.copy()
 
-    monkeypatch.setattr(solar_router, "postcode_to_latlon", fake_postcode)
-    monkeypatch.setattr(solar_router, "fetch_generation_profile", fake_generation)
+    monkeypatch.setattr(sizing_service, "postcode_to_latlon", fake_postcode)
+    monkeypatch.setattr(sizing_service, "fetch_generation_profile", fake_generation)
 
 
 @pytest.fixture
