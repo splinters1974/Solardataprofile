@@ -104,6 +104,19 @@ def _years(v: float | None) -> str:
     return "Never" if v is None else f"{v:.1f} yrs"
 
 
+def _kwp(v: float) -> str:
+    """
+    Show enough precision for the size to be readable at any scale.
+    Rounding to whole kWp printed a 0.5 kWp array as "0 kWp" next to its
+    own £550 capital cost.
+    """
+    if v < 1:
+        return f"{v:,.2f}"
+    if v < 10:
+        return f"{v:,.1f}"
+    return f"{v:,.0f}"
+
+
 def _headline_band(styles, cells: list[tuple[str, str]]) -> Table:
     row = [
         [Paragraph(value, styles["headline_num"]) for value, _ in cells],
@@ -258,7 +271,7 @@ def _payback_chart(curve: list[dict], chosen_kwp: float) -> Drawing:
     if chosen:
         drawing.add(String(
             44, 12,
-            f"Recommended: {chosen['kwp']:,.0f} kWp at "
+            f"Recommended: {_kwp(chosen['kwp'])} kWp at "
             f"{chosen['simple_payback_years']:.1f} year payback and "
             f"{chosen['sc_rate'] * 100:.0f}% self-consumption",
             fontName="Helvetica-Bold", fontSize=7.5, fillColor=BRAND))
@@ -314,7 +327,7 @@ def build_report(
     ))
 
     story.append(_headline_band(styles, [
-        (f"{result['kwp']:,.0f}", "RECOMMENDED kWp"),
+        (_kwp(result["kwp"]), "RECOMMENDED kWp"),
         (_years(appraisal.simple_payback_years), "SIMPLE PAYBACK"),
         (_money(appraisal.year_one_saving), "YEAR 1 SAVING"),
         (_pct(result["sc_rate"], 0), "SELF-CONSUMPTION"),
@@ -326,7 +339,7 @@ def build_report(
         f"Sized against {days_analysed} days of half-hourly metered consumption "
         f"({date_from} to {date_to}), giving an annualised demand of "
         f"{result['annual_consumption_kwh']:,.0f} kWh. A "
-        f"{result['kwp']:,.0f} kWp array on a {tilt}° roof at "
+        f"{_kwp(result['kwp'])} kWp array on a {tilt}° roof at "
         f"{_aspect_label(aspect)} would generate "
         f"{result['annual_generation_kwh']:,.0f} kWh a year, of which "
         f"{_pct(result['sc_rate'], 0)} is used on site. That meets "
@@ -432,7 +445,7 @@ def build_report(
         story.append(Paragraph("Alternative: maximum energy on site", styles["h2"]))
         story.append(Paragraph(
             f"If the priority is displacing as much grid import as possible "
-            f"rather than the shortest payback, {alt['kwp']:,.0f} kWp is the "
+            f"rather than the shortest payback, {_kwp(alt['kwp'])} kWp is the "
             f"largest array that still keeps self-consumption at or above "
             f"{_pct(result.get('target_sc_min', 0.70), 0)}. It generates "
             f"{alt['annual_generation_kwh']:,.0f} kWh a year and uses "
