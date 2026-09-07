@@ -28,6 +28,7 @@ class UploadResponse(BaseModel):
     detected_format: str
     days_parsed: int
     annual_kwh: float
+    filename: str = ""
     date_from: Optional[str] = None
     date_to: Optional[str] = None
     monthly_totals: list[MonthlyTotal]

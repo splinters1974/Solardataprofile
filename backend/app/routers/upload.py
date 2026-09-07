@@ -1,7 +1,10 @@
 import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import Response
 
-from app.models.schemas import UploadResponse, MonthlyTotal, HeatmapData, DailyPoint, HHPoint
+from app.models.schemas import (
+    UploadResponse, MonthlyTotal, HeatmapData, DailyPoint, HHPoint,
+)
 from app.services.excel_parser import load_and_normalise
 from app.services.usage_analytics import monthly_totals, heatmap_matrix, daily_series, hh_series
 from app.state import SESSION_STORE, Session
@@ -54,9 +57,22 @@ async def upload_hh_data(file: UploadFile = File(...)):
         date_from=df.index[0].strftime("%Y-%m-%d"),
         date_to=df.index[-1].strftime("%Y-%m-%d"),
         annual_kwh=round(df.values.sum(), 1),
+        filename=filename,
         monthly_totals=[MonthlyTotal(**t) for t in totals],
         heatmap=HeatmapData(**hm),
         daily_series=[DailyPoint(**d) for d in ds],
         hh_series=[HHPoint(**h) for h in hhs],
         warnings=warnings,
     )
+
+
+@router.delete("/session/{session_id}", status_code=204)
+async def forget_session(session_id: str):
+    """
+    Drop an upload and everything derived from it.
+
+    Used by the frontend's "clear data" action so a new site starts from
+    nothing rather than inheriting the previous one's numbers.
+    """
+    SESSION_STORE.delete(session_id)
+    return Response(status_code=204)

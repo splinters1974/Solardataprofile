@@ -24,6 +24,7 @@ export interface UploadResponse {
   detected_format: string;
   days_parsed: number;
   annual_kwh: number;
+  filename: string;
   date_from?: string;
   date_to?: string;
   monthly_totals: MonthlyTotal[];

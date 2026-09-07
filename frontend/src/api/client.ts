@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import type { UploadResponse, SolarSizeResponse, SizingValues } from '../types';
-import { rememberUpload, recallUpload } from './sessionCache';
+import { rememberUpload, recallUpload, forgetUpload } from './sessionCache';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -36,8 +36,19 @@ export async function uploadHHFile(file: File): Promise<UploadResponse> {
   const { data } = await api.post<UploadResponse>('/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  await rememberUpload(file);
+  await rememberUpload(file, data.session_id);
   return data;
+}
+
+/** Tell the server to forget an upload. Best effort: the UI resets either way. */
+export async function forgetSession(sessionId: string): Promise<void> {
+  try {
+    await api.delete(`/session/${sessionId}`, { timeout: 15_000 });
+  } catch {
+    // The session may already be gone, or the server asleep. Either way the
+    // user asked to start again, and the local reset is what they will see.
+  }
+  await forgetUpload();
 }
 
 function isMissingSession(e: unknown): boolean {
@@ -66,7 +77,7 @@ export async function withSessionRecovery<T>(
   } catch (e) {
     if (!isMissingSession(e)) throw e;
 
-    const file = await recallUpload();
+    const file = await recallUpload(sessionId);
     if (!file) throw e;
 
     const upload = await uploadHHFile(file);

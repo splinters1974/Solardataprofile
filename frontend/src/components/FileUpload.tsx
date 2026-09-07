@@ -1,20 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 interface Props {
   onUpload: (file: File) => void;
   loading: boolean;
+  /**
+   * The file the server actually parsed, not the one that was dropped.
+   * Keeping its own copy meant a rejected file still showed as loaded.
+   */
+  fileName: string | null;
 }
 
-export default function FileUpload({ onUpload, loading }: Props) {
-  const [fileName, setFileName] = useState<string | null>(null);
-
+export default function FileUpload({ onUpload, loading, fileName }: Props) {
   const onDrop = useCallback(
     (accepted: File[]) => {
-      if (accepted[0]) {
-        setFileName(accepted[0].name);
-        onUpload(accepted[0]);
-      }
+      if (accepted[0]) onUpload(accepted[0]);
     },
     [onUpload]
   );
@@ -48,7 +48,12 @@ export default function FileUpload({ onUpload, loading }: Props) {
         {loading ? (
           <p className="text-slate-600 font-medium">Parsing data…</p>
         ) : fileName ? (
-          <p className="text-emerald-700 font-medium">{fileName}</p>
+          <>
+            <p className="text-emerald-700 font-medium">{fileName}</p>
+            <p className="text-slate-400 text-sm">
+              Drop another file to replace it
+            </p>
+          </>
         ) : (
           <>
             <p className="text-slate-700 font-medium">

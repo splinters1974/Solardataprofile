@@ -6,6 +6,7 @@ import {
   warmupBackend,
   downloadReport,
   withSessionRecovery,
+  forgetSession,
 } from './api/client';
 import type { UploadResponse, SolarSizeResponse, SizingValues } from './types';
 import FileUpload from './components/FileUpload';
@@ -16,6 +17,7 @@ import SolarSizingForm from './components/SolarSizingForm';
 import SolarResultsPanel from './components/SolarResultsPanel';
 import GenerationChart from './components/GenerationChart';
 import SizingCurveChart from './components/SizingCurveChart';
+import LoadedDataBar from './components/LoadedDataBar';
 
 type BackendStatus = 'connecting' | 'ready' | 'unreachable';
 
@@ -28,6 +30,28 @@ export default function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [solarError, setSolarError] = useState<string | null>(null);
   const [lastSizingValues, setLastSizingValues] = useState<SizingValues | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  // Everything downstream of an upload. Reset as one so a new file can never
+  // leave a previous site's charts, sizing or session id on the page.
+  const resetAnalysis = useCallback(() => {
+    setUploadResult(null);
+    setSolarResult(null);
+    setUploadError(null);
+    setSolarError(null);
+    setLastSizingValues(null);
+  }, []);
+
+  async function handleClearData() {
+    const previous = uploadResult?.session_id;
+    setClearing(true);
+    resetAnalysis();
+    try {
+      if (previous) await forgetSession(previous);
+    } finally {
+      setClearing(false);
+    }
+  }
 
   const pingBackend = useCallback(async () => {
     setBackendStatus('connecting');
@@ -39,9 +63,15 @@ export default function App() {
   useEffect(() => { pingBackend(); }, [pingBackend]);
 
   async function handleUpload(file: File) {
+    // Clear first, not on success. If the new file fails to parse, the old
+    // site's charts must not be left on screen under an error message —
+    // that reads as "it analysed my new data" when it did nothing of the sort.
+    const previous = uploadResult?.session_id;
+    resetAnalysis();
     setUploadLoading(true);
-    setUploadError(null);
-    setSolarResult(null);
+
+    if (previous) void forgetSession(previous);
+
     try {
       const result = await uploadHHFile(file);
       setUploadResult(result);
@@ -171,7 +201,20 @@ export default function App() {
             <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">1</span>
             <h2 className="font-semibold text-slate-700">Upload 12-Month HH Data</h2>
           </div>
-          <FileUpload onUpload={handleUpload} loading={uploadLoading} />
+          <FileUpload
+            onUpload={handleUpload}
+            loading={uploadLoading}
+            fileName={uploadResult?.filename ?? null}
+          />
+          {uploadResult && (
+            <div className="mt-3">
+              <LoadedDataBar
+                upload={uploadResult}
+                onClear={handleClearData}
+                clearing={clearing}
+              />
+            </div>
+          )}
           {uploadError && (
             <div className="mt-2 flex items-start gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
               <span className="flex-1">{uploadError}</span>
