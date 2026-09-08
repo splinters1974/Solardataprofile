@@ -96,7 +96,7 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Simple Payback" value={years(e.simple_payback_years)} />
         <StatCard label="Year 1 Saving" value={money(e.year_one_saving)} />
-        <StatCard label="Capital Cost" value={money(e.capex)} sub={`${money(e.capex_per_kwp)}/kWp`} />
+        <StatCard label="Capital Cost" value={money(e.capex)} />
         <StatCard
           label="Self-Consumption"
           value={pct(result.sc_rate)}

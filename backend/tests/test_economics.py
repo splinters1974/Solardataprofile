@@ -15,7 +15,9 @@ def _flat() -> Assumptions:
         export_price_p_kwh=0.0,
         capex_per_kwp=1000.0,
         opex_per_kwp_year=0.0,
-        price_inflation=0.0,
+        import_price_inflation=0.0,
+        export_price_inflation=0.0,
+        opex_inflation=0.0,
         discount_rate=0.0,
         degradation_rate=0.0,
         system_life_years=25,
@@ -57,15 +59,48 @@ class TestAppraisal:
         assert result.irr is None
         assert result.npv < 0
 
-    def test_capex_per_kwp_falls_with_scale(self):
-        tiered = Assumptions()
-        assert tiered.capex_rate(5.0) > tiered.capex_rate(500.0)
-        assert tiered.capex_rate(500.0) > tiered.capex_rate(5000.0)
+    def test_capex_is_a_flat_rate_at_every_size(self):
+        """Quoted as one inclusive £/kWp, not a size-tiered curve."""
+        house = Assumptions()
+        assert house.capex_per_kwp == 800.0
+        assert house.capex_rate(5.0) == house.capex_rate(5000.0) == 800.0
 
-    def test_explicit_capex_overrides_the_curve(self):
+    def test_capex_can_be_overridden(self):
         fixed = Assumptions(capex_per_kwp=777.0)
         assert fixed.capex_rate(5.0) == 777.0
         assert fixed.capex_rate(5000.0) == 777.0
+
+    def test_import_and_opex_escalate_on_their_own_rates(self):
+        """
+        The avoided energy price and the cost of running the array are
+        unrelated, so one inflation figure for both would be wrong.
+        """
+        a = Assumptions(
+            import_price_p_kwh=25.0, export_price_p_kwh=0.0,
+            capex_per_kwp=800.0, opex_per_kwp_year=10.0,
+            import_price_inflation=0.02, opex_inflation=0.03,
+            degradation_rate=0.0, discount_rate=0.0, system_life_years=25,
+        )
+        result = appraise(100.0, 100_000.0, 0.0, a)
+
+        # Year 1: 100,000 kWh x 25p = £25,000, less £1,000 O&M.
+        assert result.cashflow[1] == pytest.approx(24_000, abs=1)
+        # Year 2: saving up 2%, O&M up 3%.
+        assert result.cashflow[2] == pytest.approx(
+            25_000 * 1.02 - 1_000 * 1.03, abs=1
+        )
+
+    def test_savings_grow_year_on_year(self):
+        a = Assumptions(export_price_p_kwh=0.0, degradation_rate=0.0)
+        flows = appraise(100.0, 100_000.0, 0.0, a).cashflow[1:]
+        assert flows == sorted(flows)
+
+    def test_everything_on_site_avoids_import_and_the_rest_exports(self):
+        a = Assumptions(import_price_p_kwh=25.0, export_price_p_kwh=5.0,
+                        opex_per_kwp_year=0.0)
+        result = appraise(100.0, 80_000.0, 20_000.0, a)
+        assert result.year_one_import_saving == pytest.approx(20_000)  # 80k x 25p
+        assert result.year_one_export_income == pytest.approx(1_000)   # 20k x 5p
 
     def test_carbon_scales_with_total_generation(self):
         result = appraise(100.0, 60_000.0, 40_000.0, Assumptions(carbon_factor=0.2))

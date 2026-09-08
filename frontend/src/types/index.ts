@@ -77,9 +77,11 @@ export interface Economics {
 export interface EconomicAssumptions {
   import_price_p_kwh: number;
   export_price_p_kwh: number;
-  capex_per_kwp: number | null;
+  capex_per_kwp: number;
   opex_per_kwp_year: number;
-  price_inflation: number;
+  import_price_inflation: number;
+  export_price_inflation: number;
+  opex_inflation: number;
   discount_rate: number;
   system_life_years: number;
   degradation_rate: number;
