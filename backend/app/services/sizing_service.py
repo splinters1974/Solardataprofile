@@ -10,7 +10,7 @@ from typing import Any
 
 from app.services.economics import Assumptions
 from app.services.postcode_lookup import postcode_to_latlon
-from app.services.pvgis_client import fetch_generation_profile
+from app.services.pvgis_client import fetch_generation_profile, yield_sanity_warning
 from app.services.session_store import Session
 from app.services.solar_sizing import recommend_system_size
 
@@ -26,11 +26,8 @@ class UpstreamError(Exception):
 async def run_sizing(session: Session, request: dict[str, Any]) -> tuple[dict, float, float]:
     """Returns (result, lat, lon)."""
     postcode = request["postcode"]
-    target_min = request.get("target_sc_min", 0.70)
-    target_max = request.get("target_sc_max", 0.90)
-
-    if target_min > target_max:
-        raise SizingError("Minimum self-consumption cannot be higher than the maximum.")
+    tilt = request.get("roof_tilt", 35)
+    aspect = request.get("roof_aspect", 0)
 
     try:
         lat, lon = await postcode_to_latlon(postcode)
@@ -38,12 +35,7 @@ async def run_sizing(session: Session, request: dict[str, Any]) -> tuple[dict, f
         raise SizingError(str(e)) from e
 
     try:
-        gen_1kwp = await fetch_generation_profile(
-            lat,
-            lon,
-            tilt=request.get("roof_tilt", 35),
-            aspect=request.get("roof_aspect", 0),
-        )
+        gen_1kwp = await fetch_generation_profile(lat, lon, tilt=tilt, aspect=aspect)
     except RuntimeError as e:
         raise UpstreamError(str(e)) from e
 
@@ -51,11 +43,15 @@ async def run_sizing(session: Session, request: dict[str, Any]) -> tuple[dict, f
         result = recommend_system_size(
             session.consumption,
             gen_1kwp,
-            target_sc_min=target_min,
-            target_sc_max=target_max,
+            max_payback_years=request.get("max_payback_years", 8.0),
+            min_sc_rate=request.get("min_sc_rate", 0.50),
             assumptions=Assumptions(**(request.get("assumptions") or {})),
         )
     except ValueError as e:
         raise SizingError(str(e)) from e
+
+    # Carried alongside the sizing warning, not merged into it: one is about
+    # the site, the other is about whether to trust any of these numbers.
+    result["yield_warning"] = yield_sanity_warning(gen_1kwp, tilt, aspect)
 
     return result, lat, lon

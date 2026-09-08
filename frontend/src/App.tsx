@@ -367,8 +367,8 @@ export default function App() {
               <SizingCurveChart
                 data={solarResult.sizing_curve}
                 recommendedKwp={solarResult.recommended_kwp}
-                bandMin={lastSizingValues?.target_sc_min ?? 0.7}
-                bandMax={lastSizingValues?.target_sc_max ?? 0.9}
+                maxPaybackYears={lastSizingValues?.max_payback_years ?? 8}
+                minScRate={lastSizingValues?.min_sc_rate ?? 0.5}
               />
             </div>
           </section>

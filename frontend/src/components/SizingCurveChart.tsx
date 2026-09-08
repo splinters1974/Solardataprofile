@@ -15,15 +15,15 @@ import type { SizingCurvePoint } from '../types';
 interface Props {
   data: SizingCurvePoint[];
   recommendedKwp: number;
-  bandMin: number;
-  bandMax: number;
+  maxPaybackYears: number;
+  minScRate: number;
 }
 
 export default function SizingCurveChart({
   data,
   recommendedKwp,
-  bandMin,
-  bandMax,
+  maxPaybackYears,
+  minScRate,
 }: Props) {
   const chartData = data.map((d) => ({
     kwp: d.kwp,
@@ -32,22 +32,27 @@ export default function SizingCurveChart({
     npv: Math.round(d.npv / 1000),
   }));
 
-  // The band is where the recommendation is allowed to live. Showing it as a
-  // shaded region on the kWp axis makes the constraint visible, not implied.
-  const inBand = data.filter(
-    (d) => d.sc_rate >= bandMin && d.sc_rate <= bandMax,
+  // Shade every size that clears both constraints, so the reason the
+  // recommendation stops where it does is visible rather than implied.
+  const eligible = data.filter(
+    (d) =>
+      d.sc_rate >= minScRate &&
+      d.simple_payback_years !== null &&
+      d.simple_payback_years <= maxPaybackYears,
   );
-  const bandFrom = inBand.length ? Math.min(...inBand.map((d) => d.kwp)) : null;
-  const bandTo = inBand.length ? Math.max(...inBand.map((d) => d.kwp)) : null;
+  const bandFrom = eligible.length ? Math.min(...eligible.map((d) => d.kwp)) : null;
+  const bandTo = eligible.length ? Math.max(...eligible.map((d) => d.kwp)) : null;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-slate-800">Why this size</h2>
         <p className="text-sm text-slate-500">
-          Payback improves with scale until the site can no longer absorb what the
-          array makes. The shaded band is your {Math.round(bandMin * 100)}–
-          {Math.round(bandMax * 100)}% self-consumption constraint.
+          Every extra kWp is worth less than the one before it, because the
+          surplus is exported rather than displacing import. The shaded region
+          is every size paying back within {maxPaybackYears} years while keeping
+          at least {Math.round(minScRate * 100)}% of output on site. The
+          recommendation is the largest of those.
         </p>
       </div>
       <ResponsiveContainer width="100%" height={340}>
