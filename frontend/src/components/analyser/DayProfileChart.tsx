@@ -65,15 +65,15 @@ export default function DayProfileChart({ data }: Props) {
         })}
       </div>
 
-      <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={rows} margin={{ top: 4, right: 12, left: 0, bottom: 16 }}>
+      <ResponsiveContainer width="100%" height={340}>
+        <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis
             dataKey="time"
             tick={{ fontSize: 11, fill: '#64748b' }}
             interval={3}
             label={{
-              value: 'Time of day', position: 'insideBottom', offset: -12,
+              value: 'Time of day', position: 'insideBottom', offset: -20,
               style: { fontSize: 12, fill: '#94a3b8' },
             }}
           />
@@ -88,7 +88,13 @@ export default function DayProfileChart({ data }: Props) {
             formatter={(v, name) => [`${Number(v).toLocaleString()} kW`, name]}
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Legend
+            verticalAlign="top"
+            align="left"
+            height={28}
+            iconSize={10}
+            wrapperStyle={{ fontSize: 12, paddingBottom: 6 }}
+          />
           {data.series
             .filter((s) => visible.includes(s.name))
             .map((s) => (

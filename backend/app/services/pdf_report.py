@@ -52,6 +52,23 @@ DISCLAIMER = (
 )
 
 
+# Written out once and used in both the report and the on-screen panel, so
+# the same words explain the same number wherever it appears.
+GLOSSARY: list[tuple[str, str]] = [
+    ("NPV (Net Present Value)",
+     "the value the project creates across its life, in today's money, after "
+     "the capital cost is taken off. Positive means it is worth doing."),
+    ("IRR (Internal Rate of Return)",
+     "the annual return the money earns while it is tied up in the array. "
+     "Compare it against the cost of capital, or against whatever else the "
+     "same capital could fund."),
+    ("LCOE (Levelised Cost of Energy)",
+     "what a unit of electricity from the array costs over its whole life, "
+     "capital and running costs included. Compare it against the price the "
+     "site pays for electricity today."),
+]
+
+
 def _styles() -> dict:
     base = getSampleStyleSheet()
     return {
@@ -398,11 +415,11 @@ def build_report(
 
     story.append(_data_table([
         ["Whole-life position", f"Over {assumptions.system_life_years} years"],
-        ["Net present value", _money(appraisal.npv)],
-        ["Internal rate of return",
+        ["Net present value (NPV) *", _money(appraisal.npv)],
+        ["Internal rate of return (IRR) *",
          "n/a" if appraisal.irr is None else _pct(appraisal.irr)],
         ["Undiscounted lifetime saving", _money(appraisal.lifetime_saving)],
-        ["Levelised cost of energy",
+        ["Levelised cost of energy (LCOE) *",
          "n/a" if appraisal.lcoe_p_kwh is None
          else f"{appraisal.lcoe_p_kwh:.1f}p/kWh vs "
               f"{assumptions.import_price_p_kwh:.1f}p import"],
@@ -410,6 +427,12 @@ def build_report(
          f"{appraisal.carbon_saved_tonnes_year:,.1f} tCO2e/yr "
          f"({appraisal.carbon_saved_tonnes_year * assumptions.system_life_years:,.0f} t lifetime)"],
     ], [doc.width * 0.42, doc.width * 0.58]))
+
+    # Spell the acronyms out where they appear. A reader should not have to
+    # already know what they mean to follow the case.
+    story.append(Spacer(1, 6))
+    for term, meaning in GLOSSARY:
+        story.append(Paragraph(f"<b>* {term}:</b> {meaning}", styles["small"]))
 
     story.append(PageBreak())
 

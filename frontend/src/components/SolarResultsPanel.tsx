@@ -41,14 +41,29 @@ function StatCard({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, note }: {
+  label: string; value: string; note?: boolean;
+}) {
   return (
     <div className="flex justify-between py-1.5 border-b border-slate-100 last:border-0">
-      <span className="text-slate-500">{label}</span>
+      <span className="text-slate-500">
+        {label}
+        {note && <sup className="text-emerald-600 font-semibold ml-0.5">*</sup>}
+      </span>
       <span className="font-medium text-slate-800 tabular-nums">{value}</span>
     </div>
   );
 }
+
+/** Spelled out where the acronyms appear, not left for the reader to know. */
+const GLOSSARY: [string, string][] = [
+  ['NPV (Net Present Value)',
+   'the value the project creates across its life, in today\u2019s money, after the capital cost is taken off. Positive means it is worth doing.'],
+  ['IRR (Internal Rate of Return)',
+   'the annual return the money earns while it is tied up in the array. Compare it against the cost of capital or whatever else the capital could fund.'],
+  ['LCOE (Levelised Cost of Energy)',
+   'what a unit of electricity from the array costs over its whole life, capital and running costs included. Compare it against the price the site pays now.'],
+];
 
 export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
   const [downloading, setDownloading] = useState(false);
@@ -123,17 +138,27 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
           <Row label="Year 1 export income" value={money(e.year_one_export_income)} />
           <Row label="Annual O&M" value={money(-e.annual_opex)} />
           <Row label="Discounted payback" value={years(e.discounted_payback_years)} />
-          <Row label="NPV" value={money(e.npv)} />
-          <Row label="IRR" value={pct(e.irr, 1)} />
+          <Row label="NPV" value={money(e.npv)} note />
+          <Row label="IRR" value={pct(e.irr, 1)} note />
           <Row
             label="LCOE"
             value={e.lcoe_p_kwh === null ? 'n/a' : `${e.lcoe_p_kwh.toFixed(1)}p/kWh`}
+            note
           />
           <Row
             label="Carbon avoided"
             value={`${e.carbon_saved_tonnes_year.toLocaleString()} tCO2e/yr`}
           />
         </div>
+      </div>
+
+      <div className="border-t border-slate-100 pt-3 space-y-1">
+        {GLOSSARY.map(([term, meaning]) => (
+          <p key={term} className="text-xs text-slate-500 leading-relaxed">
+            <span className="text-emerald-600 font-semibold">*</span>{' '}
+            <span className="font-medium text-slate-700">{term}:</span> {meaning}
+          </p>
+        ))}
       </div>
 
       {alt && (

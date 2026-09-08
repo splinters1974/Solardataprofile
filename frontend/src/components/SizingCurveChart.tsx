@@ -50,8 +50,8 @@ export default function SizingCurveChart({
           {Math.round(bandMax * 100)}% self-consumption constraint.
         </p>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 16 }}>
+      <ResponsiveContainer width="100%" height={340}>
+        <ComposedChart data={chartData} margin={{ top: 24, right: 12, left: 0, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           {bandFrom !== null && bandTo !== null && (
             <ReferenceArea x1={bandFrom} x2={bandTo} fill="#10b981" fillOpacity={0.07} />
@@ -64,7 +64,7 @@ export default function SizingCurveChart({
             label={{
               value: 'System size (kWp)',
               position: 'insideBottom',
-              offset: -12,
+              offset: -20,
               style: { fontSize: 12, fill: '#94a3b8' },
             }}
           />
@@ -96,7 +96,13 @@ export default function SizingCurveChart({
             labelFormatter={(label) => `${Number(label).toLocaleString()} kWp`}
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Legend
+            verticalAlign="top"
+            align="left"
+            height={30}
+            iconSize={10}
+            wrapperStyle={{ fontSize: 12, paddingBottom: 6 }}
+          />
           <ReferenceLine
             yAxisId="left"
             x={recommendedKwp}
@@ -104,10 +110,11 @@ export default function SizingCurveChart({
             strokeDasharray="4 2"
             strokeWidth={2}
             label={{
-              value: `${recommendedKwp.toLocaleString()} kWp`,
-              position: 'top',
+              value: `Recommended ${recommendedKwp.toLocaleString()} kWp`,
+              position: 'insideTopRight',
               fill: '#0f766e',
-              fontSize: 12,
+              fontSize: 11,
+              offset: 8,
             }}
           />
           <Line
