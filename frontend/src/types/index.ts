@@ -113,3 +113,102 @@ export interface SizingValues {
   roof_aspect: number;
   assumptions: EconomicAssumptions;
 }
+
+// ---------------------------------------------------------------------------
+// Ameresco HH Analyser
+// ---------------------------------------------------------------------------
+
+export interface AnalyserSummary {
+  days: number;
+  total_kwh: number;
+  peak_kw: number;
+  peak_when: string;
+  average_kw: number;
+  base_kw: number;
+  load_factor: number;
+  highest_day_kwh: number;
+  highest_day: string;
+  lowest_day_kwh: number;
+  lowest_day: string;
+  average_day_kwh: number;
+}
+
+export interface WeekOption {
+  value: string;
+  label: string;
+}
+
+export interface AnalyserOverview {
+  summary: AnalyserSummary;
+  weeks: WeekOption[];
+  date_from: string | null;
+  date_to: string | null;
+  site_name: string;
+  filename: string;
+}
+
+export interface ProfileSeries {
+  name: string;
+  group: 'day' | 'summary';
+  values: number[];
+}
+
+export interface DayProfileResponse {
+  labels: string[];
+  series: ProfileSeries[];
+  day_counts: Record<string, number>;
+}
+
+export interface LoadDurationPoint {
+  hours: number;
+  kw: number;
+}
+
+export interface LoadDurationResponse {
+  curve: LoadDurationPoint[];
+  peak_kw: number;
+  base_kw: number;
+  average_kw: number;
+  load_factor: number;
+  hours_covered: number;
+}
+
+export interface DayNightMonth {
+  month: string;
+  day_kwh: number;
+  night_kwh: number;
+  days: number;
+  complete: boolean;
+}
+
+export interface DayNightResponse {
+  months: DayNightMonth[];
+  night_window: string;
+  totals: { day_kwh: number; night_kwh: number; night_share: number };
+}
+
+export interface WeekDay {
+  date: string;
+  label: string;
+  values: number[];
+  total_kwh: number;
+}
+
+export interface WeekResponse {
+  labels: string[];
+  days: WeekDay[];
+  week_commencing: string | null;
+}
+
+export interface ScatterPoint {
+  hour: number;
+  kw: number;
+  type: string;
+  date: string;
+}
+
+export interface ScatterResponse {
+  points: ScatterPoint[];
+  sampled: boolean;
+  total_readings: number;
+}

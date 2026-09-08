@@ -1,5 +1,9 @@
 import axios, { AxiosError } from 'axios';
-import type { UploadResponse, SolarSizeResponse, SizingValues } from '../types';
+import type {
+  UploadResponse, SolarSizeResponse, SizingValues,
+  AnalyserOverview, DayProfileResponse, LoadDurationResponse,
+  DayNightResponse, WeekResponse, ScatterResponse,
+} from '../types';
 import { rememberUpload, recallUpload, forgetUpload } from './sessionCache';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -124,3 +128,38 @@ export function friendlyError(e: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+// --- Ameresco HH Analyser --------------------------------------------------
+
+type Params = Record<string, string | number | boolean | undefined>;
+
+async function analyserGet<T>(path: string, params: Params): Promise<T> {
+  const { data } = await api.get<T>(`/analyser/${path}`, { params });
+  return data;
+}
+
+export const getAnalyserOverview = (session_id: string) =>
+  analyserGet<AnalyserOverview>('overview', { session_id });
+
+export const getDayProfile = (
+  session_id: string, date_from?: string, date_to?: string,
+  exclude_holidays = true,
+) => analyserGet<DayProfileResponse>('day-profile',
+  { session_id, date_from, date_to, exclude_holidays });
+
+export const getLoadDuration = (
+  session_id: string, date_from?: string, date_to?: string,
+) => analyserGet<LoadDurationResponse>('load-duration',
+  { session_id, date_from, date_to });
+
+export const getDayNight = (
+  session_id: string, date_from?: string, date_to?: string,
+  night_start_slot = 0, night_end_slot = 14,
+) => analyserGet<DayNightResponse>('day-night',
+  { session_id, date_from, date_to, night_start_slot, night_end_slot });
+
+export const getWeek = (session_id: string, week_commencing?: string) =>
+  analyserGet<WeekResponse>('week', { session_id, week_commencing });
+
+export const getScatter = (session_id: string, exclude_holidays = true) =>
+  analyserGet<ScatterResponse>('scatter', { session_id, exclude_holidays });

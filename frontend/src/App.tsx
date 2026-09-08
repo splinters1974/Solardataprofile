@@ -18,8 +18,17 @@ import SolarResultsPanel from './components/SolarResultsPanel';
 import GenerationChart from './components/GenerationChart';
 import SizingCurveChart from './components/SizingCurveChart';
 import LoadedDataBar from './components/LoadedDataBar';
+import HHAnalyser from './components/analyser/HHAnalyser';
 
 type BackendStatus = 'connecting' | 'ready' | 'unreachable';
+type Area = 'analyser' | 'solar';
+
+const AREAS: { id: Area; label: string; blurb: string }[] = [
+  { id: 'analyser', label: 'Ameresco HH Analyser',
+    blurb: 'Demand profiles, load duration and day/night split' },
+  { id: 'solar', label: 'Solar Sizing',
+    blurb: 'Economics-led array sizing and client report' },
+];
 
 export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('connecting');
@@ -31,6 +40,7 @@ export default function App() {
   const [solarError, setSolarError] = useState<string | null>(null);
   const [lastSizingValues, setLastSizingValues] = useState<SizingValues | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [area, setArea] = useState<Area>('analyser');
 
   // Everything downstream of an upload. Reset as one so a new file can never
   // leave a previous site's charts, sizing or session id on the page.
@@ -230,8 +240,40 @@ export default function App() {
           )}
         </section>
 
-        {/* Step 2: Usage Profile */}
+        {/* Two areas over one upload: analyse the data, or size an array. */}
         {uploadResult && (
+          <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-px">
+            {AREAS.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setArea(a.id)}
+                className={`text-left px-5 py-3 rounded-t-lg border border-b-0 transition-colors ${
+                  area === a.id
+                    ? 'bg-white border-slate-200 -mb-px'
+                    : 'bg-transparent border-transparent hover:bg-white/60'
+                }`}
+              >
+                <span className={`block text-sm font-semibold ${
+                  area === a.id ? 'text-emerald-700' : 'text-slate-600'
+                }`}>{a.label}</span>
+                <span className="block text-xs text-slate-400">{a.blurb}</span>
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {uploadResult && uploadResult.warnings.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-700">
+            {uploadResult.warnings.map((w, i) => <p key={i}>{w}</p>)}
+          </div>
+        )}
+
+        {uploadResult && area === 'analyser' && (
+          <HHAnalyser sessionId={uploadResult.session_id} />
+        )}
+
+        {/* Consumption overview: shared context for both areas */}
+        {uploadResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">2</span>
@@ -240,11 +282,6 @@ export default function App() {
                 Format {uploadResult.detected_format} · {uploadResult.days_parsed} days
               </span>
             </div>
-            {uploadResult.warnings.length > 0 && (
-              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-700">
-                {uploadResult.warnings.map((w, i) => <p key={i}>{w}</p>)}
-              </div>
-            )}
             <div className="space-y-4">
               <MonthlyBarChart
                 data={uploadResult.monthly_totals}
@@ -261,7 +298,7 @@ export default function App() {
         )}
 
         {/* Step 3: Solar Sizing */}
-        {uploadResult && (
+        {uploadResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">3</span>
@@ -286,7 +323,7 @@ export default function App() {
         )}
 
         {/* Step 4: Solar Results */}
-        {solarResult && (
+        {solarResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">4</span>
