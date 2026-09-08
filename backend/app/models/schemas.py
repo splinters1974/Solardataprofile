@@ -43,7 +43,9 @@ class EconomicAssumptions(BaseModel):
 
     import_price_p_kwh: float = Field(25.0, gt=0, le=200)
     export_price_p_kwh: float = Field(5.0, ge=0, le=200)
-    capex_per_kwp: float = Field(800.0, gt=0, le=10_000)
+    # Blank means use the banded size curve in economics.py. A number here
+    # overrides the whole curve with one flat rate.
+    capex_per_kwp: Optional[float] = Field(None, gt=0, le=10_000)
     opex_per_kwp_year: float = Field(10.0, ge=0, le=500)
     import_price_inflation: float = Field(0.02, ge=-0.1, le=0.25)
     export_price_inflation: float = Field(0.0, ge=-0.1, le=0.25)
@@ -57,8 +59,8 @@ class EconomicAssumptions(BaseModel):
 class SolarSizeRequest(BaseModel):
     session_id: str
     postcode: str
-    target_sc_min: float = Field(0.70, gt=0, le=1)
-    target_sc_max: float = Field(0.90, gt=0, le=1)
+    max_payback_years: float = Field(8.0, gt=0, le=40)
+    min_sc_rate: float = Field(0.50, gt=0, le=1)
     roof_tilt: int = Field(35, ge=0, le=90)
     roof_aspect: int = Field(0, ge=-180, le=180)  # 0 = south
     site_name: Optional[str] = None
@@ -123,7 +125,9 @@ class SolarSizeResponse(BaseModel):
     days_analysed: int = 0
     economics: Economics
     location: LocationInfo
+    annual_yield_kwh_per_kwp: float = 0.0
     monthly_chart: list[MonthlySolarPoint]
     sizing_curve: list[SizingCurvePoint]
-    alternative_max_onsite: Optional[SizingCurvePoint] = None
+    alternative_best_payback: Optional[SizingCurvePoint] = None
     warning: Optional[str] = None
+    yield_warning: Optional[str] = None

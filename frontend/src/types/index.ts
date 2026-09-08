@@ -77,7 +77,8 @@ export interface Economics {
 export interface EconomicAssumptions {
   import_price_p_kwh: number;
   export_price_p_kwh: number;
-  capex_per_kwp: number;
+  /** null uses the banded size curve; a number overrides it with a flat rate. */
+  capex_per_kwp: number | null;
   opex_per_kwp_year: number;
   import_price_inflation: number;
   export_price_inflation: number;
@@ -98,19 +99,21 @@ export interface SolarSizeResponse {
   exported_kwh: number;
   summer_export_kwh: number;
   days_analysed: number;
+  annual_yield_kwh_per_kwp: number;
   economics: Economics;
   location: { lat: number; lon: number; postcode: string };
   monthly_chart: MonthlySolarPoint[];
   sizing_curve: SizingCurvePoint[];
-  alternative_max_onsite?: SizingCurvePoint | null;
+  alternative_best_payback?: SizingCurvePoint | null;
   warning?: string;
+  yield_warning?: string;
 }
 
 export interface SizingValues {
   postcode: string;
   site_name: string;
-  target_sc_min: number;
-  target_sc_max: number;
+  max_payback_years: number;
+  min_sc_rate: number;
   roof_tilt: number;
   roof_aspect: number;
   assumptions: EconomicAssumptions;

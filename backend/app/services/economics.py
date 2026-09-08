@@ -7,7 +7,17 @@ starting points for a first-pass appraisal, not Ameresco pricing.
 
 from dataclasses import dataclass, field
 
-DEFAULT_CAPEX_PER_KWP = 800.0      # £/kWp installed, rooftop, inclusive of margin
+# Installed cost, rooftop, inclusive of margin. Rates fall with size because
+# the fixed elements of a job (design, scaffold, DNO application, mobilisation)
+# spread over more kWp. Each tuple is (upper bound in kWp, £/kWp at or below it).
+DEFAULT_CAPEX_CURVE: tuple[tuple[float, float], ...] = (
+    (200.0, 1000.0),
+    (500.0, 900.0),
+    (1000.0, 800.0),
+    (2000.0, 700.0),
+    (float("inf"), 600.0),
+)
+
 DEFAULT_IMPORT_PRICE_P = 25.0      # p/kWh, fully inclusive customer purchase price
 DEFAULT_EXPORT_PRICE_P = 5.0       # p/kWh, assumed export rate
 DEFAULT_OPEX_PER_KWP = 10.0        # £/kWp/year, O&M, monitoring, insurance
@@ -33,7 +43,10 @@ class Assumptions:
 
     import_price_p_kwh: float = DEFAULT_IMPORT_PRICE_P
     export_price_p_kwh: float = DEFAULT_EXPORT_PRICE_P
-    capex_per_kwp: float = DEFAULT_CAPEX_PER_KWP
+    # None means use the size curve. A number overrides it with one flat rate,
+    # for when a real quote is in hand and the curve should not second-guess it.
+    capex_per_kwp: float | None = None
+    capex_curve: tuple[tuple[float, float], ...] = DEFAULT_CAPEX_CURVE
     opex_per_kwp_year: float = DEFAULT_OPEX_PER_KWP
     import_price_inflation: float = DEFAULT_IMPORT_INFLATION
     export_price_inflation: float = DEFAULT_EXPORT_INFLATION
@@ -43,12 +56,46 @@ class Assumptions:
     degradation_rate: float = DEFAULT_DEGRADATION
     carbon_factor: float = DEFAULT_CARBON_FACTOR
 
+    def capex_total(self, kwp: float) -> float:
+        """
+        Total installed cost for an array of this size.
+
+        The curve is banded, so read naively it has cliffs: at £1000/kWp up to
+        200 kWp and £900 above it, a 201 kWp array would cost £19k less than a
+        200 kWp one. That is indefensible in front of a client and it lets the
+        sizing search chase a modelling artefact rather than a real saving.
+
+        So the total is clamped to be non-decreasing in size: crossing a band
+        boundary holds the cost flat until the new rate catches up. Between 200
+        and 222 kWp you pay £200,000 either way, which is what a real quote
+        would say.
+        """
+        if kwp <= 0:
+            return 0.0
+        if self.capex_per_kwp is not None:
+            return float(self.capex_per_kwp) * kwp
+
+        rate = self.capex_curve[-1][1]
+        for upper, banded in self.capex_curve:
+            if kwp <= upper:
+                rate = banded
+                break
+        return max(rate * kwp, self._band_floor(kwp))
+
+    def _band_floor(self, kwp: float) -> float:
+        """Highest total cost of any array smaller than this one."""
+        floor = 0.0
+        for upper, rate in self.capex_curve:
+            if upper >= kwp:
+                break
+            floor = max(floor, rate * upper)
+        return floor
+
     def capex_rate(self, kwp: float) -> float:
-        """
-        £/kWp installed. Flat: a single rate inclusive of margin, rather
-        than a size-tiered curve, because that is how the price is quoted.
-        """
-        return float(self.capex_per_kwp)
+        """Effective £/kWp once the curve and the clamp have been applied."""
+        if kwp <= 0:
+            return 0.0
+        return self.capex_total(kwp) / kwp
 
 
 @dataclass
@@ -120,8 +167,8 @@ def appraise(
     assumptions: Assumptions,
 ) -> Appraisal:
     """Build the cashflow for one system size and derive the headline metrics."""
+    capex = assumptions.capex_total(kwp)
     capex_rate = assumptions.capex_rate(kwp)
-    capex = capex_rate * kwp
     opex = assumptions.opex_per_kwp_year * kwp
 
     import_saving = self_consumed_kwh * assumptions.import_price_p_kwh / 100.0

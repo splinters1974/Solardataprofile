@@ -14,10 +14,22 @@ const ASPECT_OPTIONS = [
   { label: 'West', value: 90 },
 ];
 
+/**
+ * Mirrors DEFAULT_CAPEX_CURVE in backend/app/services/economics.py. Shown so
+ * the pricing behind a quote is visible, not so it can be edited here.
+ */
+const CAPEX_CURVE: [string, string][] = [
+  ['Up to 200 kWp', '£1,000/kWp'],
+  ['200 to 500 kWp', '£900/kWp'],
+  ['500 to 1,000 kWp', '£800/kWp'],
+  ['1,000 to 2,000 kWp', '£700/kWp'],
+  ['Over 2,000 kWp', '£600/kWp'],
+];
+
 export const DEFAULT_ASSUMPTIONS: EconomicAssumptions = {
   import_price_p_kwh: 25,
   export_price_p_kwh: 5,
-  capex_per_kwp: 800,
+  capex_per_kwp: null,
   opex_per_kwp_year: 10,
   import_price_inflation: 0.02,
   export_price_inflation: 0,
@@ -54,12 +66,12 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
   const [siteName, setSiteName] = useState('');
   const [tilt, setTilt] = useState(35);
   const [aspect, setAspect] = useState(0);
-  const [scMin, setScMin] = useState(70);
-  const [scMax, setScMax] = useState(90);
+  const [hurdle, setHurdle] = useState(8);
+  const [scFloor, setScFloor] = useState(50);
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [a, setA] = useState<EconomicAssumptions>(DEFAULT_ASSUMPTIONS);
 
-  const bandInvalid = scMin > scMax;
+  const hurdleInvalid = !(hurdle > 0);
 
   function set<K extends keyof EconomicAssumptions>(key: K, value: EconomicAssumptions[K]) {
     setA((prev) => ({ ...prev, [key]: value }));
@@ -67,12 +79,12 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!postcode.trim() || bandInvalid) return;
+    if (!postcode.trim() || hurdleInvalid) return;
     onSubmit({
       postcode: postcode.trim(),
       site_name: siteName.trim(),
-      target_sc_min: scMin / 100,
-      target_sc_max: scMax / 100,
+      max_payback_years: hurdle,
+      min_sc_rate: scFloor / 100,
       roof_tilt: tilt,
       roof_aspect: aspect,
       assumptions: a,
@@ -83,7 +95,7 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       <h2 className="text-lg font-semibold text-slate-800">Solar System Sizing</h2>
       <p className="text-sm text-slate-500 mb-4">
-        Sized on shortest payback, constrained to your self-consumption band.
+        The largest array that still pays back inside your hurdle.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -133,40 +145,45 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
           </Field>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Self-Consumption Band: {scMin}%–{scMax}%
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="text-xs text-slate-400 mb-1 block">Minimum {scMin}%</span>
-              <input
-                type="range"
-                min={40}
-                max={95}
-                value={scMin}
-                onChange={(e) => setScMin(Number(e.target.value))}
-                className="w-full accent-emerald-500"
-              />
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 mb-1 block">Maximum {scMax}%</span>
-              <input
-                type="range"
-                min={45}
-                max={100}
-                value={scMax}
-                onChange={(e) => setScMax(Number(e.target.value))}
-                className="w-full accent-emerald-500"
-              />
-            </div>
-          </div>
-          {bandInvalid && (
-            <p className="text-xs text-red-600 mt-1">
-              Minimum cannot be above the maximum.
+        {/* The two constraints that set the size. Whichever is tighter wins. */}
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Maximum Payback (years)"
+            hint="The array grows until it hits this"
+          >
+            <input
+              type="number"
+              step="0.5"
+              min={0.5}
+              max={40}
+              value={hurdle}
+              onChange={(e) => setHurdle(Number(e.target.value))}
+              className={inputClass}
+              required
+            />
+          </Field>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Min Self-Consumption: {scFloor}%
+            </label>
+            <input
+              type="range"
+              min={20}
+              max={95}
+              value={scFloor}
+              onChange={(e) => setScFloor(Number(e.target.value))}
+              className="w-full accent-emerald-500 mt-2"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              Stops the array becoming an export scheme
             </p>
-          )}
+          </div>
         </div>
+        {hurdleInvalid && (
+          <p className="text-xs text-red-600">
+            The payback hurdle must be greater than zero.
+          </p>
+        )}
 
         {/* Tariffs — the numbers that actually move the answer */}
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
@@ -209,13 +226,20 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
               before the numbers go to a client.
             </p>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Installed Cost (£/kWp)" hint="Rooftop, inclusive of margin">
+              <Field
+                label="Flat Cost Override (£/kWp)"
+                hint="Leave blank to use the size curve below"
+              >
                 <input
                   type="number"
                   step="10"
                   min={1}
-                  value={a.capex_per_kwp}
-                  onChange={(e) => set('capex_per_kwp', Number(e.target.value))}
+                  placeholder="Using size curve"
+                  value={a.capex_per_kwp ?? ''}
+                  onChange={(e) =>
+                    set('capex_per_kwp', e.target.value === ''
+                      ? null
+                      : Number(e.target.value))}
                   className={inputClass}
                 />
               </Field>
@@ -314,12 +338,33 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
                 </button>
               </div>
             </div>
+
+            <div className="border-t border-slate-200 pt-3">
+              <p className="text-sm font-medium text-slate-700 mb-2">
+                Installed cost curve
+              </p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                {CAPEX_CURVE.map(([band, rate]) => (
+                  <div key={band} className="flex justify-between text-xs">
+                    <span className="text-slate-500">{band}</span>
+                    <span className="font-medium text-slate-700 tabular-nums">
+                      {rate}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-2">
+                Rooftop, inclusive of margin. Total cost never falls as the
+                array grows, so crossing a band holds the price flat until the
+                cheaper rate catches up.
+              </p>
+            </div>
           </div>
         )}
 
         <button
           type="submit"
-          disabled={loading || !postcode.trim() || bandInvalid}
+          disabled={loading || !postcode.trim() || hurdleInvalid}
           className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
         >
           {loading ? 'Sizing system…' : 'Size Solar System'}
