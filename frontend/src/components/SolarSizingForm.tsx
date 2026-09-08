@@ -17,9 +17,11 @@ const ASPECT_OPTIONS = [
 export const DEFAULT_ASSUMPTIONS: EconomicAssumptions = {
   import_price_p_kwh: 25,
   export_price_p_kwh: 5,
-  capex_per_kwp: null,
+  capex_per_kwp: 800,
   opex_per_kwp_year: 10,
-  price_inflation: 0.03,
+  import_price_inflation: 0.02,
+  export_price_inflation: 0,
+  opex_inflation: 0.03,
   discount_rate: 0.035,
   system_life_years: 25,
   degradation_rate: 0.005,
@@ -207,16 +209,13 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
               before the numbers go to a client.
             </p>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Installed Cost (£/kWp)" hint="Blank = scale with size">
+              <Field label="Installed Cost (£/kWp)" hint="Rooftop, inclusive of margin">
                 <input
                   type="number"
                   step="10"
                   min={1}
-                  value={a.capex_per_kwp ?? ''}
-                  placeholder="Auto"
-                  onChange={(e) =>
-                    set('capex_per_kwp', e.target.value === '' ? null : Number(e.target.value))
-                  }
+                  value={a.capex_per_kwp}
+                  onChange={(e) => set('capex_per_kwp', Number(e.target.value))}
                   className={inputClass}
                 />
               </Field>
@@ -230,12 +229,35 @@ export default function SolarSizingForm({ onSubmit, loading }: Props) {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Energy Price Inflation (%)">
+              <Field
+                label="Import Price Inflation (%/yr)"
+                hint="Grows the saving year on year"
+              >
                 <input
                   type="number"
                   step="0.1"
-                  value={(a.price_inflation * 100).toFixed(1)}
-                  onChange={(e) => set('price_inflation', Number(e.target.value) / 100)}
+                  value={(a.import_price_inflation * 100).toFixed(1)}
+                  onChange={(e) =>
+                    set('import_price_inflation', Number(e.target.value) / 100)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Export Price Inflation (%/yr)" hint="Flat by default">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={(a.export_price_inflation * 100).toFixed(1)}
+                  onChange={(e) =>
+                    set('export_price_inflation', Number(e.target.value) / 100)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="O&M Inflation (%/yr)">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={(a.opex_inflation * 100).toFixed(1)}
+                  onChange={(e) => set('opex_inflation', Number(e.target.value) / 100)}
                   className={inputClass}
                 />
               </Field>

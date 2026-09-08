@@ -380,7 +380,6 @@ def build_report(
     financial = _data_table([
         ["Financial", "Value"],
         ["Capital cost", _money(appraisal.capex)],
-        ["Cost per kWp", _money(appraisal.capex_per_kwp)],
         ["Year 1 import saving", _money(appraisal.year_one_import_saving)],
         ["Year 1 export income", _money(appraisal.year_one_export_income)],
         ["Annual O&M", _money(appraisal.annual_opex)],
@@ -469,9 +468,10 @@ def build_report(
         ["Assumption", "Value"],
         ["Import price", f"{assumptions.import_price_p_kwh:.2f} p/kWh"],
         ["Export price", f"{assumptions.export_price_p_kwh:.2f} p/kWh"],
-        ["Installed cost", f"£{appraisal.capex_per_kwp:,.0f} per kWp"],
         ["Operating cost", f"£{assumptions.opex_per_kwp_year:,.2f} per kWp per year"],
-        ["Energy price inflation", _pct(assumptions.price_inflation)],
+        ["Energy price inflation", _pct(assumptions.import_price_inflation)],
+        ["Export price inflation", _pct(assumptions.export_price_inflation)],
+        ["Operating cost inflation", _pct(assumptions.opex_inflation)],
         ["Discount rate", _pct(assumptions.discount_rate)],
         ["System life", f"{assumptions.system_life_years} years"],
         ["Annual output degradation", _pct(assumptions.degradation_rate, 2)],
@@ -500,6 +500,68 @@ def build_report(
     story.append(_data_table(
         rows, [doc.width * 0.2, doc.width * 0.4, doc.width * 0.4]
     ))
+
+    # --- Assumptions the numbers depend on --------------------------------
+    # Boxed and stated in plain words at the end, so anyone reading the
+    # payback figure can see in one place what has been taken as given.
+    story.append(PageBreak())
+    story.append(Paragraph("Assumptions this appraisal depends on", styles["h2"]))
+    story.append(Paragraph(
+        "These are taken as given. Every one of them is a question to settle "
+        "before the numbers become a commitment.",
+        styles["body"],
+    ))
+
+    assumption_points = [
+        f"<b>Roof space.</b> The site has enough suitable, unshaded roof for "
+        f"the full {_kwp(result['kwp'])} kWp. No survey of area, orientation, "
+        f"structural capacity or shading has been carried out.",
+
+        "<b>Grid connection.</b> A connection is available and the site is "
+        "permitted to export. A refused or capacity-limited connection, or an "
+        "export limitation, would change the answer materially.",
+
+        f"<b>Energy the site uses is worth "
+        f"{assumptions.import_price_p_kwh:.1f}p/kWh.</b> That is the current "
+        f"fully inclusive purchase price, so every unit generated and used on "
+        f"site avoids buying one at that price.",
+
+        f"<b>Energy exported is worth "
+        f"{assumptions.export_price_p_kwh:.1f}p/kWh.</b> Everything not used "
+        f"on site is sold at this rate, which is why keeping generation on "
+        f"site rather than exporting it drives the sizing.",
+
+        f"<b>The purchase price rises {_pct(assumptions.import_price_inflation, 0)} "
+        f"a year.</b> Savings therefore grow year on year, because each unit "
+        f"avoided is worth more than the last. Export is held "
+        + (f"at {_pct(assumptions.export_price_inflation, 0)} inflation."
+           if assumptions.export_price_inflation
+           else "flat across the term."),
+
+        f"<b>Operating cost rises {_pct(assumptions.opex_inflation, 0)} a "
+        f"year</b> from {_money(appraisal.annual_opex)} in year one, covering "
+        f"maintenance, monitoring and insurance.",
+
+        f"<b>Capital cost is {_money(appraisal.capex)} installed</b>, "
+        f"inclusive. Output falls "
+        f"{_pct(assumptions.degradation_rate, 2)} a year over a "
+        f"{assumptions.system_life_years}-year term, and cashflows are "
+        f"discounted at {_pct(assumptions.discount_rate)}.",
+    ]
+
+    box = Table(
+        [[Paragraph(f"• {p}", styles["body"])] for p in assumption_points],
+        colWidths=[doc.width],
+    )
+    box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), PANEL),
+        ("BOX", (0, 0), (-1, -1), 1, BRAND),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(box)
 
     story.append(Spacer(1, 14))
     story.append(KeepTogether([

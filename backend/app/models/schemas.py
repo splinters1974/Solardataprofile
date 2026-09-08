@@ -39,13 +39,15 @@ class UploadResponse(BaseModel):
 
 
 class EconomicAssumptions(BaseModel):
-    """All editable on the form. Defaults are indicative, not quoted prices."""
+    """All editable on the form. Defaults are the house assumptions."""
 
     import_price_p_kwh: float = Field(25.0, gt=0, le=200)
     export_price_p_kwh: float = Field(5.0, ge=0, le=200)
-    capex_per_kwp: Optional[float] = Field(None, gt=0, le=10_000)
+    capex_per_kwp: float = Field(800.0, gt=0, le=10_000)
     opex_per_kwp_year: float = Field(10.0, ge=0, le=500)
-    price_inflation: float = Field(0.03, ge=-0.1, le=0.25)
+    import_price_inflation: float = Field(0.02, ge=-0.1, le=0.25)
+    export_price_inflation: float = Field(0.0, ge=-0.1, le=0.25)
+    opex_inflation: float = Field(0.03, ge=-0.1, le=0.25)
     discount_rate: float = Field(0.035, ge=0, le=0.5)
     system_life_years: int = Field(25, ge=5, le=40)
     degradation_rate: float = Field(0.005, ge=0, le=0.05)

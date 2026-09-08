@@ -274,19 +274,19 @@ def _week_chart(week: dict, title: str, width=740, height=214) -> Drawing:
     return drawing
 
 
-def _scatter_chart(scatter: dict, width=740, height=214, cap=2500) -> Drawing:
+def _scatter_chart(scatter: dict, width=740, height=214) -> Drawing:
     """
-    Every reading, thinned again for print. The on-screen chart already
-    samples; drawing 6,000 vector circles would bloat the file for no gain
-    at print resolution.
+    Every reading, at whatever density the caller asked for.
+
+    Do not thin the point list here: it arrives ordered day by day, so
+    striding it drops the same half hours on every day and the plot
+    collapses into vertical bands. Ask hh_analytics for fewer points
+    instead, which thins by whole days and keeps all 48 slots.
     """
     drawing = Drawing(width, height)
     points = scatter["points"]
     if not points:
         return drawing
-    if len(points) > cap:
-        step = -(-len(points) // cap)
-        points = points[::step]
 
     groups = [
         ("Weekday", colors.HexColor("#0f766e")),
@@ -310,8 +310,12 @@ def _scatter_chart(scatter: dict, width=740, height=214, cap=2500) -> Drawing:
         plot.lines[i].symbol.size = 1.1
         plot.lines[i].symbol.fillColor = colour
         plot.lines[i].symbol.strokeColor = colour
+    # reportlab prints a numeric label beside every point by default, which
+    # at these densities is a solid black smudge over the whole plot.
+    plot.lineLabelFormat = None
     plot.xLabel = ""
     plot.yLabel = ""
+    plot.outerBorderOn = 0
     _hh_axis(plot)
     plot.yValueAxis.valueMin = 0
     plot.yValueAxis.labels.fontName = "Helvetica"

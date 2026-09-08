@@ -7,21 +7,13 @@ starting points for a first-pass appraisal, not Ameresco pricing.
 
 from dataclasses import dataclass, field
 
-# Indicative installed cost, £/kWp, by system size. Commercial rooftop PV
-# gets cheaper per kWp with scale: fixed costs (design, scaffold, DNO
-# application, commissioning) spread over more panels.
-CAPEX_TIERS: list[tuple[float, float]] = [
-    (10.0, 1100.0),
-    (50.0, 900.0),
-    (250.0, 750.0),
-    (1000.0, 650.0),
-    (float("inf"), 600.0),
-]
-
-DEFAULT_IMPORT_PRICE_P = 25.0      # p/kWh, commercial import including levies
-DEFAULT_EXPORT_PRICE_P = 5.0       # p/kWh, typical PPA / SEG-style export
+DEFAULT_CAPEX_PER_KWP = 800.0      # £/kWp installed, rooftop, inclusive of margin
+DEFAULT_IMPORT_PRICE_P = 25.0      # p/kWh, fully inclusive customer purchase price
+DEFAULT_EXPORT_PRICE_P = 5.0       # p/kWh, assumed export rate
 DEFAULT_OPEX_PER_KWP = 10.0        # £/kWp/year, O&M, monitoring, insurance
-DEFAULT_PRICE_INFLATION = 0.03     # 3%/year on both import and export
+DEFAULT_IMPORT_INFLATION = 0.02    # 2%/year on the price the customer avoids
+DEFAULT_EXPORT_INFLATION = 0.0     # export held flat unless told otherwise
+DEFAULT_OPEX_INFLATION = 0.03      # 3%/year on operating cost
 DEFAULT_DISCOUNT_RATE = 0.035      # HM Treasury Green Book social discount rate
 DEFAULT_SYSTEM_LIFE_YEARS = 25
 DEFAULT_DEGRADATION = 0.005        # 0.5%/year output loss
@@ -30,24 +22,33 @@ DEFAULT_CARBON_FACTOR = 0.196      # kgCO2e/kWh displaced grid electricity
 
 @dataclass
 class Assumptions:
+    """
+    Every rate is overridable on the form; these are the house defaults.
+
+    Import and operating costs inflate at different rates on purpose: the
+    saving grows with the energy price the customer avoids, while the cost
+    of running the array grows with general cost inflation, and the two are
+    not the same number.
+    """
+
     import_price_p_kwh: float = DEFAULT_IMPORT_PRICE_P
     export_price_p_kwh: float = DEFAULT_EXPORT_PRICE_P
-    capex_per_kwp: float | None = None      # None = use the tiered curve
+    capex_per_kwp: float = DEFAULT_CAPEX_PER_KWP
     opex_per_kwp_year: float = DEFAULT_OPEX_PER_KWP
-    price_inflation: float = DEFAULT_PRICE_INFLATION
+    import_price_inflation: float = DEFAULT_IMPORT_INFLATION
+    export_price_inflation: float = DEFAULT_EXPORT_INFLATION
+    opex_inflation: float = DEFAULT_OPEX_INFLATION
     discount_rate: float = DEFAULT_DISCOUNT_RATE
     system_life_years: int = DEFAULT_SYSTEM_LIFE_YEARS
     degradation_rate: float = DEFAULT_DEGRADATION
     carbon_factor: float = DEFAULT_CARBON_FACTOR
 
     def capex_rate(self, kwp: float) -> float:
-        """£/kWp for a system of this size."""
-        if self.capex_per_kwp is not None:
-            return float(self.capex_per_kwp)
-        for ceiling, rate in CAPEX_TIERS:
-            if kwp <= ceiling:
-                return rate
-        return CAPEX_TIERS[-1][1]
+        """
+        £/kWp installed. Flat: a single rate inclusive of margin, rather
+        than a size-tiered curve, because that is how the price is quoted.
+        """
+        return float(self.capex_per_kwp)
 
 
 @dataclass
@@ -127,20 +128,25 @@ def appraise(
     export_income = exported_kwh * assumptions.export_price_p_kwh / 100.0
     year_one_saving = import_saving + export_income - opex
 
+    # Each stream escalates on its own rate. Lumping them together under one
+    # inflation figure would tie the customer's avoided energy price to the
+    # cost of maintaining the array, which are unrelated.
     cashflow = [-capex]
-    total_generation = 0.0
     for year in range(1, assumptions.system_life_years + 1):
         output = (1.0 - assumptions.degradation_rate) ** (year - 1)
-        prices = (1.0 + assumptions.price_inflation) ** (year - 1)
-        revenue = (import_saving + export_income) * output * prices
-        cashflow.append(revenue - opex * prices)
-        total_generation += (self_consumed_kwh + exported_kwh) * output
+        cashflow.append(
+            import_saving * output
+            * (1.0 + assumptions.import_price_inflation) ** (year - 1)
+            + export_income * output
+            * (1.0 + assumptions.export_price_inflation) ** (year - 1)
+            - opex * (1.0 + assumptions.opex_inflation) ** (year - 1)
+        )
 
     npv = _npv(assumptions.discount_rate, cashflow)
 
     # LCOE: whole-life cost over whole-life output, discounted consistently.
     disc_costs = capex + sum(
-        opex * (1.0 + assumptions.price_inflation) ** (y - 1)
+        opex * (1.0 + assumptions.opex_inflation) ** (y - 1)
         / (1.0 + assumptions.discount_rate) ** y
         for y in range(1, assumptions.system_life_years + 1)
     )

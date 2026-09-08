@@ -143,7 +143,10 @@ async def analyser_report(
                 df, date_from, date_to, night_start_slot, night_end_slot),
             week_a=hh_analytics.week_profile(df, week_a),
             week_b=hh_analytics.week_profile(df, week_b) if week_b else None,
-            scatter=hh_analytics.full_year_scatter(window, exclude_holidays),
+            # Fewer points for print, thinned by day inside the analytics
+            # so every half hour still appears.
+            scatter=hh_analytics.full_year_scatter(
+                window, exclude_holidays, max_points=2400),
             exclude_holidays=exclude_holidays,
             filter_note=filter_note,
         )
