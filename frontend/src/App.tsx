@@ -7,6 +7,7 @@ import {
   downloadReport,
   withSessionRecovery,
   forgetSession,
+  resetRecoveryBudget,
 } from './api/client';
 import type { UploadResponse, SolarSizeResponse, SizingValues } from './types';
 import FileUpload from './components/FileUpload';
@@ -72,6 +73,18 @@ export default function App() {
 
   useEffect(() => { pingBackend(); }, [pingBackend]);
 
+  // Every session-bound request goes through here. Keeping one recovery
+  // path is the point: the analyser previously called the API directly and
+  // so was the only part of the app that could not survive a lost session,
+  // while the solar side silently re-uploaded and looked fine.
+  const runWithSession = useCallback(
+    <T,>(run: (id: string) => Promise<T>): Promise<T> => {
+      if (!uploadResult) return Promise.reject(new Error('No data loaded.'));
+      return withSessionRecovery(uploadResult.session_id, run, setUploadResult);
+    },
+    [uploadResult],
+  );
+
   async function handleUpload(file: File) {
     // Clear first, not on success. If the new file fails to parse, the old
     // site's charts must not be left on screen under an error message —
@@ -84,6 +97,7 @@ export default function App() {
 
     try {
       const result = await uploadHHFile(file);
+      resetRecoveryBudget(); // a deliberate upload is not a recovery attempt
       setUploadResult(result);
       setBackendStatus('ready'); // successful response = backend is alive
     } catch (e: any) {
@@ -102,10 +116,8 @@ export default function App() {
     try {
       // If the server has forgotten the session (Render sleeps and takes its
       // disk with it), the cached upload is re-sent behind the scenes.
-      const result = await withSessionRecovery(
-        uploadResult.session_id,
+      const result = await runWithSession(
         (id) => sizeSystem({ session_id: id, ...values }),
-        setUploadResult,
       );
       setSolarResult(result);
       setBackendStatus('ready');
@@ -123,8 +135,7 @@ export default function App() {
 
   async function handleDownloadReport() {
     if (!uploadResult) return;
-    await withSessionRecovery(
-      uploadResult.session_id,
+    await runWithSession(
       async (id) => {
         // A recovered session has no sizing behind it yet, so re-run it
         // before asking for the report.
@@ -134,7 +145,6 @@ export default function App() {
         }
         await downloadReport(id, lastSizingValues?.site_name ?? '');
       },
-      setUploadResult,
     );
   }
 
@@ -269,7 +279,10 @@ export default function App() {
         )}
 
         {uploadResult && area === 'analyser' && (
-          <HHAnalyser sessionId={uploadResult.session_id} />
+          <HHAnalyser
+            sessionId={uploadResult.session_id}
+            runWithSession={runWithSession}
+          />
         )}
 
         {/* Consumption overview: shared context for both areas */}

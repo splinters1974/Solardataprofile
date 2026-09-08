@@ -172,6 +172,53 @@ class TestSizing:
         assert response.status_code == 422
 
 
+class TestAnalyserEndpoints:
+    ANALYSER_PATHS = [
+        "overview", "day-profile", "load-duration",
+        "day-night", "week", "scatter",
+    ]
+
+    @pytest.mark.parametrize("path", ANALYSER_PATHS)
+    def test_each_endpoint_answers(self, client, hh_csv, path):
+        body = _upload(client, hh_csv)
+        response = client.get(
+            f"/api/analyser/{path}", params={"session_id": body["session_id"]}
+        )
+        assert response.status_code == 200, response.text
+
+    @pytest.mark.parametrize("path", ANALYSER_PATHS)
+    def test_a_missing_session_is_recoverable_shaped(self, client, path):
+        """
+        The frontend spots a lost session by status 404 plus "session" in the
+        detail, and only then re-uploads. An endpoint that 404s differently
+        is one the user cannot recover from — which is exactly how the
+        analyser broke while the solar side silently repaired itself.
+        """
+        response = client.get(
+            f"/api/analyser/{path}", params={"session_id": "no-such-session"}
+        )
+        assert response.status_code == 404
+        assert "session" in response.json()["detail"].lower()
+
+    def test_the_solar_and_analyser_404s_match(self, client):
+        """Both sides must be recoverable in the same way."""
+        analyser = client.get(
+            "/api/analyser/overview", params={"session_id": "nope"}
+        )
+        solar = _size(client, "nope")
+        assert analyser.status_code == solar.status_code == 404
+        assert analyser.json()["detail"] == solar.json()["detail"]
+
+    def test_overview_carries_what_the_pickers_need(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        data = client.get(
+            "/api/analyser/overview", params={"session_id": body["session_id"]}
+        ).json()
+        assert data["summary"]["days"] == 365
+        assert len(data["weeks"]) >= 52
+        assert data["date_from"] == "2018-11-01"
+
+
 class TestReportEndpoint:
     def test_pdf_downloads_after_sizing(self, client, hh_csv):
         body = _upload(client, hh_csv)

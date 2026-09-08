@@ -15,6 +15,12 @@ import LoadScatterChart from './LoadScatterChart';
 
 interface Props {
   sessionId: string;
+  /**
+   * Runs a session-bound request, re-uploading behind the scenes if the
+   * server has forgotten the session. Supplied by App so there is exactly
+   * one recovery path across the whole app.
+   */
+  runWithSession: <T>(run: (id: string) => Promise<T>) => Promise<T>;
 }
 
 function SummaryTile({ label, value, hint }: {
@@ -29,7 +35,7 @@ function SummaryTile({ label, value, hint }: {
   );
 }
 
-export default function HHAnalyser({ sessionId }: Props) {
+export default function HHAnalyser({ sessionId, runWithSession }: Props) {
   const [overview, setOverview] = useState<AnalyserOverview | null>(null);
   const [profile, setProfile] = useState<DayProfileResponse | null>(null);
   const [ldc, setLdc] = useState<LoadDurationResponse | null>(null);
@@ -47,6 +53,7 @@ export default function HHAnalyser({ sessionId }: Props) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // First load: fetch the overview, then seed the filters and the two week
   // pickers from it so the charts open on something meaningful.
@@ -56,7 +63,7 @@ export default function HHAnalyser({ sessionId }: Props) {
       setLoading(true);
       setError(null);
       try {
-        const o = await getAnalyserOverview(sessionId);
+        const o = await runWithSession(getAnalyserOverview);
         if (cancelled) return;
         setOverview(o);
         setDateFrom(o.date_from ?? '');
@@ -76,7 +83,7 @@ export default function HHAnalyser({ sessionId }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, runWithSession, reloadKey]);
 
   const reload = useCallback(async () => {
     if (!overview) return;
@@ -84,27 +91,31 @@ export default function HHAnalyser({ sessionId }: Props) {
     try {
       const from = dateFrom || undefined;
       const to = dateTo || undefined;
-      const [p, l, dn, s] = await Promise.all([
-        getDayProfile(sessionId, from, to, excludeHolidays),
-        getLoadDuration(sessionId, from, to),
-        getDayNight(sessionId, from, to, 0, nightEndSlot),
-        getScatter(sessionId, excludeHolidays),
-      ]);
+      // One recovery attempt for the batch rather than four racing ones:
+      // the overview settles the session first, so these follow a known-good id.
+      const [p, l, dn, s] = await runWithSession((id) => Promise.all([
+        getDayProfile(id, from, to, excludeHolidays),
+        getLoadDuration(id, from, to),
+        getDayNight(id, from, to, 0, nightEndSlot),
+        getScatter(id, excludeHolidays),
+      ]));
       setProfile(p); setLdc(l); setDayNight(dn); setScatter(s);
     } catch (e) {
       setError(friendlyError(e, 'Could not load the analysis.'));
     }
-  }, [sessionId, overview, dateFrom, dateTo, excludeHolidays, nightEndSlot]);
+  }, [runWithSession, overview, dateFrom, dateTo, excludeHolidays, nightEndSlot]);
 
   useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
-    if (weekAKey) getWeek(sessionId, weekAKey).then(setWeekA).catch(() => {});
-  }, [sessionId, weekAKey]);
+    if (!weekAKey) return;
+    runWithSession((id) => getWeek(id, weekAKey)).then(setWeekA).catch(() => {});
+  }, [runWithSession, weekAKey]);
 
   useEffect(() => {
-    if (weekBKey) getWeek(sessionId, weekBKey).then(setWeekB).catch(() => {});
-  }, [sessionId, weekBKey]);
+    if (!weekBKey) return;
+    runWithSession((id) => getWeek(id, weekBKey)).then(setWeekB).catch(() => {});
+  }, [runWithSession, weekBKey]);
 
   if (loading) {
     return (
@@ -116,8 +127,18 @@ export default function HHAnalyser({ sessionId }: Props) {
 
   if (error && !overview) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-sm text-red-700">
-        {error}
+      <div className="bg-white rounded-xl border border-red-200 p-8 text-center">
+        <p className="text-sm text-red-700 font-medium">{error}</p>
+        <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
+          The server may have restarted and dropped the upload. Drop the file
+          on the box above again, or retry.
+        </p>
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="mt-4 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold px-5 py-2 rounded-lg"
+        >
+          Retry
+        </button>
       </div>
     );
   }
