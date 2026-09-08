@@ -46,8 +46,8 @@ export default function LoadScatterChart({ data }: Props) {
         })}
       </div>
 
-      <ResponsiveContainer width="100%" height={340}>
-        <ScatterChart margin={{ top: 4, right: 12, left: 0, bottom: 16 }}>
+      <ResponsiveContainer width="100%" height={360}>
+        <ScatterChart margin={{ top: 8, right: 12, left: 0, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis
             type="number" dataKey="hour" domain={[0, 24]}
@@ -55,7 +55,7 @@ export default function LoadScatterChart({ data }: Props) {
             tickFormatter={(v) => `${String(v).padStart(2, '0')}:00`}
             tick={{ fontSize: 11, fill: '#64748b' }}
             label={{
-              value: 'Time of day', position: 'insideBottom', offset: -12,
+              value: 'Time of day', position: 'insideBottom', offset: -20,
               style: { fontSize: 12, fill: '#94a3b8' },
             }}
           />
@@ -75,7 +75,13 @@ export default function LoadScatterChart({ data }: Props) {
             }
             labelFormatter={() => ''}
           />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Legend
+            verticalAlign="top"
+            align="left"
+            height={28}
+            iconSize={10}
+            wrapperStyle={{ fontSize: 12, paddingBottom: 6 }}
+          />
           {GROUPS.filter((g) => !hidden.includes(g.type)).map((g) => (
             <Scatter
               key={g.type}
