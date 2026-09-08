@@ -53,6 +53,24 @@ If you outgrow that, the fix is Redis or S3 behind `SessionStore` in
 The GitHub Pages workflow needs `VITE_API_URL` set as a repository **secret**
 pointing at the backend base URL, e.g. `https://your-app.onrender.com`.
 
+## The two areas
+
+One upload feeds both areas, so a file is parsed once and analysed twice.
+
+**Ameresco HH Analyser** (`/api/analyser/*`) — demand profile by day of week,
+load duration curve, monthly day/night split, week comparison, and a
+half-hourly scatter. Bank holidays are computed for England and Wales rather
+than tabulated, so the calendar never goes stale.
+
+**Solar Sizing** (`/api/solar/*`, `/api/report/*`) — economics-led array
+sizing and the client PDF.
+
+The night window for the day/night split defaults to a contiguous 00:00-07:00
+and is selectable in the UI. The source spreadsheet used 00:30-07:00 and
+counted the midnight half hour as day, which splits the night block either
+side of midnight; that looked like an off-by-one rather than a tariff, so it
+was not carried across.
+
 ## Running the tests
 
 ```
