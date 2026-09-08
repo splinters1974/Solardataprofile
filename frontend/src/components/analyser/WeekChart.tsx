@@ -46,15 +46,15 @@ export default function WeekChart({ data, weeks, selected, onSelect, title }: Pr
         </select>
       }
     >
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={rows} margin={{ top: 4, right: 12, left: 0, bottom: 16 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 24 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis
             dataKey="time"
             tick={{ fontSize: 11, fill: '#64748b' }}
             interval={3}
             label={{
-              value: 'Time of day', position: 'insideBottom', offset: -12,
+              value: 'Time of day', position: 'insideBottom', offset: -18,
               style: { fontSize: 12, fill: '#94a3b8' },
             }}
           />
@@ -69,7 +69,13 @@ export default function WeekChart({ data, weeks, selected, onSelect, title }: Pr
             formatter={(v, name) => [`${Number(v).toLocaleString()} kW`, name]}
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Legend
+            verticalAlign="top"
+            align="left"
+            height={40}
+            iconSize={9}
+            wrapperStyle={{ fontSize: 11, paddingBottom: 8, lineHeight: '20px' }}
+          />
           {data.days.map((d, i) => (
             <Line
               key={d.date}
