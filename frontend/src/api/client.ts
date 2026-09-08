@@ -63,6 +63,27 @@ function isMissingSession(e: unknown): boolean {
   );
 }
 
+// Recovery replaces the session id, which re-runs anything watching it. If
+// the server is dropping sessions as fast as they are created, that would
+// ping-pong: fetch, 404, re-upload, refetch, 404. Cap how often recovery may
+// fire so a broken backend surfaces as an error instead of a silent loop.
+const RECOVERY_WINDOW_MS = 30_000;
+const MAX_RECOVERIES_PER_WINDOW = 2;
+let recoveryTimes: number[] = [];
+
+function mayRecover(): boolean {
+  const now = Date.now();
+  recoveryTimes = recoveryTimes.filter((t) => now - t < RECOVERY_WINDOW_MS);
+  if (recoveryTimes.length >= MAX_RECOVERIES_PER_WINDOW) return false;
+  recoveryTimes.push(now);
+  return true;
+}
+
+/** Called after a successful upload: a fresh start is not a recovery loop. */
+export function resetRecoveryBudget() {
+  recoveryTimes = [];
+}
+
 /**
  * Run a request; if the server has forgotten the session, re-upload the
  * cached file and try once more with the new session id.
@@ -80,6 +101,7 @@ export async function withSessionRecovery<T>(
     return await run(sessionId);
   } catch (e) {
     if (!isMissingSession(e)) throw e;
+    if (!mayRecover()) throw e;
 
     const file = await recallUpload(sessionId);
     if (!file) throw e;
