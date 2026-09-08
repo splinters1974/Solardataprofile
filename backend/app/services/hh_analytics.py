@@ -290,23 +290,40 @@ def full_year_scatter(
     if df.empty:
         return {"points": [], "sampled": False, "total_readings": 0}
 
+    total = int(df.shape[0] * df.shape[1])
+    n_slots = df.shape[1]
+
+    # Thin by whole days, never by individual readings.
+    #
+    # Striding across the flattened array steps through a 48-wide cycle, so
+    # any stride sharing a factor with 48 lands on the same slots every day:
+    # a stride of 3 keeps 16 of the 48 half hours and the chart collapses
+    # into vertical bands at those times. Dropping whole days instead keeps
+    # all 48 slots on every day that survives, so the time-of-day shape is
+    # complete and only the density falls.
+    all_classes = _classify_days(df.index, exclude_holidays)
+
+    days_wanted = max(1, max_points // n_slots)
+    sampled = df.shape[0] > days_wanted
+    if sampled:
+        step = int(np.ceil(df.shape[0] / days_wanted))
+        keep = np.zeros(df.shape[0], dtype=bool)
+        keep[::step] = True
+        # Always keep bank holidays. There are only eight in a year, so an
+        # evenly spaced sample usually misses them entirely, and they are
+        # the most informative points on the chart: a closed site shows its
+        # true base load.
+        keep |= (all_classes == "Bank holiday").to_numpy()
+        df = df[keep]
+
     classes = _classify_days(df.index, exclude_holidays)
     kw = df.to_numpy(dtype=float) * KW_PER_KWH_PER_HH
-    n_days, n_slots = kw.shape
+    n_days = kw.shape[0]
 
     slot_hours = np.tile(np.arange(n_slots) / 2.0, n_days)
     values = kw.ravel()
     day_class = np.repeat(classes.to_numpy(), n_slots)
     dates = np.repeat(df.index.strftime("%Y-%m-%d").to_numpy(), n_slots)
-
-    total = values.size
-    sampled = total > max_points
-    if sampled:
-        # Deterministic thinning so the chart does not shuffle between runs.
-        step = int(np.ceil(total / max_points))
-        keep = np.arange(0, total, step)
-        slot_hours, values = slot_hours[keep], values[keep]
-        day_class, dates = day_class[keep], dates[keep]
 
     points = [
         {"hour": round(float(h), 2), "kw": round(float(v), 2),

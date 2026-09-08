@@ -202,6 +202,36 @@ class TestScatter:
         assert result["points"][0]["hour"] == 0.0
         assert result["points"][2]["hour"] == 1.0
 
+    def test_thinning_keeps_every_time_of_day(self):
+        """
+        Regression: thinning used to stride the flattened readings, which
+        steps through a 48-wide cycle. Any stride sharing a factor with 48
+        landed on the same half hours every day, so a year of data collapsed
+        into a few vertical bands instead of a cloud. Thin by day instead.
+        """
+        result = A.full_year_scatter(_frame("2024-01-01", 366), max_points=6000)
+        assert result["sampled"] is True
+        assert len({p["hour"] for p in result["points"]}) == 48
+
+    @pytest.mark.parametrize("cap", [500, 1200, 2400, 6000, 9000])
+    def test_every_time_of_day_survives_at_any_density(self, cap):
+        result = A.full_year_scatter(_frame("2024-01-01", 366), max_points=cap)
+        assert len({p["hour"] for p in result["points"]}) == 48
+
+    def test_a_kept_day_keeps_all_of_its_readings(self):
+        result = A.full_year_scatter(_frame("2024-01-01", 366), max_points=2400)
+        by_date: dict[str, int] = {}
+        for p in result["points"]:
+            by_date[p["date"]] = by_date.get(p["date"], 0) + 1
+        assert set(by_date.values()) == {48}
+
+    def test_bank_holidays_survive_thinning(self):
+        """Eight days in a year: an even sample would usually lose them all."""
+        result = A.full_year_scatter(_frame("2024-01-01", 366), max_points=1200)
+        holidays = {p["date"] for p in result["points"]
+                    if p["type"] == "Bank holiday"}
+        assert len(holidays) >= 6
+
     def test_large_uploads_are_thinned_deterministically(self):
         frame = _frame("2024-01-01", 365)
         first = A.full_year_scatter(frame)
