@@ -1,8 +1,13 @@
 """Ameresco HH Analyser endpoints."""
 
+import re
+from urllib.parse import quote
+
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 
 from app.services import hh_analytics
+from app.services.analyser_report import build_analyser_report
 from app.state import SESSION_STORE
 
 router = APIRouter()
@@ -78,4 +83,82 @@ async def week(session_id: str, week_commencing: str | None = None):
 async def scatter(session_id: str, exclude_holidays: bool = True):
     return hh_analytics.full_year_scatter(
         _session(session_id).consumption, exclude_holidays
+    )
+
+
+def _safe_filename(name: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9 _-]+", "", name).strip() or "site"
+    return re.sub(r"\s+", "-", cleaned)[:60]
+
+
+@router.get("/analyser/report/pdf")
+async def analyser_report(
+    session_id: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    exclude_holidays: bool = True,
+    night_start_slot: int = Query(hh_analytics.DEFAULT_NIGHT_START_SLOT, ge=0, le=47),
+    night_end_slot: int = Query(hh_analytics.DEFAULT_NIGHT_END_SLOT, ge=0, le=48),
+    week_a: str | None = None,
+    week_b: str | None = None,
+):
+    """
+    Every analyser chart and the numbers behind it, built from the same
+    filters the user has on screen so the document matches what they see.
+    """
+    session = _session(session_id)
+    df = session.consumption
+    if df.empty:
+        raise HTTPException(422, "There is no data to report on.")
+
+    window = df
+    if date_from:
+        window = window[window.index >= date_from]
+    if date_to:
+        window = window[window.index <= date_to]
+    if window.empty:
+        raise HTTPException(
+            422, "No data falls inside the selected dates. Widen the range."
+        )
+
+    site_name = session.site_name or session.filename or "Unnamed site"
+    whole_period = len(window) == len(df)
+    filter_note = (
+        f"Covers the whole uploaded period, {len(window)} days."
+        if whole_period
+        else f"Filtered to {len(window)} days of the {len(df)} uploaded."
+    )
+
+    try:
+        pdf = build_analyser_report(
+            site_name=site_name,
+            filename=session.filename,
+            date_from=window.index[0].strftime("%d %b %Y"),
+            date_to=window.index[-1].strftime("%d %b %Y"),
+            summary=hh_analytics.summary_stats(window),
+            profile=hh_analytics.day_of_week_profile(
+                df, date_from, date_to, exclude_holidays),
+            ldc=hh_analytics.load_duration_curve(df, date_from, date_to),
+            day_night=hh_analytics.day_night_split(
+                df, date_from, date_to, night_start_slot, night_end_slot),
+            week_a=hh_analytics.week_profile(df, week_a),
+            week_b=hh_analytics.week_profile(df, week_b) if week_b else None,
+            scatter=hh_analytics.full_year_scatter(window, exclude_holidays),
+            exclude_holidays=exclude_holidays,
+            filter_note=filter_note,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Could not build the report: {e}")
+
+    name = f"{_safe_filename(site_name)}-hh-analysis.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{name}"; '
+                f"filename*=UTF-8\'\'{quote(name)}"
+            ),
+            "Content-Length": str(len(pdf)),
+        },
     )

@@ -185,3 +185,29 @@ export const getWeek = (session_id: string, week_commencing?: string) =>
 
 export const getScatter = (session_id: string, exclude_holidays = true) =>
   analyserGet<ScatterResponse>('scatter', { session_id, exclude_holidays });
+
+/** All analyser charts and their data, as a PDF, matching the on-screen filters. */
+export async function downloadAnalyserReport(
+  sessionId: string,
+  siteName: string,
+  opts: {
+    date_from?: string; date_to?: string; exclude_holidays: boolean;
+    night_end_slot: number; week_a?: string; week_b?: string;
+  },
+) {
+  const { data } = await api.get('/analyser/report/pdf', {
+    params: { session_id: sessionId, night_start_slot: 0, ...opts },
+    responseType: 'blob',
+  });
+
+  const slug = (siteName || 'site').replace(/[^a-zA-Z0-9 _-]/g, '').trim()
+    .replace(/\s+/g, '-') || 'site';
+  const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${slug}-hh-analysis.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

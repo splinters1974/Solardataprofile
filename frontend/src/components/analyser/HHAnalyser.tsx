@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getAnalyserOverview, getDayProfile, getLoadDuration, getDayNight,
-  getWeek, getScatter, friendlyError,
+  getWeek, getScatter, friendlyError, downloadAnalyserReport,
 } from '../../api/client';
 import type {
   AnalyserOverview, DayProfileResponse, LoadDurationResponse,
@@ -54,6 +54,29 @@ export default function HHAnalyser({ sessionId, runWithSession }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    setError(null);
+    try {
+      // Same filters the charts are showing, so the PDF and the page agree.
+      await runWithSession((id) =>
+        downloadAnalyserReport(id, overview?.site_name || overview?.filename || '', {
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          exclude_holidays: excludeHolidays,
+          night_end_slot: nightEndSlot,
+          week_a: weekAKey,
+          week_b: weekBKey,
+        }),
+      );
+    } catch (e) {
+      setError(friendlyError(e, 'Could not build the report.'));
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   // First load: fetch the overview, then seed the filters and the two week
   // pickers from it so the charts open on something meaningful.
@@ -210,9 +233,16 @@ export default function HHAnalyser({ sessionId, runWithSession }: Props) {
             setDateFrom(overview?.date_from ?? '');
             setDateTo(overview?.date_to ?? '');
           }}
-          className="ml-auto text-sm text-slate-600 hover:text-slate-900 underline pb-1.5"
+          className="text-sm text-slate-600 hover:text-slate-900 underline pb-1.5"
         >
           Reset dates
+        </button>
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="ml-auto bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+        >
+          {downloading ? 'Building PDF…' : 'Download all charts (PDF)'}
         </button>
       </div>
 

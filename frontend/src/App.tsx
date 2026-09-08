@@ -19,16 +19,30 @@ import SolarResultsPanel from './components/SolarResultsPanel';
 import GenerationChart from './components/GenerationChart';
 import SizingCurveChart from './components/SizingCurveChart';
 import LoadedDataBar from './components/LoadedDataBar';
+import BrandHeader from './components/BrandHeader';
 import HHAnalyser from './components/analyser/HHAnalyser';
 
 type BackendStatus = 'connecting' | 'ready' | 'unreachable';
 type Area = 'analyser' | 'solar';
 
-const AREAS: { id: Area; label: string; blurb: string }[] = [
-  { id: 'analyser', label: 'Ameresco HH Analyser',
-    blurb: 'Demand profiles, load duration and day/night split' },
-  { id: 'solar', label: 'Solar Sizing',
-    blurb: 'Economics-led array sizing and client report' },
+const AREAS: {
+  id: Area; label: string; blurb: string;
+  active: string; idle: string;
+}[] = [
+  {
+    id: 'analyser',
+    label: 'Half Hourly Data Analyser',
+    blurb: 'Demand profiles, load duration and day/night split',
+    active: 'bg-blue-700 border-blue-700',
+    idle: 'bg-white border-slate-200 hover:border-blue-300',
+  },
+  {
+    id: 'solar',
+    label: 'Solar Sizing Analyser',
+    blurb: 'Economics-led array sizing and client report',
+    active: 'bg-emerald-600 border-emerald-600',
+    idle: 'bg-white border-slate-200 hover:border-emerald-300',
+  },
 ];
 
 export default function App() {
@@ -153,15 +167,9 @@ export default function App() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center gap-3">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-slate-800">Solar Data Profile</h1>
-            <p className="text-xs text-slate-400">HH consumption analysis & solar sizing</p>
-          </div>
+          <BrandHeader />
+          <div className="flex-1" />
+
           {/* Backend status indicator */}
           {backendStatus === 'connecting' && (
             <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
@@ -252,23 +260,27 @@ export default function App() {
 
         {/* Two areas over one upload: analyse the data, or size an array. */}
         {uploadResult && (
-          <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-px">
-            {AREAS.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => setArea(a.id)}
-                className={`text-left px-5 py-3 rounded-t-lg border border-b-0 transition-colors ${
-                  area === a.id
-                    ? 'bg-white border-slate-200 -mb-px'
-                    : 'bg-transparent border-transparent hover:bg-white/60'
-                }`}
-              >
-                <span className={`block text-sm font-semibold ${
-                  area === a.id ? 'text-emerald-700' : 'text-slate-600'
-                }`}>{a.label}</span>
-                <span className="block text-xs text-slate-400">{a.blurb}</span>
-              </button>
-            ))}
+          <nav className="grid gap-3 sm:grid-cols-2">
+            {AREAS.map((a) => {
+              const on = area === a.id;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setArea(a.id)}
+                  aria-pressed={on}
+                  className={`text-left px-5 py-4 rounded-xl border-2 transition-all ${
+                    on ? `${a.active} shadow-md` : `${a.idle} shadow-sm`
+                  }`}
+                >
+                  <span className={`block text-base font-bold ${
+                    on ? 'text-white' : 'text-slate-800'
+                  }`}>{a.label}</span>
+                  <span className={`block text-xs mt-0.5 ${
+                    on ? 'text-white/80' : 'text-slate-500'
+                  }`}>{a.blurb}</span>
+                </button>
+              );
+            })}
           </nav>
         )}
 

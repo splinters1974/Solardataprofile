@@ -175,7 +175,7 @@ class TestSizing:
 class TestAnalyserEndpoints:
     ANALYSER_PATHS = [
         "overview", "day-profile", "load-duration",
-        "day-night", "week", "scatter",
+        "day-night", "week", "scatter", "report/pdf",
     ]
 
     @pytest.mark.parametrize("path", ANALYSER_PATHS)
@@ -208,6 +208,44 @@ class TestAnalyserEndpoints:
         solar = _size(client, "nope")
         assert analyser.status_code == solar.status_code == 404
         assert analyser.json()["detail"] == solar.json()["detail"]
+
+    def test_the_pdf_covers_every_chart(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        response = client.get("/api/analyser/report/pdf", params={
+            "session_id": body["session_id"],
+            "week_a": "2018-11-05", "week_b": "2019-06-17",
+        })
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert "hh-analysis.pdf" in response.headers["content-disposition"]
+        assert response.content.startswith(b"%PDF")
+        assert len(response.content) > 20_000  # charts, not just text
+
+    def test_the_pdf_follows_the_on_screen_filters(self, client, hh_csv):
+        """A narrower window must produce a different document, not the same one."""
+        body = _upload(client, hh_csv)
+        whole = client.get("/api/analyser/report/pdf",
+                           params={"session_id": body["session_id"]}).content
+        narrow = client.get("/api/analyser/report/pdf", params={
+            "session_id": body["session_id"],
+            "date_from": "2019-01-01", "date_to": "2019-03-31",
+        }).content
+        assert whole != narrow
+
+    def test_a_window_with_no_data_is_a_clear_422(self, client, hh_csv):
+        body = _upload(client, hh_csv)
+        response = client.get("/api/analyser/report/pdf", params={
+            "session_id": body["session_id"],
+            "date_from": "2030-01-01", "date_to": "2030-02-01",
+        })
+        assert response.status_code == 422
+        assert "widen" in response.json()["detail"].lower()
+
+    def test_the_pdf_is_recoverable_like_everything_else(self, client):
+        response = client.get("/api/analyser/report/pdf",
+                              params={"session_id": "nope"})
+        assert response.status_code == 404
+        assert "session" in response.json()["detail"].lower()
 
     def test_overview_carries_what_the_pickers_need(self, client, hh_csv):
         body = _upload(client, hh_csv)
