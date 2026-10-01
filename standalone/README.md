@@ -1,18 +1,34 @@
 # HH Analyser: standalone file
 
-`Energy-Usage-Analyser.html` is the Half Hourly Data Analyser in one file. There's nothing to install, no server, and no internet needed.
+`Energy-Usage-Analyser.html` is the Half Hourly Data Analyser in one file. There's nothing to install, no server, and no internet needed. Data never leaves the laptop it runs on.
 
-## Giving it to a colleague
+## Using it
 
-1. Send them the `.html` file (email, Teams, SharePoint, USB stick).
-2. They save it anywhere and double-click it. It opens in Chrome or Edge.
-3. They drop their HH spreadsheet onto the page.
+1. Double-click the file. It opens in Chrome or Edge.
+2. Drop in meter files, **one file per meter**. Each becomes a site. Add as many as you like.
+3. Open each site and set its **building type** and **opening hours**. Every site starts as Office / commercial, so a school, hospital or leisure centre will show the wrong out-of-hours figures until you change it.
+4. Set the **default rate** (25p/kWh fully delivered unless changed). Any site can override it.
 
-The file is read and analysed inside their browser. Their data never leaves their laptop, and the page makes no network calls at all.
+## What you get
 
-It accepts `.xlsx`, `.xlsm`, `.xls` and `.csv`, with days down the side or across the top. "Download all charts (PDF)" produces the same report as the hosted site, using whatever date range and bank holiday setting is on screen.
+- **Where to start:** sites ranked by what out-of-hours use above base load costs each year.
+- **Findings for each site,** priced at the unit rate: out-of-hours use, base load, weekend running, bank holidays that look like working days, base load creep year on year, unusual days and supply headroom (if you enter the agreed kVA).
+- **The year at a glance:** a heatmap of every half hour, with hover read-outs.
+- **The existing analyser charts:** day-of-week profiles, load duration, day/night split, week comparison and scatter.
 
-Solar sizing is not in this file. It stays on the hosted site.
+## Outputs
+
+| Output | What it is | Audience |
+| --- | --- | --- |
+| Download all charts (PDF), on a site | Findings, heatmap, every chart and table | Client-ready |
+| Portfolio report (PDF) | Ranked table, then one page per site | Client-ready |
+| Export to Excel | Summary, findings, monthly figures, profiles and the raw half-hourly data | Internal |
+
+Costs are what each pattern costs now, at the rate entered. They aren't savings promises: how much of it can be removed is an engineering judgement on site. The PDFs say this.
+
+## Files it will refuse
+
+A file with several meters stacked one after another (common in supplier portal exports) is refused with a message, rather than having different meters spliced into one profile. Split it into one file per MPAN.
 
 ## Updating the file
 
@@ -24,4 +40,4 @@ npm run build:standalone
 
 That writes a fresh `standalone/Energy-Usage-Analyser.html`. Then send colleagues the new copy, because old copies don't update themselves.
 
-`npm run test:local` checks the browser engine still gives the same answers as the Python backend. If you change the backend maths, regenerate the reference with `python frontend/tests/parity/generate.py`.
+`npm run test:local` runs the browser engine's tests, including a check that it still gives the same answers as the Python backend. If you change the backend maths, regenerate that reference with `python frontend/tests/parity/generate.py`.

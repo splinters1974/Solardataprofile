@@ -20,7 +20,11 @@ import {
   summaryStats, weekProfile,
 } from './analytics';
 import { buildAnalyserReport } from './pdf/analyserReport';
+import { buildPortfolioReport, rankSites } from './pdf/portfolioReport';
 import { fmtDayMonYear } from './dates';
+import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
+import { drawCarpet } from './carpet';
+import { buildWorkbook } from './excelExport';
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xlsm', '.xls', '.csv', '.txt'];
 
@@ -29,7 +33,7 @@ interface Session {
   filename: string;
   warnings: string[];
   format: 'A' | 'B';
-  siteName: string;
+  settings: SiteSettings;
 }
 
 const sessions = new Map<string, Session>();
@@ -60,8 +64,8 @@ export async function uploadHHFile(file: File): Promise<UploadResponse> {
 
   const { frame, format, warnings } = parseHHFile(bytes, name);
   const id = newId();
-  sessions.clear(); // one site at a time, as on the server
-  sessions.set(id, { frame, filename: name, warnings, format, siteName: '' });
+  const siteName = name.replace(/\.(xlsx|xlsm|xls|csv|txt)$/i, '');
+  sessions.set(id, { frame, filename: name, warnings, format, settings: defaultSettings(siteName) });
 
   const total = frame.rows.reduce((s, r) => s + r.reduce((a, b) => a + b, 0), 0);
   return {
@@ -117,8 +121,8 @@ export async function downloadReport(sessionId: string, siteName: string): Promi
   throw new Error('Solar sizing is not part of the standalone analyser.');
 }
 
-function saveBlob(bytes: ArrayBuffer, filename: string) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+function saveBlob(bytes: ArrayBuffer, filename: string, type = 'application/pdf') {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -140,7 +144,7 @@ export async function getAnalyserOverview(sessionId: string): Promise<AnalyserOv
     weeks: availableWeeks(s.frame),
     date_from: s.frame.dates[0] ?? null,
     date_to: s.frame.dates[s.frame.dates.length - 1] ?? null,
-    site_name: s.siteName,
+    site_name: s.settings.name,
     filename: s.filename,
   };
 }
@@ -177,8 +181,9 @@ export async function downloadAnalyserReport(
   if (!window.dates.length) throw new Error('No data falls inside the selected dates. Widen the range.');
   await yieldToUi();
 
-  const name = (siteName || s.siteName || s.filename || 'Unnamed site')
-    .replace(/\.(xlsx|xlsm|xls|csv|txt)$/i, '');
+  // The site's own settings win: the screen may hold a name from before a rename.
+  void siteName;
+  const name = s.settings.name || 'Unnamed site';
   const whole = window.dates.length === df.dates.length;
   const pdf = buildAnalyserReport({
     siteName: name,
@@ -194,9 +199,70 @@ export async function downloadAnalyserReport(
     // Fewer points for print, thinned by whole days.
     scatter: fullYearScatter(window, opts.exclude_holidays, 2400),
     excludeHolidays: opts.exclude_holidays,
+    site: {
+      metrics: analyseSite(window, s.settings, defaultRateP),
+      settings: s.settings,
+      carpet: carpetFor(window),
+    },
     filterNote: whole
       ? `Covers the whole uploaded period, ${window.dates.length} days.`
       : `Filtered to ${window.dates.length} days of the ${df.dates.length} uploaded.`,
   });
   saveBlob(pdf, `${slug(name)}-hh-analysis.pdf`);
+}
+
+// --- Portfolio ------------------------------------------------------------
+// Used only by the standalone portfolio screen.
+
+let defaultRateP = DEFAULT_RATE_P;
+
+export const getDefaultRate = () => defaultRateP;
+export function setDefaultRate(p: number) {
+  if (Number.isFinite(p) && p > 0) defaultRateP = p;
+}
+
+export interface SiteSummary {
+  id: string;
+  filename: string;
+  warnings: string[];
+  settings: SiteSettings;
+  frame: Frame;
+  metrics: SiteMetrics;
+}
+
+export function listSites(): SiteSummary[] {
+  return [...sessions.entries()].map(([id, s]) => ({
+    id, filename: s.filename, warnings: s.warnings, settings: s.settings, frame: s.frame,
+    metrics: analyseSite(s.frame, s.settings, defaultRateP),
+  }));
+}
+
+export function updateSiteSettings(id: string, settings: SiteSettings) {
+  session(id).settings = settings;
+}
+
+function carpetFor(frame: Frame) {
+  if (typeof document === 'undefined' || !frame.dates.length) return null;
+  const canvas = document.createElement('canvas');
+  const maxKw = drawCarpet(canvas, frame, 3, 6);
+  return { canvas, maxKw, dates: frame.dates };
+}
+
+export async function downloadPortfolioReport(title: string) {
+  const sites = listSites();
+  if (!sites.length) throw new Error('Load at least one site first.');
+  await yieldToUi();
+  const pdf = buildPortfolioReport(title || 'Portfolio', rankSites(sites).map((s) => ({
+    settings: s.settings, filename: s.filename, metrics: s.metrics, carpet: carpetFor(s.frame),
+  })));
+  saveBlob(pdf, `${slug(title || 'portfolio')}-portfolio-review.pdf`);
+}
+
+export async function downloadExcel(title: string, ids?: string[]) {
+  const sites = rankSites(listSites().filter((s) => !ids || ids.includes(s.id)));
+  if (!sites.length) throw new Error('Load at least one site first.');
+  await yieldToUi();
+  const book = buildWorkbook(sites);
+  saveBlob(book, `${slug(title || 'portfolio')}-hh-data.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }

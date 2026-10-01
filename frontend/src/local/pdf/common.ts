@@ -8,6 +8,7 @@
  */
 import { jsPDF } from 'jspdf';
 import { autoTable, type RowInput } from 'jspdf-autotable';
+import { MONTHS_SHORT } from '../dates';
 
 export type RGB = [number, number, number];
 
@@ -66,6 +67,11 @@ export class Report {
   /** Move to a new page unless `height` mm still fits on this one. */
   need(height: number) {
     if (this.y + height > this.bottom) this.newPage();
+  }
+
+  /** Millimetres left on this page. */
+  remaining(): number {
+    return this.bottom - this.y;
   }
 
   space(mm: number) {
@@ -155,12 +161,15 @@ export class Report {
 
   table(head: string[], body: RowInput[], opts: {
     widths?: number[]; fontSize?: number; x?: number; width?: number; boldLast?: boolean;
+    /** Columns to left-align besides the first (text columns in a numeric table). */
+    leftCols?: number[];
   } = {}) {
+    const isLeft = (i: number) => i === 0 || !!opts.leftCols?.includes(i);
     const width = opts.width ?? this.width;
     const columnStyles: Record<number, { cellWidth?: number; halign?: 'left' | 'right' }> = {};
     head.forEach((_, i) => {
       columnStyles[i] = {
-        halign: i === 0 ? 'left' : 'right',
+        halign: isLeft(i) ? 'left' : 'right',
         cellWidth: opts.widths ? opts.widths[i] * width : 'auto' as unknown as number,
       };
     });
@@ -180,7 +189,7 @@ export class Report {
       alternateRowStyles: { fillColor: PANEL },
       columnStyles,
       didParseCell: (data) => {
-        if (data.section === 'head') data.cell.styles.halign = data.column.index === 0 ? 'left' : 'right';
+        if (data.section === 'head') data.cell.styles.halign = isLeft(data.column.index) ? 'left' : 'right';
         if (opts.boldLast && data.section === 'body' && data.row.index === body.length - 1) {
           data.cell.styles.fontStyle = 'bold';
         }
@@ -430,4 +439,79 @@ export function scatterChart(r: Report, opts: {
   }
   const last = legend(r, opts.groups, f.y + f.h + 9, f.x, f.w);
   r.y = last + 4;
+}
+
+// --- Findings and heatmap -------------------------------------------------
+
+/** Fixed status colours; each always travels with its text label. */
+export const LEVEL_STYLE: Record<'high' | 'medium' | 'low' | 'info', { label: string; color: RGB }> = {
+  high: { label: 'HIGH', color: hex('#d03b3b') },
+  medium: { label: 'MEDIUM', color: hex('#ec835a') },
+  low: { label: 'LOW', color: hex('#c98a00') },
+  info: { label: 'NOTE', color: hex('#64748b') },
+};
+
+export function findingsList(r: Report, findings: {
+  level: 'high' | 'medium' | 'low' | 'info'; title: string; detail: string; annualGbp?: number;
+}[]) {
+  const d = r.doc;
+  const textW = r.width - 30;
+  for (const f of findings) {
+    d.setFont('helvetica', 'normal').setFontSize(8.5);
+    const lines = d.splitTextToSize(f.detail, textW) as string[];
+    const h = 6 + lines.length * 3.8 + 3;
+    r.need(h);
+    const style = LEVEL_STYLE[f.level];
+    d.setFillColor(...style.color);
+    d.rect(r.left, r.y, 1.2, h - 2, 'F');
+    d.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(...style.color);
+    d.text(style.label, r.left + 3.5, r.y + 4);
+    d.setFontSize(9.5).setTextColor(...INK);
+    d.text(f.title, r.left + 19, r.y + 4);
+    d.setFont('helvetica', 'normal').setFontSize(8.5).setTextColor(...MUTED);
+    lines.forEach((line, i) => d.text(line, r.left + 19, r.y + 8.5 + i * 3.8));
+    r.y += h;
+  }
+}
+
+/** Embed a pre-drawn heatmap canvas with time-of-day and month axes. */
+export function carpetImage(r: Report, opts: {
+  title: string; canvas: HTMLCanvasElement; dates: string[]; maxKw: number; ramp: string[]; height?: number;
+}) {
+  const height = opts.height ?? 62;
+  r.need(height + 18);
+  const d = r.doc;
+  d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...INK);
+  d.text(opts.title, r.left, r.y + 4);
+  const x = r.left + 12;
+  const y = r.y + 8;
+  const w = r.width - 14;
+  d.addImage(opts.canvas.toDataURL('image/png'), 'PNG', x, y, w, height, undefined, 'FAST');
+  d.setDrawColor(...hex('#94a3b8')).setLineWidth(0.2);
+  d.rect(x, y, w, height);
+  d.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(...MUTED);
+  for (const h of [0, 6, 12, 18, 24]) {
+    d.text(`${String(h).padStart(2, '0')}:00`, x - 1.5, y + (h / 24) * height + 1, { align: 'right' });
+  }
+  // A tick at the first day of each month.
+  const n = opts.dates.length;
+  opts.dates.forEach((date, i) => {
+    if (date.slice(8) !== '01' && i !== 0) return;
+    const px = x + (i / n) * w;
+    const month = MONTHS_SHORT[Number(date.slice(5, 7)) - 1];
+    d.line(px, y + height, px, y + height + 1);
+    d.text(month + (date.slice(5, 7) === '01' || i === 0 ? ` ${date.slice(2, 4)}` : ''), px + 0.5, y + height + 4);
+  });
+  // Colour key.
+  const ky = y + height + 7;
+  const kw = 50;
+  opts.ramp.forEach((c, i) => {
+    d.setFillColor(...hex(c));
+    d.rect(x + (i * kw) / opts.ramp.length, ky, kw / opts.ramp.length + 0.1, 2.5, 'F');
+  });
+  d.setTextColor(...MUTED);
+  d.text('0 kW', x, ky + 5.5);
+  d.text(`${fmt(opts.maxKw, opts.maxKw < 10 ? 1 : 0)} kW and above`, x + kw, ky + 5.5, { align: 'right' });
+  d.text('Each column is one day, each row a half hour. Darker means more demand.', x + kw + 6, ky + 2.3);
+  r.y = ky + 9;
 }

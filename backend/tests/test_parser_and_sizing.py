@@ -145,3 +145,26 @@ class TestParser:
 
         assert len(df) == 365
         assert any("1 January" in w for w in warns)
+
+
+class TestStackedMeters:
+    """A supplier export with several meters one after another must not be spliced."""
+
+    @staticmethod
+    def _csv(blocks: int, extra: int = 0) -> bytes:
+        days = pd.date_range("2024-01-01", periods=60, freq="D")
+        lines = ["Date," + ",".join(f"HH{i + 1}" for i in range(48))]
+        block = [d.strftime("%d/%m/%Y") + "," + ",".join(["1.0"] * 48) for d in days]
+        for _ in range(blocks):
+            lines += block
+        lines += block[:extra]
+        return "\n".join(lines).encode()
+
+    def test_two_meters_stacked_are_refused(self):
+        with pytest.raises(ValueError, match="more than one meter"):
+            load_and_normalise(self._csv(2), filename="two.csv")
+
+    def test_a_single_repeated_row_is_kept_once_with_a_warning(self):
+        df, _, warnings = load_and_normalise(self._csv(1, extra=1), filename="one.csv")
+        assert len(df) == 60
+        assert any("repeat a date" in w for w in warnings)

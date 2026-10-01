@@ -9,7 +9,8 @@ import { useState } from 'react';
  * broken image, so a missing asset never leaves the header empty.
  */
 export default function BrandHeader() {
-  const [logoFailed, setLogoFailed] = useState(false);
+  // The offline file has no logo.png beside it, so go straight to the text mark.
+  const [logoFailed, setLogoFailed] = useState(import.meta.env.MODE === 'standalone');
 
   if (!logoFailed) {
     return (

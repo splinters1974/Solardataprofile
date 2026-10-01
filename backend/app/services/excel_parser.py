@@ -177,6 +177,28 @@ def _to_numeric_body(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     return numeric.fillna(0.0), warn_msgs
 
 
+def _check_repeats(repeats: int, unique: int, warn_msgs: list[str]) -> None:
+    """
+    Dates that appear more than once.
+
+    A few repeats are a paste error and the first copy is kept. Many mean the
+    file holds several meters stacked one after another, and keeping the
+    first reading per date would splice different meters into one profile
+    without anyone noticing, so refuse the file and say why.
+    """
+    if repeats >= 10 and repeats >= unique * 0.2:
+        raise ValueError(
+            f"This file looks like it holds more than one meter: {repeats} rows "
+            "repeat a date already in the file. Split it into one file per "
+            "meter (one MPAN each) and load them as separate sites."
+        )
+    if repeats:
+        warn_msgs.append(
+            f"{repeats} row(s) repeat a date already in the file. The first was "
+            "kept and the repeat ignored. Check the file if that is unexpected."
+        )
+
+
 def load_and_normalise(
     file_bytes: bytes,
     filename: str = "",
@@ -248,6 +270,8 @@ def load_and_normalise(
                 "template padding or data pasted below the dated block."
             )
         numeric.index = idx
+        repeats = int(numeric.index.duplicated(keep="first").sum())
+        _check_repeats(repeats, len(numeric) - repeats, all_warnings)
         numeric = numeric[~numeric.index.duplicated(keep="first")].sort_index()
     else:
         # Fall back to trimming trailing blank rows and assuming a Jan start.

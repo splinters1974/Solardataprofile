@@ -298,6 +298,31 @@ function stripLeadingColumns(rows: Cell[][]): { body: Cell[][]; dates: Cell[] } 
   return { body, dates };
 }
 
+/**
+ * Dates that appear more than once.
+ *
+ * A few repeats are a paste error and the first copy is kept. Many repeats
+ * mean the file holds several meters stacked one after another, which is
+ * common in supplier portal exports. Keeping the first reading per date
+ * would then splice different meters into one profile without anyone
+ * noticing, so refuse the file and say why.
+ */
+function checkRepeats(repeats: number, unique: number, warnings: string[]) {
+  if (repeats >= 10 && repeats >= unique * 0.2) {
+    throw new Error(
+      `This file looks like it holds more than one meter: ${repeats} rows repeat a date `
+      + 'already in the file. Split it into one file per meter (one MPAN each) and '
+      + 'load them as separate sites.',
+    );
+  }
+  if (repeats) {
+    warnings.push(
+      `${repeats} row(s) repeat a date already in the file. The first was kept and the `
+      + 'repeat ignored. Check the file if that is unexpected.',
+    );
+  }
+}
+
 export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
   const warnings: string[] = [];
   const lower = filename.toLowerCase();
@@ -355,10 +380,15 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
     }
     const seen = new Set<string>();
     const pairs: [string, number[]][] = [];
+    let repeats = 0;
     rows.forEach((r, i) => {
       const d = parsed![i];
-      if (d && !seen.has(d)) { seen.add(d); pairs.push([d, r]); }
+      if (!d) return;
+      if (seen.has(d)) { repeats++; return; }
+      seen.add(d);
+      pairs.push([d, r]);
     });
+    checkRepeats(repeats, seen.size, warnings);
     pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     frame = { dates: pairs.map((p) => p[0]), rows: pairs.map((p) => p[1]) };
   } else {

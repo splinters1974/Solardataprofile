@@ -8,8 +8,11 @@ import type {
   ScatterResponse, WeekResponse,
 } from '../../types';
 import { fmtLong } from '../dates';
+import { RAMP_HEX } from '../carpet';
+import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from '../findings';
 import {
-  barChart, fmt, hex, hourAxis, lineChart, Report, scatterChart, type RGB,
+  barChart, carpetImage, findingsList, fmt, hex, hourAxis, lineChart, Report, scatterChart,
+  type RGB,
 } from './common';
 
 const BRAND = hex('#1d4ed8');
@@ -44,6 +47,12 @@ export interface AnalyserReportInput {
   scatter: ScatterResponse;
   excludeHolidays: boolean;
   filterNote: string;
+  /** Findings, costs and the year heatmap. Absent on the hosted build. */
+  site?: {
+    metrics: SiteMetrics;
+    settings: SiteSettings;
+    carpet: { canvas: HTMLCanvasElement; maxKw: number; dates: string[] } | null;
+  };
 }
 
 export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
@@ -56,7 +65,14 @@ export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
 
   r.title('Half Hourly Data Analysis',
     `${i.siteName}  ·  ${i.dateFrom} to ${i.dateTo}  ·  issued ${fmtLong(new Date())}`);
-  r.tiles([
+  const m = i.site?.metrics;
+  r.tiles(m ? [
+    [`£${fmt(m.annualCost)}`, 'ANNUAL COST'],
+    [fmt(m.annualKwh), 'kWh A YEAR'],
+    [`${fmt(s.peak_kw)} kW`, 'PEAK DEMAND'],
+    [`${fmt(m.baseKw, 1)} kW`, 'BASE LOAD'],
+    [m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : 'n/a', 'OUT OF HOURS'],
+  ] : [
     [`${fmt(s.peak_kw)} kW`, 'PEAK DEMAND'],
     [`${fmt(s.average_kw)} kW`, 'AVERAGE DEMAND'],
     [`${(s.load_factor * 100).toFixed(0)}%`, 'LOAD FACTOR'],
@@ -64,6 +80,30 @@ export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
     [fmt(s.average_day_kwh), 'kWh PER DAY'],
   ]);
   r.paragraph(i.filterNote);
+
+  if (i.site && m) {
+    const st = i.site.settings;
+    r.h2('What stands out', 40);
+    findingsList(r, m.findings);
+    r.space(2);
+    r.small(`Costs use ${m.rateP}p/kWh fully delivered and are scaled to a year from ${m.days} days of data. `
+      + `They show what each pattern costs now, not a guaranteed saving. Building type: `
+      + `${SITE_TYPES[st.type].label}. Opening hours: ${describeHours(st.hours)}`
+      + `${st.hours.holidaysLikeSunday ? ', bank holidays as Sunday' : ''}. Base load is the 5th `
+      + 'percentile of half-hourly demand.');
+
+    if (i.site.carpet) {
+      r.newPage();
+      r.h2('The year at a glance');
+      r.paragraph('Every half hour of the period in one picture. Look for vertical stripes (whole days '
+        + 'running differently), dark bands outside opening hours, and steps where the pattern changes.');
+      carpetImage(r, {
+        title: 'Demand by day and time of day (kW)', canvas: i.site.carpet.canvas,
+        dates: i.site.carpet.dates, maxKw: i.site.carpet.maxKw, ramp: RAMP_HEX, height: 100,
+      });
+    }
+    r.newPage();
+  }
 
   // --- Profile -------------------------------------------------------------
   const shown = [
