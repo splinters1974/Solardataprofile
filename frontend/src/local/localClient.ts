@@ -25,6 +25,8 @@ import { fmtDayMonYear } from './dates';
 import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
 import { drawCarpet } from './carpet';
 import { buildWorkbook } from './excelExport';
+import { checkQuality, type QualityReport } from './dataQuality';
+import { analyseHeadroom, type HeadroomResult } from './headroom';
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xlsm', '.xls', '.csv', '.txt'];
 
@@ -203,6 +205,11 @@ export async function downloadAnalyserReport(
       metrics: analyseSite(window, s.settings, defaultRateP),
       settings: s.settings,
       carpet: carpetFor(window),
+      quality: checkQuality(window),
+      headroom: s.settings.capacityKva ? analyseHeadroom(window, {
+        capacityKva: s.settings.capacityKva, powerFactor: s.settings.powerFactor,
+        marginPct: s.settings.headroomMarginPct, test: s.settings.testLoad,
+      }) : null,
     },
     filterNote: whole
       ? `Covers the whole uploaded period, ${window.dates.length} days.`
@@ -234,6 +241,30 @@ export interface SiteSummary {
   settings: SiteSettings;
   frame: Frame;
   metrics: SiteMetrics;
+  quality: QualityReport;
+  /** Null until an agreed supply capacity is entered. */
+  headroom: HeadroomResult | null;
+}
+
+// Quality depends only on the readings, so it is worked out once per file.
+const qualityCache = new WeakMap<Frame, QualityReport>();
+const qualityFor = (f: Frame) => {
+  let q = qualityCache.get(f);
+  if (!q) { q = checkQuality(f); qualityCache.set(f, q); }
+  return q;
+};
+
+const headroomCache = new WeakMap<SiteSettings, HeadroomResult | null>();
+export function headroomFor(frame: Frame, st: SiteSettings): HeadroomResult | null {
+  if (headroomCache.has(st)) return headroomCache.get(st)!;
+  const h = st.capacityKva && st.capacityKva > 0
+    ? analyseHeadroom(frame, {
+      capacityKva: st.capacityKva, powerFactor: st.powerFactor,
+      marginPct: st.headroomMarginPct, test: st.testLoad,
+    })
+    : null;
+  headroomCache.set(st, h);
+  return h;
 }
 
 // Findings take ~30 ms a site. Recompute only when that site's settings or
@@ -252,6 +283,8 @@ export function listSites(): SiteSummary[] {
   return [...sessions.entries()].map(([id, s]) => ({
     id, filename: s.filename, warnings: s.warnings, settings: s.settings, frame: s.frame,
     metrics: metricsFor(s),
+    quality: qualityFor(s.frame),
+    headroom: headroomFor(s.frame, s.settings),
   }));
 }
 
@@ -272,6 +305,7 @@ export async function downloadPortfolioReport(title: string) {
   await yieldToUi();
   const pdf = buildPortfolioReport(title || 'Portfolio', rankSites(sites).map((s) => ({
     settings: s.settings, filename: s.filename, metrics: s.metrics, carpet: carpetFor(s.frame),
+    quality: s.quality, headroom: s.headroom,
   })));
   saveBlob(pdf, `${slug(title || 'portfolio')}-portfolio-review.pdf`);
 }

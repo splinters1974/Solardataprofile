@@ -10,6 +10,7 @@ import { dayOfWeek, fmtDayMonYear, monthsBetween, MONTHS_SHORT } from './dates';
 import { holidaysBetween } from './holidays';
 import { hhLabels, KW_PER_KWH_PER_HH, round } from './analytics';
 import type { Frame } from './parser';
+import type { TestLoad } from './headroom';
 
 // --- Settings ---------------------------------------------------------------
 
@@ -87,6 +88,10 @@ export interface SiteSettings {
   /** Agreed supply capacity in kVA, if known. */
   capacityKva: number | null;
   powerFactor: number;
+  /** Share of capacity held back as a safety margin in the headroom check. */
+  headroomMarginPct: number;
+  /** A proposed new load (heat pump, EV charging) to test against capacity. */
+  testLoad: TestLoad | null;
 }
 
 export function defaultSettings(name: string): SiteSettings {
@@ -97,6 +102,8 @@ export function defaultSettings(name: string): SiteSettings {
     rateP: null,
     capacityKva: null,
     powerFactor: DEFAULT_POWER_FACTOR,
+    headroomMarginPct: 10,
+    testLoad: null,
   };
 }
 

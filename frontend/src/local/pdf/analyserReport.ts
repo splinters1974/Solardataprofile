@@ -10,8 +10,10 @@ import type {
 import { fmtLong } from '../dates';
 import { RAMP_HEX } from '../carpet';
 import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from '../findings';
+import { VERDICT_TEXT, type QualityReport } from '../dataQuality';
+import { inWindow, type HeadroomResult } from '../headroom';
 import {
-  barChart, carpetImage, findingsList, fmt, hex, hourAxis, lineChart, Report, scatterChart,
+  barChart, carpetImage, findingsList, fmt, qualityBlock, hex, hourAxis, lineChart, Report, scatterChart,
   type RGB,
 } from './common';
 
@@ -52,6 +54,8 @@ export interface AnalyserReportInput {
     metrics: SiteMetrics;
     settings: SiteSettings;
     carpet: { canvas: HTMLCanvasElement; maxKw: number; dates: string[] } | null;
+    quality: QualityReport;
+    headroom: HeadroomResult | null;
   };
 }
 
@@ -86,11 +90,65 @@ export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
     r.h2('What stands out', 40);
     findingsList(r, m.findings);
     r.space(2);
+    qualityBlock(r, i.site.quality, VERDICT_TEXT);
+    r.space(2);
     r.small(`Costs use ${m.rateP}p/kWh fully delivered and are scaled to a year from ${m.days} days of data. `
       + `They show what each pattern costs now, not a guaranteed saving. Building type: `
       + `${SITE_TYPES[st.type].label}. Opening hours: ${describeHours(st.hours)}`
       + `${st.hours.holidaysLikeSunday ? ', bank holidays as Sunday' : ''}. Base load is the 5th `
       + 'percentile of half-hourly demand.');
+
+    const h = i.site.headroom;
+    if (h) {
+      r.newPage();
+      r.h2('Electrification headroom');
+      r.paragraph('How much load (heat pumps, EV charging, new plant) the site can add before it outgrows '
+        + `its agreed supply capacity of ${fmt(h.capacityKva)} kVA. ${st.headroomMarginPct}% is held back as a `
+        + `safety margin, leaving ${fmt(h.usableKva)} kVA usable. kW is converted to kVA at a power factor of `
+        + `${st.powerFactor}.`);
+      r.tiles([
+        [`${fmt(h.capacityKva)} kVA`, 'AGREED CAPACITY'],
+        [`${fmt(h.usableKva)} kVA`, 'USABLE'],
+        [`${fmt(h.peakKva)} kVA`, 'PEAK DEMAND'],
+        [`${fmt(h.firmHeadroomKw)} kW`, 'FIRM HEADROOM'],
+        [`${Math.round((h.peakKva / h.capacityKva) * 100)}%`, 'CAPACITY USED'],
+      ]);
+      r.small(`Peak demand: ${h.peakWhen}. Firm headroom is the largest constant load that fits at every half `
+        + 'hour of the period.');
+      barChart(r, {
+        title: 'Peak demand by month (kVA)', height: 44,
+        categories: h.monthly.map((x) => x.month),
+        series: [{ name: 'Monthly peak', color: hex('#2a78d6'), values: h.monthly.map((x) => x.peakKva) }],
+        refLines: [
+          { value: h.capacityKva, label: 'Capacity', color: hex('#334155') },
+          { value: h.usableKva, label: 'Usable', color: hex('#d03b3b') },
+        ],
+      });
+      const t = st.testLoad;
+      const addKw = t && t.kw > 0 ? t.kw / (st.powerFactor || 0.95) : 0;
+      lineChart(r, {
+        title: 'Highest demand at each time of day (kVA)', height: 48, xa: hourAxis,
+        series: [
+          { name: 'Worst case, whole year', color: hex('#94a3b8'), width: 0.4, points: h.worstByTime.map((p) => [p.slot / 2, p.kva]) },
+          { name: 'Worst case, Dec to Feb', color: hex('#2a78d6'), width: 0.6, points: h.worstWinterByTime.map((p) => [p.slot / 2, p.kva]) },
+          ...(addKw ? [{
+            name: 'With the new load', color: hex('#e07b1a'), width: 0.6,
+            points: h.worstByTime.map((p, k): [number, number] => [p.slot / 2,
+              (t!.months === 'heating' ? h.worstWinterByTime[k].kva : p.kva)
+              + (inWindow(p.slot, t!.start, t!.end) ? addKw : 0)]),
+          }] : []),
+          { name: `Usable capacity (${fmt(h.usableKva)} kVA)`, color: hex('#d03b3b'), width: 0.4, dash: true,
+            points: [[0, h.usableKva], [24, h.usableKva]] },
+        ],
+      });
+      if (h.test) {
+        r.callout(h.test.summary, {
+          fill: h.test.fits ? hex('#f0fdf4') : hex('#fef2f2'),
+          border: h.test.fits ? hex('#0ca30c') : hex('#d03b3b'),
+          bold: h.test.fits ? 'New load fits.' : 'New load does not fit.',
+        });
+      }
+    }
 
     if (i.site.carpet) {
       r.newPage();

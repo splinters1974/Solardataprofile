@@ -16,6 +16,8 @@ import FindingsPanel from './FindingsPanel';
 import { LEVEL_UI } from './levelUi';
 import SiteSettingsPanel from './SiteSettingsPanel';
 import CarpetPlot from './CarpetPlot';
+import QualityPanel, { VerdictChip } from './QualityPanel';
+import HeadroomPanel from './HeadroomPanel';
 
 const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const btn = 'text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
@@ -163,7 +165,13 @@ export default function StandaloneApp() {
               defaultRate={rate}
               onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
             />
+            <QualityPanel report={site.quality} />
             <FindingsPanel metrics={site.metrics} />
+            <HeadroomPanel
+              settings={site.settings}
+              headroom={site.headroom}
+              onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
+            />
             <CarpetPlot frame={site.frame} />
             <HHAnalyser key={site.id} sessionId={site.id} runWithSession={runForSite} />
           </>
@@ -244,6 +252,8 @@ export default function StandaloneApp() {
                         <th className="px-3 py-2 font-medium text-right">Base kW</th>
                         <th className="px-3 py-2 font-medium text-right">Out of hours</th>
                         <th className="px-3 py-2 font-medium text-right">Above base £/yr</th>
+                        <th className="px-3 py-2 font-medium text-right">Headroom kW</th>
+                        <th className="px-3 py-2 font-medium">Data</th>
                         <th className="px-3 py-2 font-medium">Findings</th>
                         <th className="px-3 py-2" />
                       </tr>
@@ -274,6 +284,14 @@ export default function StandaloneApp() {
                             <td className="px-3 py-3 text-right tabular-nums font-semibold text-slate-800">
                               {m.hasOutOfHours ? gbp(m.oohExcessCost) : '-'}
                             </td>
+                            <td className="px-3 py-3 text-right tabular-nums">
+                              {s.headroom ? (
+                                <span className={s.headroom.firmHeadroomKw < 0 ? 'text-[#b42c2c] font-semibold' : ''}>
+                                  {Math.round(s.headroom.firmHeadroomKw).toLocaleString('en-GB')}
+                                </span>
+                              ) : <span className="text-slate-300" title="Enter the supply capacity on the site page">-</span>}
+                            </td>
+                            <td className="px-3 py-3"><VerdictChip verdict={s.quality.verdict} /></td>
                             <td className="px-3 py-3">
                               <div className="flex gap-1">
                                 {counts.length ? counts.map(([l, c]) => (

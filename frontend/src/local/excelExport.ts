@@ -6,12 +6,16 @@ import * as XLSX from 'xlsx';
 import { dayNightSplit, dayOfWeekProfile, hhLabels, monthlyTotals, round } from './analytics';
 import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from './findings';
 import type { Frame } from './parser';
+import { VERDICT_TEXT, type QualityReport } from './dataQuality';
+import type { HeadroomResult } from './headroom';
 
 export interface ExportSite {
   settings: SiteSettings;
   filename: string;
   frame: Frame;
   metrics: SiteMetrics;
+  quality: QualityReport;
+  headroom: HeadroomResult | null;
 }
 
 /** Excel caps sheet names at 31 characters and bans a few symbols. */
@@ -31,7 +35,8 @@ export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
     'Site', 'File', 'Building type', 'Opening hours', 'From', 'To', 'Days',
     'Rate (p/kWh)', 'Annual kWh', 'Annual cost (£)', 'Peak kW', 'Average kW', 'Load factor',
     'Base load kW', 'Base load share', 'Out-of-hours share', 'Out-of-hours cost (£)',
-    'Out-of-hours above base (£)', 'Findings',
+    'Out-of-hours above base (£)', 'Findings', 'Data quality', 'Capacity (kVA)', 'Peak (kVA)',
+    'Firm headroom (kW)', 'Test load fits',
   ]];
   for (const s of sites) {
     const m = s.metrics;
@@ -41,6 +46,9 @@ export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
       m.loadFactor, m.baseKw, m.baseShare, m.hasOutOfHours ? m.oohShare : '',
       m.hasOutOfHours ? m.oohCost : '', m.hasOutOfHours ? m.oohExcessCost : '',
       m.findings.filter((f) => f.level !== 'info').length,
+      VERDICT_TEXT[s.quality.verdict].label,
+      s.headroom?.capacityKva ?? '', s.headroom?.peakKva ?? '', s.headroom?.firmHeadroomKw ?? '',
+      s.headroom?.test ? (s.headroom.test.fits ? 'Yes' : 'No') : '',
     ]);
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), sheetName('Summary', used));
@@ -55,6 +63,9 @@ export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
       ['Findings', 'Level', '£ a year', 'Detail'],
       ...m.findings.map((f) => [f.title, f.level, f.annualGbp !== undefined ? Math.round(f.annualGbp) : '', f.detail]),
       [],
+      [`Data quality: ${VERDICT_TEXT[s.quality.verdict].label}`, 'Status', '', 'Detail'],
+      ...s.quality.checks.map((c) => [c.title, c.status, '', c.detail]),
+      [],
       ['Month', 'kWh', 'Day kWh', 'Night kWh (00:00-07:00)', 'Cost (£)'],
     ];
     const dn = dayNightSplit(s.frame);
@@ -62,6 +73,14 @@ export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
       const d = dn.months[i];
       rows.push([mt.month, mt.kwh, d?.day_kwh ?? '', d?.night_kwh ?? '', round((mt.kwh * m.rateP) / 100)]);
     });
+    if (s.headroom) {
+      const h = s.headroom;
+      rows.push([], [`Headroom: capacity ${h.capacityKva} kVA, usable ${h.usableKva} kVA, peak ${h.peakKva} kVA `
+        + `(${h.peakWhen}), firm headroom ${h.firmHeadroomKw} kW`]);
+      if (h.test) rows.push([h.test.summary]);
+      rows.push(['Month', 'Peak kVA', 'Headroom kW']);
+      for (const x of h.monthly) rows.push([x.month, x.peakKva, x.headroomKw]);
+    }
     rows.push([], ['Average kW by half hour', ...labels]);
     for (const series of dayOfWeekProfile(s.frame).series) rows.push([series.name, ...series.values]);
     rows.push([], ['Date', 'Daily kWh', ...labels.map((l) => `${l} kWh`)]);

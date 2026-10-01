@@ -366,15 +366,20 @@ export function lineChart(r: Report, opts: {
 export function barChart(r: Report, opts: {
   title: string; categories: string[]; series: { name: string; color: RGB; values: number[] }[];
   stacked?: boolean; height?: number; angledLabels?: boolean;
+  /** Horizontal reference lines, e.g. a supply capacity. */
+  refLines?: { value: number; label: string; color: RGB }[];
 }) {
   const height = opts.height ?? 72;
   r.need(height + 16);
   chartTitle(r, opts.title);
 
   const n = opts.categories.length;
-  const maxV = opts.stacked
-    ? Math.max(...opts.categories.map((_, i) => opts.series.reduce((s, x) => s + x.values[i], 0)), 1)
-    : Math.max(...opts.series.flatMap((s) => s.values), 1);
+  const maxV = Math.max(
+    opts.stacked
+      ? Math.max(...opts.categories.map((_, i) => opts.series.reduce((s, x) => s + x.values[i], 0)), 1)
+      : Math.max(...opts.series.flatMap((s) => s.values), 1),
+    ...(opts.refLines ?? []).map((l) => l.value),
+  );
   const ya = niceAxis(0, maxV, 5, kFormat);
   const xa: Axis = { min: 0, max: n, ticks: [], format: () => '' };
   const labelRoom = opts.angledLabels ? 12 : 4;
@@ -416,6 +421,16 @@ export function barChart(r: Report, opts: {
     }
   });
 
+  (opts.refLines ?? []).forEach((line, k) => {
+    const y = py(line.value);
+    d.setDrawColor(...line.color).setLineWidth(0.35).setLineDashPattern([1.5, 1], 0);
+    d.line(f.x, y, f.x + f.w, y);
+    d.setLineDashPattern([], 0);
+    d.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(...line.color);
+    // Alternate sides so two close lines do not print their labels on top of each other.
+    if (k % 2) d.text(line.label, f.x + 1, y - 1);
+    else d.text(line.label, f.x + f.w - 1, y - 1, { align: 'right' });
+  });
   const last = legend(r, opts.series, f.y + f.h + labelRoom + 5, f.x, f.w);
   r.y = last + 4;
 }
@@ -453,7 +468,7 @@ export const LEVEL_STYLE: Record<'high' | 'medium' | 'low' | 'info', { label: st
 
 export function findingsList(r: Report, findings: {
   level: 'high' | 'medium' | 'low' | 'info'; title: string; detail: string; annualGbp?: number;
-}[]) {
+}[], labels: Partial<Record<'high' | 'medium' | 'low' | 'info', string>> = {}) {
   const d = r.doc;
   const textW = r.width - 30;
   for (const f of findings) {
@@ -465,7 +480,7 @@ export function findingsList(r: Report, findings: {
     d.setFillColor(...style.color);
     d.rect(r.left, r.y, 1.2, h - 2, 'F');
     d.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(...style.color);
-    d.text(style.label, r.left + 3.5, r.y + 4);
+    d.text(labels[f.level] ?? style.label, r.left + 3.5, r.y + 4);
     d.setFontSize(9.5).setTextColor(...INK);
     d.text(f.title, r.left + 19, r.y + 4);
     d.setFont('helvetica', 'normal').setFontSize(8.5).setTextColor(...MUTED);
@@ -514,4 +529,25 @@ export function carpetImage(r: Report, opts: {
   d.text(`${fmt(opts.maxKw, opts.maxKw < 10 ? 1 : 0)} kW and above`, x + kw, ky + 5.5, { align: 'right' });
   d.text('Each column is one day, each row a half hour. Darker means more demand.', x + kw + 6, ky + 2.3);
   r.y = ky + 9;
+}
+
+/** The data quality verdict and anything it flagged. */
+export function qualityBlock(r: Report, q: {
+  verdict: 'good' | 'check' | 'poor';
+  checks: { status: 'ok' | 'warn' | 'fail'; title: string; detail: string }[];
+}, labels: Record<'good' | 'check' | 'poor', { label: string; summary: string }>) {
+  const colour = { good: hex('#0ca30c'), check: hex('#c98a00'), poor: hex('#d03b3b') }[q.verdict];
+  r.need(14);
+  const d = r.doc;
+  d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...colour);
+  d.text(`Data quality: ${labels[q.verdict].label.toUpperCase()}`, r.left, r.y + 4);
+  d.setFont('helvetica', 'normal').setTextColor(...INK);
+  d.text(labels[q.verdict].summary, r.left + 42, r.y + 4);
+  r.y += 7;
+  const flagged = q.checks.filter((c) => c.status !== 'ok');
+  if (flagged.length) {
+    findingsList(r, flagged.map((c) => ({
+      level: c.status === 'fail' ? 'high' : 'low', title: c.title, detail: c.detail,
+    })), { high: 'FAIL', low: 'CHECK' });
+  }
 }
