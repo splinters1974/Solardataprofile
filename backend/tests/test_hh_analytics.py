@@ -54,6 +54,16 @@ class TestBankHolidays:
                 if day not in one_offs:
                     assert day.weekday() < 5, f"{day} is a weekend"
 
+    @pytest.mark.parametrize("usual,actual", [
+        (date(2012, 5, 28), date(2012, 6, 4)),
+        (date(2020, 5, 4), date(2020, 5, 8)),
+        (date(2022, 5, 30), date(2022, 6, 2)),
+    ])
+    def test_moved_holidays_leave_the_usual_monday_a_working_day(self, usual, actual):
+        holidays = holidays_for_year(usual.year)
+        assert actual in holidays
+        assert usual not in holidays
+
     def test_the_calendar_does_not_stop_in_2015(self):
         """The workbook's hard-coded table did, so recent data lost them."""
         assert len(holidays_for_year(2030)) == 8

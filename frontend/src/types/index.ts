@@ -104,6 +104,9 @@ export interface SolarSizeResponse {
   sizing_curve: SizingCurvePoint[];
   alternative_max_onsite?: SizingCurvePoint | null;
   warning?: string;
+  /** Standalone build only: 'pvgis', or 'estimate' when PVGIS was unreachable. */
+  irradiance_source?: 'pvgis' | 'estimate';
+  irradiance_label?: string;
 }
 
 export interface SizingValues {

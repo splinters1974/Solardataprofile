@@ -92,6 +92,9 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
             {result.location.postcode} · sized on {result.days_analysed} days of
             metered data
           </p>
+          {result.irradiance_label && (
+            <p className="text-xs text-slate-400">Irradiance: {result.irradiance_label}</p>
+          )}
         </div>
         <div className="text-right shrink-0">
           <p className="text-4xl font-bold text-emerald-600">
@@ -100,6 +103,14 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
           <p className="text-xs text-slate-400">Peak capacity</p>
         </div>
       </div>
+
+      {result.irradiance_source === 'estimate' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          Could not reach PVGIS, so generation comes from the built-in typical-year
+          solar model. Expect annual yield within about 10% of a PVGIS figure. Re-run
+          with an internet connection before using these numbers in a business case.
+        </div>
+      )}
 
       {result.warning && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">

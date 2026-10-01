@@ -75,6 +75,17 @@ def holidays_for_year(year: int) -> frozenset[date]:
     }
     days.update(extras.get(year, []))
 
+    # Regular holidays moved by proclamation, leaving the usual date a
+    # working day: Spring for both jubilees, Early May for VE Day 75.
+    moved = {
+        2012: [(date(2012, 5, 28), date(2012, 6, 4))],
+        2020: [(date(2020, 5, 4), date(2020, 5, 8))],
+        2022: [(date(2022, 5, 30), date(2022, 6, 2))],
+    }
+    for usual, actual in moved.get(year, []):
+        days.discard(usual)
+        days.add(actual)
+
     return frozenset(days)
 
 

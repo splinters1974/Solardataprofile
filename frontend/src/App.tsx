@@ -23,6 +23,9 @@ import BrandHeader from './components/BrandHeader';
 import HHAnalyser from './components/analyser/HHAnalyser';
 
 type BackendStatus = 'connecting' | 'ready' | 'unreachable';
+
+// The single-file build runs everything in the browser: no server to wake.
+const STANDALONE = import.meta.env.MODE === 'standalone';
 type Area = 'analyser' | 'solar';
 
 const AREAS: {
@@ -46,7 +49,9 @@ const AREAS: {
 ];
 
 export default function App() {
-  const [backendStatus, setBackendStatus] = useState<BackendStatus>('connecting');
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>(
+    STANDALONE ? 'ready' : 'connecting',
+  );
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [solarResult, setSolarResult] = useState<SolarSizeResponse | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -85,7 +90,7 @@ export default function App() {
     return ok;
   }, []);
 
-  useEffect(() => { pingBackend(); }, [pingBackend]);
+  useEffect(() => { if (!STANDALONE) pingBackend(); }, [pingBackend]);
 
   // Every session-bound request goes through here. Keeping one recovery
   // path is the point: the analyser previously called the API directly and

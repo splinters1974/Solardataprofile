@@ -81,3 +81,16 @@ python -m pytest
 
 54 tests. They stub the postcode lookup and PVGIS, so they run offline and
 without hitting either service.
+
+## Standalone single-file version
+
+`standalone/Energy-Usage-Analyser.html` is the same app with the backend
+ported into the browser: no server, no install, data stays on the laptop.
+Build it with `npm run build:standalone` in `frontend/`. See
+`standalone/README.md` for how colleagues use it and what works offline.
+
+The screens are shared. `vite.config.ts` swaps `src/api/client.ts` for
+`src/local/localClient.ts` in standalone mode, so a UI change lands in both
+versions. Maths changes in `backend/app/services/` must be mirrored in
+`frontend/src/local/`; `npm run test:local` compares the two on the files in
+`frontend/tests/parity/`.
