@@ -18,14 +18,10 @@ import {
   availableWeeks, dayNightSplit, dayOfWeekProfile, fullYearScatter, heatmapMatrix,
   loadDurationCurve, monthlyTotals, summaryStats, weekProfile,
 } from '../src/local/analytics';
-import { recommendSystemSize } from '../src/local/sizing';
-import { DEFAULT_ASSUMPTIONS } from '../src/local/economics';
-import { estimateProfile } from '../src/local/irradiance';
 import { holidaysForYear } from '../src/local/holidays';
 
 const dir = join(import.meta.dirname, 'parity');
 const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'));
-const gen = JSON.parse(readFileSync(join(dir, 'generation.json'), 'utf8'));
 
 function load(name: string) {
   const buf = readFileSync(join(dir, name));
@@ -97,27 +93,6 @@ for (const name of ['workbook_a.xlsx', 'semicolon.csv']) {
     close(sc.points.slice(0, 5), want.scatter.first, 'scatter.first');
     assert.equal(fullYearScatter(frame, true, 2400).points.length, want.scatter_print);
   });
-
-  test(`${name}: solar sizing and economics match`, () => {
-    const { frame } = load(name);
-    const r = recommendSystemSize(frame, gen, 0.7, 0.9, DEFAULT_ASSUMPTIONS);
-    const w = want.sizing;
-    assert.equal(r.best.kwp, w.kwp);
-    close(r.best.sc_rate, w.sc_rate);
-    close(r.best.offset_rate, w.offset_rate);
-    close(r.best.annual_generation_kwh, w.annual_generation_kwh);
-    close(r.best.self_consumed_kwh, w.self_consumed_kwh);
-    close(r.best.exported_kwh, w.exported_kwh);
-    close(r.best.summer_export_kwh, w.summer_export_kwh);
-    close(r.annualConsumptionKwh, w.annual_consumption_kwh);
-    assert.equal(r.warning, w.warning);
-    close(r.best.economics, w.economics, 'economics');
-    close(r.curve.map((c) => ({
-      kwp: c.kwp, sc_rate: c.sc_rate, simple_payback_years: c.simple_payback_years, npv: c.npv, irr: c.irr,
-    })), w.curve, 'curve');
-    close(r.monthly, w.monthly_chart, 'monthly_chart');
-    assert.equal(r.alternative?.kwp ?? null, w.alternative_kwp);
-  });
 }
 
 test('transposed file keeps its dates and every day', () => {
@@ -139,17 +114,4 @@ test('bank holidays include substitutes and one-offs', () => {
     assert.ok(h2022.has(d), d);
   }
   assert.ok(holidaysForYear(2025).has('2025-04-18'));
-});
-
-test('built-in solar estimate gives UK-plausible yields', () => {
-  const total = (p: { rows: number[][] }) => p.rows.flat().reduce((a, b) => a + b, 0);
-  const london = total(estimateProfile(51.5, -0.12, 35, 0));
-  const edinburgh = total(estimateProfile(55.95, -3.19, 35, 0));
-  const east = total(estimateProfile(51.5, -0.12, 35, -90));
-  assert.ok(london > 850 && london < 1100, `London ${london}`);
-  assert.ok(edinburgh < london, 'further north yields less');
-  assert.ok(east < london * 0.95, 'east-facing yields less than south');
-  const june = estimateProfile(51.5, -0.12, 35, 0).rows[170];
-  assert.equal(june[0], 0, 'no output at midnight');
-  assert.ok(june[24] > 0, 'output at noon');
 });

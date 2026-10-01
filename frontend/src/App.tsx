@@ -25,6 +25,7 @@ import HHAnalyser from './components/analyser/HHAnalyser';
 type BackendStatus = 'connecting' | 'ready' | 'unreachable';
 
 // The single-file build runs everything in the browser: no server to wake.
+// It carries the HH Analyser only, so solar sizing never ships in it.
 const STANDALONE = import.meta.env.MODE === 'standalone';
 type Area = 'analyser' | 'solar';
 
@@ -264,7 +265,7 @@ export default function App() {
         </section>
 
         {/* Two areas over one upload: analyse the data, or size an array. */}
-        {uploadResult && (
+        {uploadResult && !STANDALONE && (
           <nav className="grid gap-3 sm:grid-cols-2">
             {AREAS.map((a) => {
               const on = area === a.id;
@@ -303,7 +304,7 @@ export default function App() {
         )}
 
         {/* Consumption overview: shared context for both areas */}
-        {uploadResult && area === 'solar' && (
+        {!STANDALONE && uploadResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">2</span>
@@ -328,7 +329,7 @@ export default function App() {
         )}
 
         {/* Step 3: Solar Sizing */}
-        {uploadResult && area === 'solar' && (
+        {!STANDALONE && uploadResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">3</span>
@@ -353,7 +354,7 @@ export default function App() {
         )}
 
         {/* Step 4: Solar Results */}
-        {solarResult && area === 'solar' && (
+        {!STANDALONE && solarResult && area === 'solar' && (
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs flex items-center justify-center font-bold">4</span>

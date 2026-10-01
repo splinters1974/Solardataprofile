@@ -84,13 +84,16 @@ without hitting either service.
 
 ## Standalone single-file version
 
-`standalone/Energy-Usage-Analyser.html` is the same app with the backend
-ported into the browser: no server, no install, data stays on the laptop.
+`standalone/Energy-Usage-Analyser.html` is the HH Analyser with its backend
+ported into the browser: no server, no install, no network calls, and the
+data stays on the laptop. Solar sizing is deliberately left out of it.
 Build it with `npm run build:standalone` in `frontend/`. See
-`standalone/README.md` for how colleagues use it and what works offline.
+`standalone/README.md` for how colleagues use it.
 
 The screens are shared. `vite.config.ts` swaps `src/api/client.ts` for
-`src/local/localClient.ts` in standalone mode, so a UI change lands in both
-versions. Maths changes in `backend/app/services/` must be mirrored in
-`frontend/src/local/`; `npm run test:local` compares the two on the files in
-`frontend/tests/parity/`.
+`src/local/localClient.ts` in standalone mode, and `App.tsx` hides the solar
+area there, so an analyser UI change lands in both versions. Changes to
+`backend/app/services/hh_analytics.py`, `usage_analytics.py`,
+`excel_parser.py` or `bank_holidays.py` must be mirrored in
+`frontend/src/local/`; `npm run test:local` compares the two on the files
+in `frontend/tests/parity/`.

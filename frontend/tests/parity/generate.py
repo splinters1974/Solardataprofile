@@ -20,9 +20,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.services import hh_analytics as H  # noqa: E402
-from app.services.economics import Assumptions  # noqa: E402
 from app.services.excel_parser import load_and_normalise  # noqa: E402
-from app.services.solar_sizing import recommend_system_size  # noqa: E402
 from app.services.usage_analytics import heatmap_matrix, monthly_totals  # noqa: E402
 
 OUT = Path(__file__).parent
@@ -39,19 +37,6 @@ def site_load(dates: pd.DatetimeIndex) -> np.ndarray:
         shape = np.where((slots >= 15) & (slots < 37), 9.0 if working else 3.5, 2.2)
         rows.append(np.round(shape * season + rng.normal(0, 0.4, 48).clip(-1, 1), 3))
     return np.array(rows)
-
-
-def generation_profile() -> pd.DataFrame:
-    """A plain 1 kWp profile on the 2020 calendar, 365 days like PVGIS."""
-    idx = pd.date_range("2020-01-01", periods=365, freq="D")
-    slots = np.arange(48) / 2.0
-    rows = []
-    for d in idx:
-        daylen = 12 + 4.5 * np.sin((d.dayofyear - 80) / 365 * 2 * np.pi)
-        peak = 0.30 + 0.25 * np.sin((d.dayofyear - 80) / 365 * 2 * np.pi)
-        x = (slots - 12.0) / (daylen / 2)
-        rows.append(np.where(np.abs(x) < 1, peak * np.cos(x * np.pi / 2) * 0.5, 0.0))
-    return pd.DataFrame(np.array(rows), index=idx, columns=list(range(48)))
 
 
 def write_workbook_a(path: Path) -> None:
@@ -98,13 +83,12 @@ def write_workbook_b(path: Path) -> None:
         pd.DataFrame(rows).to_excel(xw, sheet_name="Data", header=False, index=False)
 
 
-def expected_for(path: Path, gen: pd.DataFrame) -> dict:
+def expected_for(path: Path) -> dict:
     df, fmt, warnings = load_and_normalise(path.read_bytes(), filename=path.name)
     first, last = df.index[0].strftime("%Y-%m-%d"), df.index[-1].strftime("%Y-%m-%d")
     mid = df.index[len(df) // 3].strftime("%Y-%m-%d")
     late = df.index[2 * len(df) // 3].strftime("%Y-%m-%d")
     weeks = H.available_weeks(df)
-    sizing = recommend_system_size(df, gen, 0.7, 0.9, Assumptions())
     scatter = H.full_year_scatter(df, True)
     return {
         "format": fmt,
@@ -130,40 +114,16 @@ def expected_for(path: Path, gen: pd.DataFrame) -> dict:
             "holidays": sum(1 for p in scatter["points"] if p["type"] == "Bank holiday"),
         },
         "scatter_print": len(H.full_year_scatter(df, True, max_points=2400)["points"]),
-        "sizing": {
-            "kwp": sizing["kwp"],
-            "sc_rate": sizing["sc_rate"],
-            "offset_rate": sizing["offset_rate"],
-            "annual_generation_kwh": sizing["annual_generation_kwh"],
-            "self_consumed_kwh": sizing["self_consumed_kwh"],
-            "exported_kwh": sizing["exported_kwh"],
-            "summer_export_kwh": sizing["summer_export_kwh"],
-            "annual_consumption_kwh": sizing["annual_consumption_kwh"],
-            "warning": sizing["warning"],
-            "economics": {k: v for k, v in sizing["_appraisal"].__dict__.items()},
-            "curve": [
-                {k: c[k] for k in ("kwp", "sc_rate", "simple_payback_years", "npv", "irr")}
-                for c in sizing["sizing_curve"]
-            ],
-            "monthly_chart": sizing["monthly_chart"],
-            "alternative_kwp": (sizing["alternative_max_onsite"] or {}).get("kwp"),
-        },
     }
 
 
 def main() -> None:
-    gen = generation_profile()
-    (OUT / "generation.json").write_text(json.dumps({
-        "dates": [d.strftime("%Y-%m-%d") for d in gen.index],
-        "rows": [[round(float(v), 8) for v in row] for row in gen.to_numpy()],
-    }))
-
     write_workbook_a(OUT / "workbook_a.xlsx")
     write_csv(OUT / "semicolon.csv")
     write_workbook_b(OUT / "transposed_b.xlsx")
 
     expected = {
-        name: expected_for(OUT / name, gen)
+        name: expected_for(OUT / name)
         for name in ("workbook_a.xlsx", "semicolon.csv")
     }
     (OUT / "expected.json").write_text(json.dumps(expected, default=float))

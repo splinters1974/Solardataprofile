@@ -1,6 +1,6 @@
-# Energy Usage Analyser: standalone file
+# HH Analyser: standalone file
 
-`Energy-Usage-Analyser.html` is the whole app in one file. There's nothing to install and no server.
+`Energy-Usage-Analyser.html` is the Half Hourly Data Analyser in one file. There's nothing to install, no server, and no internet needed.
 
 ## Giving it to a colleague
 
@@ -8,20 +8,11 @@
 2. They save it anywhere and double-click it. It opens in Chrome or Edge.
 3. They drop their HH spreadsheet onto the page.
 
-Their data never leaves their laptop. The file is read and analysed inside the browser.
+The file is read and analysed inside their browser. Their data never leaves their laptop, and the page makes no network calls at all.
 
-## What needs the internet
+It accepts `.xlsx`, `.xlsm`, `.xls` and `.csv`, with days down the side or across the top. "Download all charts (PDF)" produces the same report as the hosted site, using whatever date range and bank holiday setting is on screen.
 
-Only the Solar Sizing area, and only for two lookups:
-
-| Lookup | Offline fallback |
-| --- | --- |
-| Postcode to location (postcodes.io) | Type latitude and longitude into the postcode box, e.g. `51.50, -0.12` |
-| Solar generation for the site (PVGIS) | Built-in typical-year solar model, flagged on screen and in the PDF as an estimate (roughly 10% on annual yield) |
-
-The HH Analyser works fully offline.
-
-If PVGIS is reached once for a site, the result is remembered in that browser, so re-running the same site later works offline at full accuracy.
+Solar sizing is not in this file. It stays on the hosted site.
 
 ## Updating the file
 

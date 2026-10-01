@@ -25,17 +25,6 @@ export const WHITE: RGB = [255, 255, 255];
 export const fmt = (v: number, dp = 0) =>
   v.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
-export const money = (v: number | null | undefined) => {
-  if (v === null || v === undefined) return 'n/a';
-  return v < 0 ? `-£${fmt(Math.abs(v))}` : `£${fmt(v)}`;
-};
-
-export const pct = (v: number | null | undefined, dp = 1) =>
-  v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(dp)}%`;
-
-export const years = (v: number | null | undefined) =>
-  v === null || v === undefined ? 'Never' : `${v.toFixed(1)} yrs`;
-
 interface ReportOptions {
   orientation: 'portrait' | 'landscape';
   brand: RGB;

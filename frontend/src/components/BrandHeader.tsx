@@ -38,7 +38,9 @@ export default function BrandHeader() {
           Energy Usage Analyser
         </h1>
         <p className="text-xs text-slate-400">
-          Half hourly data analysis &amp; solar sizing
+          {import.meta.env.MODE === 'standalone'
+            ? 'Half hourly data analysis'
+            : <>Half hourly data analysis &amp; solar sizing</>}
         </p>
       </div>
     </div>
