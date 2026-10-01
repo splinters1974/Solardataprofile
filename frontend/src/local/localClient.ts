@@ -217,6 +217,12 @@ export async function downloadAnalyserReport(
 let defaultRateP = DEFAULT_RATE_P;
 
 export const getDefaultRate = () => defaultRateP;
+
+/** Back to an empty app with the house defaults, as if freshly opened. */
+export function clearAll() {
+  sessions.clear();
+  defaultRateP = DEFAULT_RATE_P;
+}
 export function setDefaultRate(p: number) {
   if (Number.isFinite(p) && p > 0) defaultRateP = p;
 }
@@ -230,10 +236,22 @@ export interface SiteSummary {
   metrics: SiteMetrics;
 }
 
+// Findings take ~30 ms a site. Recompute only when that site's settings or
+// the default rate change, not for every site on every edit.
+const metricsCache = new WeakMap<SiteSettings, { rate: number; metrics: SiteMetrics }>();
+
+function metricsFor(s: Session): SiteMetrics {
+  const hit = metricsCache.get(s.settings);
+  if (hit && hit.rate === defaultRateP) return hit.metrics;
+  const metrics = analyseSite(s.frame, s.settings, defaultRateP);
+  metricsCache.set(s.settings, { rate: defaultRateP, metrics });
+  return metrics;
+}
+
 export function listSites(): SiteSummary[] {
   return [...sessions.entries()].map(([id, s]) => ({
     id, filename: s.filename, warnings: s.warnings, settings: s.settings, frame: s.frame,
-    metrics: analyseSite(s.frame, s.settings, defaultRateP),
+    metrics: metricsFor(s),
   }));
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import {
   getAnalyserOverview, getDayProfile, getLoadDuration, getDayNight,
   getWeek, getScatter, friendlyError, downloadAnalyserReport,
@@ -35,7 +35,7 @@ function SummaryTile({ label, value, hint }: {
   );
 }
 
-export default function HHAnalyser({ sessionId, runWithSession }: Props) {
+function HHAnalyser({ sessionId, runWithSession }: Props) {
   const [overview, setOverview] = useState<AnalyserOverview | null>(null);
   const [profile, setProfile] = useState<DayProfileResponse | null>(null);
   const [ldc, setLdc] = useState<LoadDurationResponse | null>(null);
@@ -116,19 +116,25 @@ export default function HHAnalyser({ sessionId, runWithSession }: Props) {
       const to = dateTo || undefined;
       // One recovery attempt for the batch rather than four racing ones:
       // the overview settles the session first, so these follow a known-good id.
-      const [p, l, dn, s] = await runWithSession((id) => Promise.all([
+      const [p, l, dn] = await runWithSession((id) => Promise.all([
         getDayProfile(id, from, to, excludeHolidays),
         getLoadDuration(id, from, to),
         getDayNight(id, from, to, 0, nightEndSlot),
-        getScatter(id, excludeHolidays),
       ]));
-      setProfile(p); setLdc(l); setDayNight(dn); setScatter(s);
+      setProfile(p); setLdc(l); setDayNight(dn);
     } catch (e) {
       setError(friendlyError(e, 'Could not load the analysis.'));
     }
   }, [runWithSession, overview, dateFrom, dateTo, excludeHolidays, nightEndSlot]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // The scatter ignores the date filter, so it is fetched on its own: a date
+  // change no longer redraws thousands of points for nothing.
+  useEffect(() => {
+    if (!overview) return;
+    runWithSession((id) => getScatter(id, excludeHolidays)).then(setScatter).catch(() => {});
+  }, [runWithSession, overview, excludeHolidays]);
 
   useEffect(() => {
     if (!weekAKey) return;
@@ -283,3 +289,7 @@ export default function HHAnalyser({ sessionId, runWithSession }: Props) {
     </div>
   );
 }
+
+// The site page re-renders on every keystroke in its settings; skip this
+// whole block unless the site itself changes.
+export default memo(HHAnalyser);

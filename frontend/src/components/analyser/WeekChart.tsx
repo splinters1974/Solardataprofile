@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -17,7 +18,7 @@ interface Props {
   title: string;
 }
 
-export default function WeekChart({ data, weeks, selected, onSelect, title }: Props) {
+function WeekChart({ data, weeks, selected, onSelect, title }: Props) {
   const rows = data.labels.map((label, i) => {
     const row: Record<string, string | number> = { time: label };
     for (const d of data.days) row[d.label] = d.values[i];
@@ -77,7 +78,7 @@ export default function WeekChart({ data, weeks, selected, onSelect, title }: Pr
             wrapperStyle={{ fontSize: 11, paddingBottom: 8, lineHeight: '20px' }}
           />
           {data.days.map((d, i) => (
-            <Line
+            <Line isAnimationActive={false}
               key={d.date}
               type="monotone"
               dataKey={d.label}
@@ -92,3 +93,6 @@ export default function WeekChart({ data, weeks, selected, onSelect, title }: Pr
     </Panel>
   );
 }
+
+// Only redraw when this chart's own data or props change.
+export default memo(WeekChart);

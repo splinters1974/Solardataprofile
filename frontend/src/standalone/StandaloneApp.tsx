@@ -2,12 +2,12 @@
  * The offline app: a portfolio of sites, one meter file each, ranked by
  * opportunity, with the full HH Analyser behind every site.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import BrandHeader from '../components/BrandHeader';
 import HHAnalyser from '../components/analyser/HHAnalyser';
 import {
-  downloadExcel, downloadPortfolioReport, forgetSession, friendlyError, getDefaultRate,
+  clearAll, downloadExcel, downloadPortfolioReport, forgetSession, friendlyError, getDefaultRate,
   listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/findings';
@@ -62,6 +62,19 @@ export default function StandaloneApp() {
 
   const refresh = useCallback(() => setSites(listSites()), []);
 
+  function startAgain() {
+    const ok = window.confirm(
+      'Clear all sites and settings and start again? Anything not exported will be lost.',
+    );
+    if (!ok) return;
+    clearAll();
+    setSites([]);
+    setSelected(null);
+    setErrors([]);
+    setTitle('');
+    setRate(getDefaultRate());
+  }
+
   async function addFiles(files: File[]) {
     const failed: { file: string; message: string }[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -88,8 +101,15 @@ export default function StandaloneApp() {
     }
   }
 
-  const ranked = rankSites(sites);
+  const ranked = useMemo(() => rankSites(sites), [sites]);
   const site = sites.find((s) => s.id === selected) ?? null;
+  // Must keep its identity between renders. The analyser treats a new one as
+  // a new data source and re-fetches every chart (and resets its filters),
+  // which is what made every keystroke on this page lag.
+  const runForSite = useCallback(
+    <T,>(job: (id: string) => Promise<T>) => job(selected ?? ''),
+    [selected],
+  );
   const total = (f: (s: SiteSummary) => number) => ranked.reduce((a, s) => a + f(s), 0);
 
   return (
@@ -98,9 +118,17 @@ export default function StandaloneApp() {
         <div className="max-w-6xl mx-auto flex items-center gap-3">
           <BrandHeader />
           <div className="flex-1" />
-          <span className="text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
+          <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
             Offline · data stays on this computer
           </span>
+          {sites.length > 0 && (
+            <button
+              onClick={startAgain}
+              className="text-sm font-medium text-slate-600 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-lg px-4 py-1.5 transition-colors"
+            >
+              Clear all data
+            </button>
+          )}
         </div>
       </header>
 
@@ -137,7 +165,7 @@ export default function StandaloneApp() {
             />
             <FindingsPanel metrics={site.metrics} />
             <CarpetPlot frame={site.frame} />
-            <HHAnalyser key={site.id} sessionId={site.id} runWithSession={(job) => job(site.id)} />
+            <HHAnalyser key={site.id} sessionId={site.id} runWithSession={runForSite} />
           </>
         ) : (
           <>

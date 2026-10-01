@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -20,7 +21,7 @@ const NIGHT_OPTIONS = [
   { label: '00:00–08:00', slot: 16 },
 ];
 
-export default function DayNightChart({ data, nightEndSlot, onNightEndChange }: Props) {
+function DayNightChart({ data, nightEndSlot, onNightEndChange }: Props) {
   const complete = data.months.filter((m) => m.complete);
   const partial = data.months.length - complete.length;
 
@@ -67,8 +68,8 @@ export default function DayNightChart({ data, nightEndSlot, onNightEndChange }: 
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar dataKey="day_kwh" name="Day" stackId="a" fill="#f59e0b" />
-          <Bar dataKey="night_kwh" name="Night" stackId="a" fill="#1e293b" radius={[3, 3, 0, 0]} />
+          <Bar isAnimationActive={false} dataKey="day_kwh" name="Day" stackId="a" fill="#f59e0b" />
+          <Bar isAnimationActive={false} dataKey="night_kwh" name="Night" stackId="a" fill="#1e293b" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
 
@@ -85,3 +86,6 @@ export default function DayNightChart({ data, nightEndSlot, onNightEndChange }: 
     </Panel>
   );
 }
+
+// Only redraw when this chart's own data or props change.
+export default memo(DayNightChart);

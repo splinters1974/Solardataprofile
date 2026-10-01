@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -22,7 +22,7 @@ interface Props {
   data: DayProfileResponse;
 }
 
-export default function DayProfileChart({ data }: Props) {
+function DayProfileChart({ data }: Props) {
   const [visible, setVisible] = useState<string[]>(DEFAULT_ON);
 
   const rows = data.labels.map((label, i) => {
@@ -98,7 +98,7 @@ export default function DayProfileChart({ data }: Props) {
           {data.series
             .filter((s) => visible.includes(s.name))
             .map((s) => (
-              <Line
+              <Line isAnimationActive={false}
                 key={s.name}
                 type="monotone"
                 dataKey={s.name}
@@ -113,3 +113,6 @@ export default function DayProfileChart({ data }: Props) {
     </Panel>
   );
 }
+
+// Only redraw when this chart's own data or props change.
+export default memo(DayProfileChart);

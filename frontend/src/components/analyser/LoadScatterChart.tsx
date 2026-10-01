@@ -1,9 +1,5 @@
-import { useState } from 'react';
-import {
-  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
-} from 'recharts';
-import type { ScatterResponse } from '../../types';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import type { ScatterResponse, ScatterPoint } from '../../types';
 import Panel from './Panel';
 
 const GROUPS = [
@@ -12,12 +8,117 @@ const GROUPS = [
   { type: 'Bank holiday', colour: '#db2777' },
 ];
 
+const HEIGHT = 360;
+const PAD = { left: 48, right: 22, top: 10, bottom: 44 };
+
 interface Props {
   data: ScatterResponse;
 }
 
-export default function LoadScatterChart({ data }: Props) {
+/** Round steps of 1, 2, 2.5 or 5 for the kW axis. */
+function niceTicks(max: number): number[] {
+  const raw = (max || 1) / 5;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw) ?? 10 * mag;
+  const ticks: number[] = [];
+  for (let v = 0; v <= max + step * 0.999; v += step) ticks.push(Math.round(v / step) * step);
+  return ticks;
+}
+
+/**
+ * Every reading as a dot, drawn on a canvas. Thousands of SVG shapes took
+ * seconds to redraw on each filter change; a canvas draws them in a few
+ * milliseconds and the chart looks the same.
+ */
+function LoadScatterChart({ data }: Props) {
   const [hidden, setHidden] = useState<string[]>([]);
+  const [width, setWidth] = useState(0);
+  const [hover, setHover] = useState<{ x: number; y: number; p: ScatterPoint } | null>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!wrap.current) return;
+    const ro = new ResizeObserver(([e]) => setWidth(Math.floor(e.contentRect.width)));
+    ro.observe(wrap.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const visible = useMemo(
+    () => data.points.filter((p) => !hidden.includes(p.type)),
+    [data, hidden],
+  );
+  const ticks = useMemo(() => niceTicks(Math.max(0, ...data.points.map((p) => p.kw))), [data]);
+  const yMax = ticks[ticks.length - 1] || 1;
+  const plotW = Math.max(1, width - PAD.left - PAD.right);
+  const plotH = HEIGHT - PAD.top - PAD.bottom;
+  const px = (hour: number) => PAD.left + (hour / 24) * plotW;
+  const py = (kw: number) => PAD.top + plotH - (kw / yMax) * plotH;
+
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c || !width) return;
+    const dpr = window.devicePixelRatio || 1;
+    c.width = width * dpr;
+    c.height = HEIGHT * dpr;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, HEIGHT);
+
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const t of ticks) {
+      const y = Math.round(py(t)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + plotW, y); ctx.stroke();
+      ctx.fillText(t.toLocaleString('en-GB'), PAD.left - 6, y);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let h = 0; h <= 24; h += 3) {
+      ctx.fillText(`${String(h).padStart(2, '0')}:00`, px(h), PAD.top + plotH + 6);
+    }
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText('Time of day', PAD.left + plotW / 2, PAD.top + plotH + 24);
+    ctx.save();
+    ctx.translate(12, PAD.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('kW', 0, 0);
+    ctx.restore();
+
+    ctx.globalAlpha = 0.28;
+    for (const g of GROUPS) {
+      if (hidden.includes(g.type)) continue;
+      ctx.fillStyle = g.colour;
+      for (const p of data.points) {
+        if (p.type !== g.type) continue;
+        ctx.beginPath();
+        ctx.arc(px(p.hour), py(p.kw), 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  // px/py are derived from width and ticks, both listed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, hidden, width, ticks]);
+
+  function onMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    let best: ScatterPoint | null = null;
+    let bestD = 64; // within 8px
+    for (const p of visible) {
+      const d = (px(p.hour) - x) ** 2 + (py(p.kw) - y) ** 2;
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    setHover(best ? { x, y, p: best } : null);
+  }
 
   return (
     <Panel
@@ -46,54 +147,37 @@ export default function LoadScatterChart({ data }: Props) {
         })}
       </div>
 
-      <ResponsiveContainer width="100%" height={360}>
-        <ScatterChart margin={{ top: 8, right: 12, left: 0, bottom: 28 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis
-            type="number" dataKey="hour" domain={[0, 24]}
-            ticks={[0, 3, 6, 9, 12, 15, 18, 21, 24]}
-            tickFormatter={(v) => `${String(v).padStart(2, '0')}:00`}
-            tick={{ fontSize: 11, fill: '#64748b' }}
-            label={{
-              value: 'Time of day', position: 'insideBottom', offset: -20,
-              style: { fontSize: 12, fill: '#94a3b8' },
+      <div ref={wrap} className="relative" style={{ height: HEIGHT }}>
+        <canvas
+          ref={canvas}
+          onMouseMove={onMove}
+          onMouseLeave={() => setHover(null)}
+          style={{ width: '100%', height: HEIGHT }}
+          role="img"
+          aria-label={`Scatter of ${visible.length} half-hourly readings against time of day`}
+        />
+        {hover && (
+          <div
+            className="pointer-events-none absolute z-10 bg-white border border-slate-200 shadow-md rounded-lg px-3 py-2 text-xs whitespace-nowrap"
+            style={{
+              left: hover.x + 12,
+              top: Math.max(0, hover.y - 56),
+              transform: hover.x > width * 0.6 ? 'translateX(calc(-100% - 24px))' : undefined,
             }}
-          />
-          <YAxis
-            type="number" dataKey="kw"
-            tick={{ fontSize: 11, fill: '#64748b' }}
-            label={{
-              value: 'kW', angle: -90, position: 'insideLeft',
-              style: { fontSize: 12, fill: '#94a3b8' },
-            }}
-          />
-          <Tooltip
-            cursor={{ strokeDasharray: '3 3' }}
-            contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
-            formatter={(v, name) =>
-              name === 'kw' ? [`${Number(v).toLocaleString()} kW`, 'Load'] : [v, name]
-            }
-            labelFormatter={() => ''}
-          />
-          <Legend
-            verticalAlign="top"
-            align="left"
-            height={28}
-            iconSize={10}
-            wrapperStyle={{ fontSize: 12, paddingBottom: 6 }}
-          />
-          {GROUPS.filter((g) => !hidden.includes(g.type)).map((g) => (
-            <Scatter
-              key={g.type}
-              name={g.type}
-              data={data.points.filter((p) => p.type === g.type)}
-              fill={g.colour}
-              fillOpacity={0.28}
-              shape="circle"
-            />
-          ))}
-        </ScatterChart>
-      </ResponsiveContainer>
+          >
+            <p className="font-semibold text-slate-800">
+              {new Date(`${hover.p.date}T00:00:00Z`).toLocaleDateString('en-GB', {
+                weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
+              })}
+              {' · '}
+              {String(Math.floor(hover.p.hour)).padStart(2, '0')}:{hover.p.hour % 1 ? '30' : '00'}
+            </p>
+            <p className="text-slate-600 tabular-nums">
+              {hover.p.kw.toLocaleString('en-GB')} kW · {hover.p.type}
+            </p>
+          </div>
+        )}
+      </div>
 
       {data.sampled && (
         <p className="text-xs text-slate-400 mt-2">
@@ -105,3 +189,6 @@ export default function LoadScatterChart({ data }: Props) {
     </Panel>
   );
 }
+
+// Only redraw when this chart's own data or props change.
+export default memo(LoadScatterChart);

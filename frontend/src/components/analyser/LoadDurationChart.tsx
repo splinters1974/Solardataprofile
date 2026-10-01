@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
@@ -19,7 +20,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-export default function LoadDurationChart({ data }: Props) {
+function LoadDurationChart({ data }: Props) {
   return (
     <Panel
       title="Load duration curve"
@@ -79,7 +80,7 @@ export default function LoadDurationChart({ data }: Props) {
               position: 'right', fill: '#b45309', fontSize: 11,
             }}
           />
-          <Area
+          <Area isAnimationActive={false}
             type="monotone" dataKey="kw" stroke="#0f766e"
             strokeWidth={2} fill="url(#ldc)"
           />
@@ -88,3 +89,6 @@ export default function LoadDurationChart({ data }: Props) {
     </Panel>
   );
 }
+
+// Only redraw when this chart's own data or props change.
+export default memo(LoadDurationChart);
