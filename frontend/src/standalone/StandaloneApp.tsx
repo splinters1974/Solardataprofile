@@ -19,6 +19,8 @@ import SiteSettingsPanel from './SiteSettingsPanel';
 import CarpetPlot from './CarpetPlot';
 import QualityPanel, { VerdictChip } from './QualityPanel';
 import HeadroomPanel from './HeadroomPanel';
+import EditionDialog from './EditionDialog';
+import { getCustomerLogo } from '../local/pdf/common';
 
 const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const btn = 'text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
@@ -54,14 +56,24 @@ function Uploader({ onFiles, busy }: { onFiles: (f: File[]) => void; busy: strin
   );
 }
 
-export default function StandaloneApp() {
-  const [sites, setSites] = useState<SiteSummary[]>([]);
+/**
+ * `internal` is the engineers' tool. `customer` is the locked edition a
+ * customer unlocks with a password: their sites only, no uploads or
+ * removals, site settings read-only except the unit rate, summary exports.
+ */
+export default function StandaloneApp({ mode = 'internal', customer = '' }: {
+  mode?: 'internal' | 'customer';
+  customer?: string;
+}) {
+  const isCustomer = mode === 'customer';
+  const [sites, setSites] = useState<SiteSummary[]>(() => (isCustomer ? listSites() : []));
+  const [showEdition, setShowEdition] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ file: string; message: string }[]>([]);
   const [rate, setRate] = useState(getDefaultRate());
-  const [title, setTitle] = useState('');
-  const [customerLogo, setCustomerLogo] = useState<string | null>(null);
+  const [title, setTitle] = useState(customer);
+  const [customerLogo, setCustomerLogo] = useState<string | null>(() => getCustomerLogo()?.dataUrl ?? null);
   const [exporting, setExporting] = useState<string | null>(null);
 
   const refresh = useCallback(() => setSites(listSites()), []);
@@ -130,14 +142,23 @@ export default function StandaloneApp() {
             <span className="h-9 w-px bg-slate-200" aria-hidden />
             <div>
               <p className="text-xl font-bold text-[#0065a5] leading-tight">Data Analyser</p>
-              <p className="text-xs text-slate-500">Half-hourly energy data</p>
+              <p className="text-xs text-slate-500">{isCustomer ? `${customer} energy dashboard` : 'Half-hourly energy data'}</p>
             </div>
           </div>
           <div className="flex-1" />
           <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
             Offline · data stays on this computer
           </span>
-          {sites.length > 0 && (
+          {isCustomer && (
+            <button
+              onClick={() => window.location.reload()}
+              title="Close the dashboard; the password is needed to open it again"
+              className="text-sm font-medium text-slate-600 border border-slate-300 hover:border-[#0065a5] rounded-lg px-4 py-1.5"
+            >
+              Lock
+            </button>
+          )}
+          {!isCustomer && sites.length > 0 && (
             <button
               onClick={startAgain}
               className="text-sm font-medium text-slate-600 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-lg px-4 py-1.5 transition-colors"
@@ -187,6 +208,7 @@ export default function StandaloneApp() {
             <SiteSettingsPanel
               settings={site.settings}
               defaultRate={rate}
+              locked={isCustomer}
               onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
             />
             <QualityPanel report={site.quality} />
@@ -194,6 +216,7 @@ export default function StandaloneApp() {
             <HeadroomPanel
               settings={site.settings}
               headroom={site.headroom}
+              locked={isCustomer}
               onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
             />
             <CarpetPlot frame={site.frame} />
@@ -207,7 +230,7 @@ export default function StandaloneApp() {
           </>
         ) : (
           <>
-            <Uploader onFiles={addFiles} busy={busy} />
+            {!isCustomer && <Uploader onFiles={addFiles} busy={busy} />}
 
             {errors.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 space-y-1">
@@ -219,11 +242,15 @@ export default function StandaloneApp() {
               <>
                 <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 flex flex-wrap items-end gap-4">
                   <div className="flex-1 min-w-48">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Client or estate name</label>
-                    <input
-                      value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appears on the reports"
-                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
+                    <label className="block text-xs font-medium text-slate-600 mb-1">{isCustomer ? 'Customer' : 'Client or estate name'}</label>
+                    {isCustomer ? (
+                      <p className="text-sm font-semibold text-slate-800 py-1.5">{customer}</p>
+                    ) : (
+                      <input
+                        value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appears on the reports"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Customer logo (on every PDF)</label>
@@ -279,9 +306,25 @@ export default function StandaloneApp() {
                     onClick={() => run('Excel', () => downloadExcel(title))}
                     className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
                   >
-                    {exporting === 'Excel' ? 'Building…' : 'Export to Excel'}
+                    {exporting === 'Excel' ? 'Building…' : isCustomer ? 'Summary to Excel' : 'Export to Excel'}
                   </button>
+                  {!isCustomer && (
+                    <button
+                      onClick={() => setShowEdition(true)}
+                      title="A locked, password-protected copy of this dashboard for the customer"
+                      className={`${btn} bg-white border border-[#008540] text-[#008540] hover:bg-green-50`}
+                    >
+                      Customer edition…
+                    </button>
+                  )}
                 </div>
+                {showEdition && (
+                  <EditionDialog
+                    initialCustomer={title}
+                    siteCount={ranked.length}
+                    onClose={() => setShowEdition(false)}
+                  />
+                )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
@@ -302,8 +345,8 @@ export default function StandaloneApp() {
                     <h2 className="text-base font-semibold text-slate-800">Where to start</h2>
                     <p className="text-sm text-slate-500">
                       Ranked by out-of-hours use above base load: energy used when the building should be
-                      closed, usually the cheapest to remove. Click a site to set its type and hours and see
-                      the full analysis.
+                      closed, usually the cheapest to remove. Click a site to
+                      {isCustomer ? ' see its full analysis and download its reports.' : ' set its type and hours and see the full analysis.'}
                     </p>
                   </div>
                   <table className="w-full text-sm">
@@ -366,13 +409,13 @@ export default function StandaloneApp() {
                               </div>
                             </td>
                             <td className="px-3 py-3 text-right whitespace-nowrap">
-                              <button
+                              {!isCustomer && <button
                                 onClick={(e) => { e.stopPropagation(); void forgetSession(s.id).then(refresh); }}
                                 className="text-xs text-slate-400 hover:text-red-600"
                                 aria-label={`Remove ${s.settings.name}`}
                               >
                                 Remove
-                              </button>
+                              </button>}
                             </td>
                           </tr>
                         );
@@ -381,9 +424,9 @@ export default function StandaloneApp() {
                   </table>
                 </div>
                 <p className="text-xs text-slate-400">
-                  All sites start as Office / commercial at the default rate. Open each one to set its building
-                  type and opening hours, or the out-of-hours figures will be wrong for schools, hospitals and
-                  leisure sites.
+                  {isCustomer
+                    ? 'Prepared by Ameresco. Costs use the unit rate shown and are what each pattern costs now, not a guaranteed saving.'
+                    : 'All sites start as Office / commercial at the default rate. Open each one to set its building type and opening hours, or the out-of-hours figures will be wrong for schools, hospitals and leisure sites.'}
                 </p>
               </>
             )}

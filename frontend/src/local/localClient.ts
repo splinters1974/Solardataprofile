@@ -22,7 +22,8 @@ import {
 import { buildAnalyserReport, buildAnalyserSectionPdfs, type AnalyserReportInput } from './pdf/analyserReport';
 import { zipSync } from 'fflate';
 import { drawTimeSeries } from './timeseries';
-import { setCustomerLogo, type CustomerLogo } from './pdf/common';
+import { getCustomerLogo, setCustomerLogo, type CustomerLogo } from './pdf/common';
+import { editionHtml, readSealedEdition, seal, unseal, type EditionData } from './customerEdition';
 import { buildPortfolioReport, buildSiteSummary, rankSites } from './pdf/portfolioReport';
 import { fmtDayMonYear } from './dates';
 import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
@@ -392,7 +393,54 @@ export async function downloadExcel(title: string, ids?: string[]) {
   const sites = rankSites(listSites().filter((s) => !ids || ids.includes(s.id)));
   if (!sites.length) throw new Error('Load at least one site first.');
   await yieldToUi();
-  const book = buildWorkbook(sites);
-  saveBlob(book, `${slug(title || 'portfolio')}-hh-data.xlsx`,
+  const book = buildWorkbook(sites, { halfHourly: !customerMode });
+  saveBlob(book, `${slug(title || 'portfolio')}-${customerMode ? 'summary' : 'hh-data'}.xlsx`,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+// --- Customer editions -----------------------------------------------------
+
+/** True once a customer edition has been unlocked: summary-only exports. */
+let customerMode = false;
+export const isCustomerMode = () => customerMode;
+
+/** Seal the loaded sites into a password-protected copy of this app and download it. */
+export async function downloadCustomerEdition(customer: string, password: string) {
+  if (!sessions.size) throw new Error('Load the customer\'s sites first.');
+  if (!customer.trim()) throw new Error('Enter the customer name.');
+  if (password.length < 8) throw new Error('Use a password of at least 8 characters.');
+  await yieldToUi();
+  const data: EditionData = {
+    customer: customer.trim(),
+    createdAt: new Date().toISOString().slice(0, 10),
+    defaultRateP,
+    customerLogo: getCustomerLogo(),
+    sites: [...sessions.values()].map((x) => ({
+      filename: x.filename, warnings: x.warnings, format: x.format, settings: x.settings,
+      dates: x.frame.dates,
+      rows: x.frame.rows.map((r) => r.map((v) => Math.round(v * 1e4) / 1e4)),
+    })),
+  };
+  const html = editionHtml(await seal(data, password));
+  const bytes = new TextEncoder().encode(html);
+  saveBlob(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    `${slug(customer)}-energy-dashboard.html`, 'text/html');
+}
+
+/** Unlock the sealed data in a customer edition and load its sites. */
+export async function openCustomerEdition(password: string): Promise<EditionData> {
+  const sealed = readSealedEdition();
+  if (!sealed) throw new Error('This file has no customer data in it.');
+  const data = await unseal(sealed, password);
+  sessions.clear();
+  for (const site of data.sites) {
+    sessions.set(newId(), {
+      frame: { dates: site.dates, rows: site.rows },
+      filename: site.filename, warnings: site.warnings, format: site.format, settings: site.settings,
+    });
+  }
+  defaultRateP = data.defaultRateP;
+  setCustomerLogo(data.customerLogo);
+  customerMode = true;
+  return data;
 }

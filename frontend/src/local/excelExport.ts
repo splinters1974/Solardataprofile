@@ -27,7 +27,12 @@ function sheetName(base: string, used: Set<string>): string {
   return name;
 }
 
-export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
+/**
+ * `halfHourly: false` is the summary-only workbook given to customers:
+ * findings, quality, monthly figures, headroom and average profiles, but
+ * not the raw half-hourly readings.
+ */
+export function buildWorkbook(sites: ExportSite[], opts: { halfHourly: boolean } = { halfHourly: true }): ArrayBuffer {
   const wb = XLSX.utils.book_new();
   const used = new Set<string>();
 
@@ -83,11 +88,13 @@ export function buildWorkbook(sites: ExportSite[]): ArrayBuffer {
     }
     rows.push([], ['Average kW by half hour', ...labels]);
     for (const series of dayOfWeekProfile(s.frame).series) rows.push([series.name, ...series.values]);
-    rows.push([], ['Date', 'Daily kWh', ...labels.map((l) => `${l} kWh`)]);
-    s.frame.dates.forEach((d, i) => {
-      const r = s.frame.rows[i];
-      rows.push([d, round(r.reduce((a, b) => a + b, 0), 3), ...r.map((v) => round(v, 4))]);
-    });
+    if (opts.halfHourly) {
+      rows.push([], ['Date', 'Daily kWh', ...labels.map((l) => `${l} kWh`)]);
+      s.frame.dates.forEach((d, i) => {
+        const r = s.frame.rows[i];
+        rows.push([d, round(r.reduce((a, b) => a + b, 0), 3), ...r.map((v) => round(v, 4))]);
+      });
+    }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName(s.settings.name, used));
   }
 

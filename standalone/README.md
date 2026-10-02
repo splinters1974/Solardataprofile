@@ -30,10 +30,27 @@
 | Charts as separate PDFs (zip), on a site | The same report, one PDF per chart, numbered in report order, in one zip | Client-ready, for proposals |
 | Portfolio report (PDF) | Ranked table, then one page per site | Client-ready |
 | Export to Excel | Summary, findings, monthly figures, profiles and the raw half-hourly data | Internal |
+| Customer edition | A locked, password-protected copy of the dashboard for one customer | Customer |
 
 Headroom uses the peak demand in the data supplied. A colder winter than the one in the file, or a fault that inflated the peak, moves the answer, so check the data quality verdict first and treat it as a screening result, not a connection study.
 
 Costs are what each pattern costs now, at the rate entered. They aren't savings promises: how much of it can be removed is an engineering judgement on site. The PDFs say this.
+
+## Customer editions
+
+**Customer edition…** (on the main page, once sites are loaded) makes a locked, password-protected copy of the dashboard for one customer, holding the sites loaded now with their settings and logo.
+
+- **Password:** by default the customer name in lower case (letters and digits only) plus the year, e.g. `compleatfoods2026`. It can be changed in the dialog.
+- **What the customer can do:** explore every chart and table, change dates and filters, try a different unit rate, add or replace their logo, and download the site summary, full report, separate chart PDFs, portfolio report and a **summary** spreadsheet.
+- **What they can't do:** add or remove sites, change site settings, opening hours or headroom settings, or export the half-hourly readings to a spreadsheet.
+- **Security:** the data is compressed and encrypted with AES-256-GCM, with the key derived from the password (PBKDF2-SHA-256, 310,000 rounds). Without the password the file holds nothing readable. Anyone who can view the charts can still read the numbers on screen; the password protects the file, not what an authorised viewer sees.
+
+Before sending:
+1. Open the file yourself with the password to check it.
+2. Send the file and the password **separately** (for example the file by email, the password by phone or text).
+3. Remember the standard pattern is guessable by anyone who knows it. For wider use, add a random part to the password in the dialog.
+
+A customer edition is a snapshot: it can't be updated or withdrawn once sent. To refresh it, make a new one.
 
 ## Files it will refuse
 

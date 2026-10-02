@@ -51,6 +51,8 @@ export function setCustomerLogo(logo: CustomerLogo | null) {
   customerLogo = logo;
 }
 
+export const getCustomerLogo = () => customerLogo;
+
 /** A page cursor that starts a new page when the next block will not fit. */
 export class Report {
   doc: jsPDF;

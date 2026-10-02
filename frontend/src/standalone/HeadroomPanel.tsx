@@ -26,10 +26,12 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
 const DEFAULT_TEST: TestLoad = { kw: 50, start: 12, end: 44, months: 'heating' };
 
 /** How much load can be added before the supply runs out. */
-export default function HeadroomPanel({ settings, headroom: h, onChange }: {
+export default function HeadroomPanel({ settings, headroom: h, onChange, locked = false }: {
   settings: SiteSettings;
   headroom: HeadroomResult | null;
   onChange: (s: SiteSettings) => void;
+  /** Customer edition: results only, no inputs. */
+  locked?: boolean;
 }) {
   const set = <K extends keyof SiteSettings>(k: K, v: SiteSettings[K]) => onChange({ ...settings, [k]: v });
   const t = settings.testLoad;
@@ -44,6 +46,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange }: {
     </div>
   );
 
+  if (!h && locked) return null; // nothing was set up for this site
   if (!h) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
@@ -132,6 +135,14 @@ export default function HeadroomPanel({ settings, headroom: h, onChange }: {
         </div>
       </div>
 
+      {locked ? (h.test && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${h.test.fits ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`font-semibold ${h.test.fits ? 'text-[#08780a]' : 'text-[#b42c2c]'}`}>
+            {h.test.fits ? 'Proposed load fits within usable capacity' : 'Proposed load does not fit'}
+          </p>
+          <p className="text-slate-700 mt-0.5">{h.test.summary}</p>
+        </div>
+      )) : (
       <div className="bg-slate-50 rounded-lg p-4 space-y-3">
         <p className="text-sm font-semibold text-slate-700">Test a new load</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
@@ -182,6 +193,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange }: {
           <p className="text-sm text-slate-500">Enter a load in kW to test it against the site's capacity.</p>
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -39,16 +39,24 @@ function DayRow({ label, value, onChange }: {
 }
 
 /** Name, building type, opening hours and the costing inputs for one site. */
-export default function SiteSettingsPanel({ settings, defaultRate, onChange }: {
+export default function SiteSettingsPanel({ settings, defaultRate, onChange, locked = false }: {
   settings: SiteSettings;
   defaultRate: number;
   onChange: (s: SiteSettings) => void;
+  /** Customer edition: show everything, allow only the unit rate to change. */
+  locked?: boolean;
 }) {
   const set = <K extends keyof SiteSettings>(k: K, v: SiteSettings[K]) => onChange({ ...settings, [k]: v });
   const setHours = (h: Partial<OpeningHours>) => onChange({ ...settings, type: 'custom', hours: { ...settings.hours, ...h } });
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
+      {locked && (
+        <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+          Site details and opening hours were set by Ameresco. You can try a different unit rate below.
+        </p>
+      )}
+      <fieldset disabled={locked} className="space-y-5 disabled:opacity-80">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Site name</label>
@@ -92,6 +100,8 @@ export default function SiteSettingsPanel({ settings, defaultRate, onChange }: {
         </div>
       </div>
 
+      </fieldset>
+
       <div className="grid gap-4 md:grid-cols-3">
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Unit rate (p/kWh, fully delivered)</label>
@@ -106,7 +116,7 @@ export default function SiteSettingsPanel({ settings, defaultRate, onChange }: {
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Agreed supply capacity (kVA)</label>
           <input
-            type="number" min={0} className={input} placeholder="Optional"
+            type="number" min={0} className={input} placeholder="Optional" disabled={locked}
             value={settings.capacityKva ?? ''}
             onChange={(e) => set('capacityKva', e.target.value === '' ? null : Number(e.target.value))}
           />
@@ -115,7 +125,7 @@ export default function SiteSettingsPanel({ settings, defaultRate, onChange }: {
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Power factor</label>
           <input
-            type="number" min={0.5} max={1} step={0.01} className={input}
+            type="number" min={0.5} max={1} step={0.01} className={input} disabled={locked}
             value={settings.powerFactor}
             onChange={(e) => set('powerFactor', Number(e.target.value) || 0.95)}
           />
