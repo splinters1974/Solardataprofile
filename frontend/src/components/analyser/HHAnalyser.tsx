@@ -21,6 +21,16 @@ interface Props {
    * one recovery path across the whole app.
    */
   runWithSession: <T>(run: (id: string) => Promise<T>) => Promise<T>;
+  /**
+   * Offline app only: download each chart as its own PDF. The button
+   * appears only when this is supplied.
+   */
+  onDownloadSeparate?: (opts: ReportFilters) => Promise<void>;
+}
+
+export interface ReportFilters {
+  date_from?: string; date_to?: string; exclude_holidays: boolean;
+  night_end_slot: number; week_a?: string; week_b?: string;
 }
 
 function SummaryTile({ label, value, hint }: {
@@ -35,7 +45,7 @@ function SummaryTile({ label, value, hint }: {
   );
 }
 
-function HHAnalyser({ sessionId, runWithSession }: Props) {
+function HHAnalyser({ sessionId, runWithSession, onDownloadSeparate }: Props) {
   const [overview, setOverview] = useState<AnalyserOverview | null>(null);
   const [profile, setProfile] = useState<DayProfileResponse | null>(null);
   const [ldc, setLdc] = useState<LoadDurationResponse | null>(null);
@@ -55,21 +65,37 @@ function HHAnalyser({ sessionId, runWithSession }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingSeparate, setDownloadingSeparate] = useState(false);
+
+  // Same filters the charts are showing, so the PDF and the page agree.
+  const filters = (): ReportFilters => ({
+    date_from: dateFrom || undefined,
+    date_to: dateTo || undefined,
+    exclude_holidays: excludeHolidays,
+    night_end_slot: nightEndSlot,
+    week_a: weekAKey,
+    week_b: weekBKey,
+  });
+
+  async function handleDownloadSeparate() {
+    if (!onDownloadSeparate) return;
+    setDownloadingSeparate(true);
+    setError(null);
+    try {
+      await onDownloadSeparate(filters());
+    } catch (e) {
+      setError(friendlyError(e, 'Could not build the charts.'));
+    } finally {
+      setDownloadingSeparate(false);
+    }
+  }
 
   async function handleDownload() {
     setDownloading(true);
     setError(null);
     try {
-      // Same filters the charts are showing, so the PDF and the page agree.
       await runWithSession((id) =>
-        downloadAnalyserReport(id, overview?.site_name || overview?.filename || '', {
-          date_from: dateFrom || undefined,
-          date_to: dateTo || undefined,
-          exclude_holidays: excludeHolidays,
-          night_end_slot: nightEndSlot,
-          week_a: weekAKey,
-          week_b: weekBKey,
-        }),
+        downloadAnalyserReport(id, overview?.site_name || overview?.filename || '', filters()),
       );
     } catch (e) {
       setError(friendlyError(e, 'Could not build the report.'));
@@ -243,13 +269,25 @@ function HHAnalyser({ sessionId, runWithSession }: Props) {
         >
           Reset dates
         </button>
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="ml-auto bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
-        >
-          {downloading ? 'Building PDF…' : 'Download all charts (PDF)'}
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          {onDownloadSeparate && (
+            <button
+              onClick={handleDownloadSeparate}
+              disabled={downloadingSeparate}
+              title="One PDF per chart, in a single zip file"
+              className="bg-white border border-slate-300 hover:border-blue-400 disabled:opacity-50 text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              {downloadingSeparate ? 'Building PDFs…' : 'Charts as separate PDFs (zip)'}
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+          >
+            {downloading ? 'Building PDF…' : 'Download all charts (PDF)'}
+          </button>
+        </div>
       </div>
 
       {error && (

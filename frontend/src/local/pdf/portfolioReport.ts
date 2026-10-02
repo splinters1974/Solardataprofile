@@ -4,12 +4,13 @@
  */
 import { fmtDayMonYear, fmtLong } from '../dates';
 import { RAMP_HEX } from '../carpet';
+import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
 import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from '../findings';
 import { VERDICT_TEXT, type QualityReport } from '../dataQuality';
 import type { HeadroomResult } from '../headroom';
 import { carpetImage, findingsList, fmt, hex, Report } from './common';
 
-const BRAND = hex('#1d4ed8');
+const BRAND = hex(BRAND_BLUE);
 
 export interface PortfolioSite {
   settings: SiteSettings;
@@ -22,6 +23,35 @@ export interface PortfolioSite {
 
 const money = (v: number) => `£${fmt(v)}`;
 
+function drawSitePage(r: Report, s: PortfolioSite, note?: string) {
+  const m = s.metrics;
+  r.title(s.settings.name,
+    `${SITE_TYPES[s.settings.type].label}  ·  ${fmtDayMonYear(m.dateFrom)} to ${fmtDayMonYear(m.dateTo)} `
+    + `(${m.days} days)  ·  ${s.filename}`);
+  r.tiles([
+    [money(m.annualCost), 'ANNUAL COST'],
+    [fmt(m.annualKwh), 'kWh A YEAR'],
+    [`${fmt(m.peakKw, 1)} kW`, 'PEAK DEMAND'],
+    [`${fmt(m.baseKw, 1)} kW`, 'BASE LOAD'],
+    [m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : 'n/a', 'OUT OF HOURS'],
+  ]);
+  findingsList(r, m.findings);
+  r.small(`Opening hours: ${describeHours(s.settings.hours)}. Rate ${m.rateP}p/kWh.`
+    + `${s.headroom ? ` Supply ${fmt(s.headroom.capacityKva)} kVA, peak ${fmt(s.headroom.peakKva)} kVA, firm headroom ${fmt(s.headroom.firmHeadroomKw)} kW.` : ''}`
+    + ` Data quality: ${VERDICT_TEXT[s.quality.verdict].label}`
+    + `${s.quality.checks.filter((c) => c.status !== 'ok').length ? ` (${s.quality.checks.filter((c) => c.status !== 'ok').map((c) => c.title.toLowerCase()).join('; ')})` : ''}.`);
+  if (note) r.small(note);
+  if (s.carpet) {
+    // Keep each site to one page: shrink the heatmap into the space left,
+    // down to a height that still reads.
+    const height = Math.max(20, Math.min(40, r.remaining() - 19));
+    carpetImage(r, {
+      title: 'The year at a glance (kW)', canvas: s.carpet.canvas, dates: s.carpet.dates,
+      maxKw: s.carpet.maxKw, ramp: RAMP_HEX, height,
+    });
+  }
+}
+
 /** Ranked by the addressable out-of-hours cost: the clearest place to start. */
 export function rankSites<T extends { metrics: SiteMetrics }>(sites: T[]): T[] {
   return [...sites].sort((a, b) =>
@@ -30,8 +60,8 @@ export function rankSites<T extends { metrics: SiteMetrics }>(sites: T[]): T[] {
 
 export function buildPortfolioReport(title: string, sites: PortfolioSite[]): ArrayBuffer {
   const r = new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15,
-    footer: `${title} — portfolio energy review`,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
+    footer: `Ameresco Data Analyser  ·  ${title}  ·  portfolio energy review`,
     title: `${title} — Portfolio Energy Review`,
   });
   const ranked = rankSites(sites);
@@ -78,33 +108,24 @@ export function buildPortfolioReport(title: string, sites: PortfolioSite[]): Arr
     + 'guaranteed saving. Base load is the 5th percentile of half-hourly demand.');
 
   for (const s of ranked) {
-    const m = s.metrics;
     r.newPage();
-    r.title(s.settings.name,
-      `${SITE_TYPES[s.settings.type].label}  ·  ${fmtDayMonYear(m.dateFrom)} to ${fmtDayMonYear(m.dateTo)} `
-      + `(${m.days} days)  ·  ${s.filename}`);
-    r.tiles([
-      [money(m.annualCost), 'ANNUAL COST'],
-      [fmt(m.annualKwh), 'kWh A YEAR'],
-      [`${fmt(m.peakKw, 1)} kW`, 'PEAK DEMAND'],
-      [`${fmt(m.baseKw, 1)} kW`, 'BASE LOAD'],
-      [m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : 'n/a', 'OUT OF HOURS'],
-    ]);
-    findingsList(r, m.findings);
-    r.small(`Opening hours: ${describeHours(s.settings.hours)}. Rate ${m.rateP}p/kWh.`
-      + `${s.headroom ? ` Supply ${fmt(s.headroom.capacityKva)} kVA, peak ${fmt(s.headroom.peakKva)} kVA, firm headroom ${fmt(s.headroom.firmHeadroomKw)} kW.` : ''}`
-      + ` Data quality: ${VERDICT_TEXT[s.quality.verdict].label}`
-      + `${s.quality.checks.filter((c) => c.status !== 'ok').length ? ` (${s.quality.checks.filter((c) => c.status !== 'ok').map((c) => c.title.toLowerCase()).join('; ')})` : ''}.`);
-    if (s.carpet) {
-      // Keep each site to one page: shrink the heatmap into the space left,
-      // down to a height that still reads.
-      const height = Math.max(26, Math.min(40, r.remaining() - 20));
-      carpetImage(r, {
-        title: 'The year at a glance (kW)', canvas: s.carpet.canvas, dates: s.carpet.dates,
-        maxKw: s.carpet.maxKw, ramp: RAMP_HEX, height,
-      });
-    }
+    drawSitePage(r, s);
   }
 
+  return r.finish();
+}
+
+/**
+ * The same one-page summary the portfolio report gives each site, for a
+ * single site on its own: headline costs, findings, data quality, heatmap.
+ */
+export function buildSiteSummary(s: PortfolioSite): ArrayBuffer {
+  const r = new Report({
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
+    footer: `Ameresco Data Analyser  ·  ${s.settings.name}  ·  site summary`,
+    title: `${s.settings.name} — Site Summary`,
+  });
+  drawSitePage(r, s, `Issued ${fmtLong(new Date())}. Costs are what each pattern costs now at the rate shown, `
+    + 'not a guaranteed saving. Base load is the 5th percentile of half-hourly demand.');
   return r.finish();
 }

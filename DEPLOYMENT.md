@@ -84,7 +84,7 @@ without hitting either service.
 
 ## Standalone single-file version
 
-`standalone/Energy-Usage-Analyser.html` is the HH Analyser with its backend
+`standalone/Ameresco-Data-Analyser.html` is the HH Analyser with its backend
 ported into the browser: no server, no install, no network calls, and the
 data stays on the laptop. Solar sizing is deliberately left out of it.
 Build it with `npm run build:standalone` in `frontend/`. See

@@ -21,13 +21,17 @@ function localApi(): Plugin {
   }
 }
 
-/** The offline file has no favicon.svg beside it: inline a small mark instead. */
+/**
+ * The offline file has no favicon.svg beside it: inline a small mark in
+ * Ameresco blue and green instead, and give the tab the product name.
+ */
 function inlineIcon(): Plugin {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2310b981'/><circle cx='16' cy='16' r='6' fill='white'/><g stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M16 4v3M16 25v3M4 16h3M25 16h3M7.5 7.5l2 2M22.5 22.5l2 2M7.5 24.5l2-2M22.5 9.5l2-2'/></g></svg>`
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='white'/><ellipse cx='16' cy='17' rx='13' ry='6.5' fill='none' stroke='%230065a5' stroke-width='3' transform='rotate(-12 16 17)'/><ellipse cx='17' cy='16' rx='6' ry='13' fill='none' stroke='%23008540' stroke-width='3' transform='rotate(18 17 16)'/></svg>`
   return {
     name: 'inline-icon',
-    transformIndexHtml: (html) =>
-      html.replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`),
+    transformIndexHtml: (html) => html
+      .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`)
+      .replace(/<title>[^<]*<\/title>/, '<title>Ameresco Data Analyser</title>'),
   }
 }
 

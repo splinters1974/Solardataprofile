@@ -4,10 +4,11 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import BrandHeader from '../components/BrandHeader';
-import HHAnalyser from '../components/analyser/HHAnalyser';
+import HHAnalyser, { type ReportFilters } from '../components/analyser/HHAnalyser';
+import FullPeriodChart from './FullPeriodChart';
+import { AMERESCO_LOGO } from '../local/brand';
 import {
-  clearAll, downloadExcel, downloadPortfolioReport, forgetSession, friendlyError, getDefaultRate,
+  clearAll, downloadAnalyserChartsZip, downloadExcel, downloadPortfolioReport, downloadSiteSummary, forgetSession, friendlyError, getDefaultRate,
   listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/findings';
@@ -108,6 +109,10 @@ export default function StandaloneApp() {
   // Must keep its identity between renders. The analyser treats a new one as
   // a new data source and re-fetches every chart (and resets its filters),
   // which is what made every keystroke on this page lag.
+  const downloadSeparate = useCallback(
+    (opts: ReportFilters) => downloadAnalyserChartsZip(selected ?? '', opts),
+    [selected],
+  );
   const runForSite = useCallback(
     <T,>(job: (id: string) => Promise<T>) => job(selected ?? ''),
     [selected],
@@ -118,7 +123,14 @@ export default function StandaloneApp() {
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center gap-3">
-          <BrandHeader />
+          <div className="flex items-center gap-4">
+            <img src={AMERESCO_LOGO} alt="Ameresco" className="h-10 w-auto" />
+            <span className="h-9 w-px bg-slate-200" aria-hidden />
+            <div>
+              <p className="text-xl font-bold text-[#0065a5] leading-tight">Data Analyser</p>
+              <p className="text-xs text-slate-500">Half-hourly energy data</p>
+            </div>
+          </div>
           <div className="flex-1" />
           <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
             Offline · data stays on this computer
@@ -137,7 +149,7 @@ export default function StandaloneApp() {
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {site ? (
           <>
-            <button onClick={() => setSelected(null)} className="text-sm text-blue-700 hover:text-blue-900 font-medium">
+            <button onClick={() => setSelected(null)} className="text-sm text-[#0065a5] hover:text-[#00528a] font-medium">
               ← All sites
             </button>
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -147,13 +159,23 @@ export default function StandaloneApp() {
                   {site.filename} · {site.metrics.days} days · {SITE_TYPES[site.settings.type].label}
                 </p>
               </div>
-              <button
-                disabled={!!exporting}
-                onClick={() => run('Excel', () => downloadExcel(site.settings.name, [site.id]))}
-                className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
-              >
-                {exporting === 'Excel' ? 'Building…' : 'Export to Excel'}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  disabled={!!exporting}
+                  onClick={() => run('Summary', () => downloadSiteSummary(site.id))}
+                  title="One page: costs, findings, data quality and the year at a glance"
+                  className={`${btn} bg-[#0065a5] hover:bg-[#00528a] text-white`}
+                >
+                  {exporting === 'Summary' ? 'Building PDF…' : 'Site summary (PDF)'}
+                </button>
+                <button
+                  disabled={!!exporting}
+                  onClick={() => run('Excel', () => downloadExcel(site.settings.name, [site.id]))}
+                  className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
+                >
+                  {exporting === 'Excel' ? 'Building…' : 'Export to Excel'}
+                </button>
+              </div>
             </div>
             {site.warnings.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
@@ -173,7 +195,13 @@ export default function StandaloneApp() {
               onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
             />
             <CarpetPlot frame={site.frame} />
-            <HHAnalyser key={site.id} sessionId={site.id} runWithSession={runForSite} />
+            <FullPeriodChart frame={site.frame} />
+            <HHAnalyser
+              key={site.id}
+              sessionId={site.id}
+              runWithSession={runForSite}
+              onDownloadSeparate={downloadSeparate}
+            />
           </>
         ) : (
           <>
@@ -206,7 +234,7 @@ export default function StandaloneApp() {
                   <button
                     disabled={!!exporting}
                     onClick={() => run('Portfolio PDF', () => downloadPortfolioReport(title))}
-                    className={`${btn} bg-blue-700 hover:bg-blue-800 text-white`}
+                    className={`${btn} bg-[#0065a5] hover:bg-[#00528a] text-white`}
                   >
                     {exporting === 'Portfolio PDF' ? 'Building PDF…' : 'Portfolio report (PDF)'}
                   </button>

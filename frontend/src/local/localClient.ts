@@ -19,8 +19,10 @@ import {
   heatmapMatrix, hhSeries, loadDurationCurve, monthlyTotals, round, slice,
   summaryStats, weekProfile,
 } from './analytics';
-import { buildAnalyserReport } from './pdf/analyserReport';
-import { buildPortfolioReport, rankSites } from './pdf/portfolioReport';
+import { buildAnalyserReport, buildAnalyserSectionPdfs, type AnalyserReportInput } from './pdf/analyserReport';
+import { zipSync } from 'fflate';
+import { drawTimeSeries } from './timeseries';
+import { buildPortfolioReport, buildSiteSummary, rankSites } from './pdf/portfolioReport';
 import { fmtDayMonYear } from './dates';
 import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
 import { drawCarpet } from './carpet';
@@ -169,14 +171,13 @@ export const getWeek = async (id: string, weekCommencing?: string): Promise<Week
 export const getScatter = async (id: string, excludeHolidays = true): Promise<ScatterResponse> =>
   fullYearScatter(session(id).frame, excludeHolidays);
 
-export async function downloadAnalyserReport(
-  sessionId: string,
-  siteName: string,
-  opts: {
-    date_from?: string; date_to?: string; exclude_holidays: boolean;
-    night_end_slot: number; week_a?: string; week_b?: string;
-  },
-) {
+export type ReportOptions = {
+  date_from?: string; date_to?: string; exclude_holidays: boolean;
+  night_end_slot: number; week_a?: string; week_b?: string;
+};
+
+/** Everything the site report needs, for the filters on screen. */
+async function reportInput(sessionId: string, opts: ReportOptions) {
   const s = session(sessionId);
   const df = s.frame;
   const window = slice(df, opts.date_from, opts.date_to);
@@ -184,10 +185,9 @@ export async function downloadAnalyserReport(
   await yieldToUi();
 
   // The site's own settings win: the screen may hold a name from before a rename.
-  void siteName;
   const name = s.settings.name || 'Unnamed site';
   const whole = window.dates.length === df.dates.length;
-  const pdf = buildAnalyserReport({
+  const input: AnalyserReportInput = {
     siteName: name,
     filename: s.filename,
     dateFrom: fmtDayMonYear(window.dates[0]),
@@ -210,12 +210,32 @@ export async function downloadAnalyserReport(
         capacityKva: s.settings.capacityKva, powerFactor: s.settings.powerFactor,
         marginPct: s.settings.headroomMarginPct, test: s.settings.testLoad,
       }) : null,
+      series: seriesFor(window),
     },
     filterNote: whole
       ? `Covers the whole uploaded period, ${window.dates.length} days.`
       : `Filtered to ${window.dates.length} days of the ${df.dates.length} uploaded.`,
+  };
+  return { input, name };
+}
+
+export async function downloadAnalyserReport(sessionId: string, siteName: string, opts: ReportOptions) {
+  void siteName;
+  const { input, name } = await reportInput(sessionId, opts);
+  saveBlob(buildAnalyserReport(input), `${slug(name)}-hh-analysis.pdf`);
+}
+
+/** The same report as one PDF per chart, zipped so it arrives as one download. */
+export async function downloadAnalyserChartsZip(sessionId: string, opts: ReportOptions) {
+  const { input, name } = await reportInput(sessionId, opts);
+  const files: Record<string, Uint8Array> = {};
+  buildAnalyserSectionPdfs(input).forEach((section, k) => {
+    files[`${String(k + 1).padStart(2, '0')}-${slug(name)}-${section.key}.pdf`] = new Uint8Array(section.pdf);
   });
-  saveBlob(pdf, `${slug(name)}-hh-analysis.pdf`);
+  // PDFs are already compressed; storing them is faster and barely bigger.
+  const zipped = zipSync(files, { level: 0 });
+  saveBlob(zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength) as ArrayBuffer,
+    `${slug(name)}-charts.zip`, 'application/zip');
 }
 
 // --- Portfolio ------------------------------------------------------------
@@ -297,6 +317,28 @@ function carpetFor(frame: Frame) {
   const canvas = document.createElement('canvas');
   const maxKw = drawCarpet(canvas, frame, 3, 6);
   return { canvas, maxKw, dates: frame.dates };
+}
+
+/** Whole-period charts for the PDF: every half hour, and daily totals. */
+function seriesFor(frame: Frame) {
+  if (typeof document === 'undefined' || !frame.dates.length) return null;
+  const hh = document.createElement('canvas');
+  const daily = document.createElement('canvas');
+  drawTimeSeries(hh, frame, 'hh', 1100, 300, 2);
+  drawTimeSeries(daily, frame, 'daily', 1100, 240, 2);
+  return { hh, daily };
+}
+
+/** The portfolio's one-page site summary, for one site on its own. */
+export async function downloadSiteSummary(id: string) {
+  const s = listSites().find((x) => x.id === id);
+  if (!s) throw new Error('That site is no longer loaded.');
+  await yieldToUi();
+  const pdf = buildSiteSummary({
+    settings: s.settings, filename: s.filename, metrics: s.metrics, carpet: carpetFor(s.frame),
+    quality: s.quality, headroom: s.headroom,
+  });
+  saveBlob(pdf, `${slug(s.settings.name)}-site-summary.pdf`);
 }
 
 export async function downloadPortfolioReport(title: string) {

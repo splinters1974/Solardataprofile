@@ -9,6 +9,7 @@
 import { jsPDF } from 'jspdf';
 import { autoTable, type RowInput } from 'jspdf-autotable';
 import { MONTHS_SHORT } from '../dates';
+import { LOGO_ASPECT } from '../brand';
 
 export type RGB = [number, number, number];
 
@@ -32,6 +33,8 @@ interface ReportOptions {
   footer: string;
   title: string;
   margin: number;
+  /** Logo image (data URL), printed top right of the first page. */
+  logo?: string;
 }
 
 /** A page cursor that starts a new page when the next block will not fit. */
@@ -80,6 +83,15 @@ export class Report {
 
   private setColor(c: RGB) {
     this.doc.setTextColor(c[0], c[1], c[2]);
+  }
+
+  /** A one-line muted heading for documents that skip the big title. */
+  subhead(text: string) {
+    const d = this.doc;
+    d.setFont('helvetica', 'normal').setFontSize(9);
+    this.setColor(MUTED);
+    d.text(text, this.left, this.y + 6);
+    this.y += 9;
   }
 
   title(text: string, sub: string) {
@@ -207,6 +219,10 @@ export class Report {
     const ph = d.internal.pageSize.getHeight();
     for (let p = 1; p <= pages; p++) {
       d.setPage(p);
+      if (p === 1 && this.opts.logo) {
+        const w = 46;
+        d.addImage(this.opts.logo, 'JPEG', pw - this.left - w, 8, w, w / LOGO_ASPECT, undefined, 'FAST');
+      }
       d.setFillColor(...this.brand);
       d.rect(0, 0, pw, 5, 'F');
       d.setDrawColor(...RULE).setLineWidth(0.25);
@@ -550,4 +566,17 @@ export function qualityBlock(r: Report, q: {
       level: c.status === 'fail' ? 'high' : 'low', title: c.title, detail: c.detail,
     })), { high: 'FAIL', low: 'CHECK' });
   }
+}
+
+/** A pre-drawn canvas chart (axes included), scaled to the page width. */
+export function imageBlock(r: Report, opts: { title?: string; canvas: HTMLCanvasElement; height: number }) {
+  r.need(opts.height + (opts.title ? 8 : 2));
+  const d = r.doc;
+  if (opts.title) {
+    d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...INK);
+    d.text(opts.title, r.left, r.y + 4);
+    r.y += 6;
+  }
+  d.addImage(opts.canvas.toDataURL('image/png'), 'PNG', r.left, r.y, r.width, opts.height, undefined, 'FAST');
+  r.y += opts.height + 3;
 }
