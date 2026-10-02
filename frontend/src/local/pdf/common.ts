@@ -225,6 +225,36 @@ export class Report {
     return finalY;
   }
 
+  /**
+   * Ameresco logo top right, the customer's (if set) to its left behind a
+   * thin divider. Full size on page 1; smaller on later pages so both fit
+   * in the strip above the content without moving anything down.
+   */
+  private drawLogos(first: boolean) {
+    const d = this.doc;
+    const pw = d.internal.pageSize.getWidth();
+    const w = first ? 46 : 30;
+    const top = first ? 8 : 6.5;
+    const h = w / LOGO_ASPECT;
+    const ameLeft = pw - this.left - w;
+    d.addImage(this.opts.logo!, 'JPEG', ameLeft, top, w, h, undefined, 'FAST');
+    if (!customerLogo) return;
+    // Fit inside a box without stretching: 40 x 13 mm on page 1, 26 x the
+    // Ameresco logo's height on later pages.
+    const maxW = first ? 40 : 26;
+    const maxH = first ? 13 : h;
+    const ratio = customerLogo.width / customerLogo.height;
+    let cw = maxW;
+    let ch = cw / ratio;
+    if (ch > maxH) { ch = maxH; cw = ch * ratio; }
+    const divider = ameLeft - (first ? 5 : 3.5);
+    d.setDrawColor(...RULE).setLineWidth(0.3);
+    d.line(divider, top - 1, divider, top + Math.max(h, ch) + 1);
+    const centre = top + h / 2;
+    d.addImage(customerLogo.dataUrl, 'PNG', divider - (first ? 5 : 3.5) - cw,
+      Math.max(first ? 5 : 5.5, centre - ch / 2), cw, ch, undefined, 'FAST');
+  }
+
   /** Header band and footer on every page, drawn once the content is final. */
   finish(): ArrayBuffer {
     const d = this.doc;
@@ -233,25 +263,7 @@ export class Report {
     const ph = d.internal.pageSize.getHeight();
     for (let p = 1; p <= pages; p++) {
       d.setPage(p);
-      if (p === 1 && this.opts.logo) {
-        const w = 46;
-        const ameLeft = pw - this.left - w;
-        d.addImage(this.opts.logo, 'JPEG', ameLeft, 8, w, w / LOGO_ASPECT, undefined, 'FAST');
-        if (customerLogo) {
-          // Fit inside a 40 x 13 mm box, never stretched, left of the Ameresco
-          // logo with a thin divider between the two.
-          const ratio = customerLogo.width / customerLogo.height;
-          let cw = 40;
-          let ch = cw / ratio;
-          if (ch > 13) { ch = 13; cw = ch * ratio; }
-          const divider = ameLeft - 5;
-          d.setDrawColor(...RULE).setLineWidth(0.3);
-          d.line(divider, 7, divider, 20);
-          const centre = 8 + w / LOGO_ASPECT / 2;
-          d.addImage(customerLogo.dataUrl, 'PNG', divider - 5 - cw, Math.max(5, centre - ch / 2),
-            cw, ch, undefined, 'FAST');
-        }
-      }
+      if (this.opts.logo) this.drawLogos(p === 1);
       d.setFillColor(...this.brand);
       d.rect(0, 0, pw, 5, 'F');
       d.setDrawColor(...RULE).setLineWidth(0.25);

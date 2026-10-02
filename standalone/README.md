@@ -8,7 +8,7 @@
 2. Drop in meter files, **one file per meter**. Each becomes a site. Add as many as you like.
 3. Open each site and set its **building type** and **opening hours**. Every site starts as Office / commercial, so a school, hospital or leisure centre will show the wrong out-of-hours figures until you change it.
 4. Enter the **agreed supply capacity** (kVA, from the bill) for any site where you want the headroom check.
-5. Optionally add the **customer's logo** (PNG, JPG or SVG). It prints beside the Ameresco logo on every PDF until you remove it or clear all data.
+5. Optionally add the **customer's logo** (PNG, JPG or SVG). It prints beside the Ameresco logo on every page of every PDF until you remove it or clear all data.
 6. Set the **default rate** (25p/kWh fully delivered unless changed). Any site can override it.
 
 ## What you get
