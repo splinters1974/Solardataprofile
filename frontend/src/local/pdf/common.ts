@@ -37,6 +37,20 @@ interface ReportOptions {
   logo?: string;
 }
 
+/** A customer's logo, already converted to PNG, with its pixel size for the aspect ratio. */
+export interface CustomerLogo {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+let customerLogo: CustomerLogo | null = null;
+
+/** Set once for the session; every report built afterwards carries it. */
+export function setCustomerLogo(logo: CustomerLogo | null) {
+  customerLogo = logo;
+}
+
 /** A page cursor that starts a new page when the next block will not fit. */
 export class Report {
   doc: jsPDF;
@@ -221,7 +235,22 @@ export class Report {
       d.setPage(p);
       if (p === 1 && this.opts.logo) {
         const w = 46;
-        d.addImage(this.opts.logo, 'JPEG', pw - this.left - w, 8, w, w / LOGO_ASPECT, undefined, 'FAST');
+        const ameLeft = pw - this.left - w;
+        d.addImage(this.opts.logo, 'JPEG', ameLeft, 8, w, w / LOGO_ASPECT, undefined, 'FAST');
+        if (customerLogo) {
+          // Fit inside a 40 x 13 mm box, never stretched, left of the Ameresco
+          // logo with a thin divider between the two.
+          const ratio = customerLogo.width / customerLogo.height;
+          let cw = 40;
+          let ch = cw / ratio;
+          if (ch > 13) { ch = 13; cw = ch * ratio; }
+          const divider = ameLeft - 5;
+          d.setDrawColor(...RULE).setLineWidth(0.3);
+          d.line(divider, 7, divider, 20);
+          const centre = 8 + w / LOGO_ASPECT / 2;
+          d.addImage(customerLogo.dataUrl, 'PNG', divider - 5 - cw, Math.max(5, centre - ch / 2),
+            cw, ch, undefined, 'FAST');
+        }
       }
       d.setFillColor(...this.brand);
       d.rect(0, 0, pw, 5, 'F');

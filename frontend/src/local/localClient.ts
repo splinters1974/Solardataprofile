@@ -22,6 +22,7 @@ import {
 import { buildAnalyserReport, buildAnalyserSectionPdfs, type AnalyserReportInput } from './pdf/analyserReport';
 import { zipSync } from 'fflate';
 import { drawTimeSeries } from './timeseries';
+import { setCustomerLogo, type CustomerLogo } from './pdf/common';
 import { buildPortfolioReport, buildSiteSummary, rankSites } from './pdf/portfolioReport';
 import { fmtDayMonYear } from './dates';
 import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
@@ -249,6 +250,41 @@ export const getDefaultRate = () => defaultRateP;
 export function clearAll() {
   sessions.clear();
   defaultRateP = DEFAULT_RATE_P;
+  setCustomerLogo(null);
+}
+
+/**
+ * Read a customer's logo file and convert it to PNG for the PDFs. Going
+ * through a canvas means SVG, WebP, GIF and the rest all work, transparency
+ * is kept, and an oversized file is scaled down so the PDFs stay small.
+ */
+export async function loadCustomerLogo(file: File): Promise<CustomerLogo> {
+  if (!file.type.startsWith('image/')) throw new Error('Choose an image file (PNG, JPG or SVG).');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('That image could not be read. Try a PNG or JPG.'));
+      el.src = url;
+    });
+    const w0 = img.naturalWidth || 600;
+    const h0 = img.naturalHeight || 200;
+    const scale = Math.min(1, 800 / w0, 400 / h0);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w0 * scale));
+    canvas.height = Math.max(1, Math.round(h0 * scale));
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const logo = { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+    setCustomerLogo(logo);
+    return logo;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export function removeCustomerLogo() {
+  setCustomerLogo(null);
 }
 export function setDefaultRate(p: number) {
   if (Number.isFinite(p) && p > 0) defaultRateP = p;
@@ -349,7 +385,7 @@ export async function downloadPortfolioReport(title: string) {
     settings: s.settings, filename: s.filename, metrics: s.metrics, carpet: carpetFor(s.frame),
     quality: s.quality, headroom: s.headroom,
   })));
-  saveBlob(pdf, `${slug(title || 'portfolio')}-portfolio-review.pdf`);
+  saveBlob(pdf, title ? `${slug(title)}-portfolio-review.pdf` : 'portfolio-review.pdf');
 }
 
 export async function downloadExcel(title: string, ids?: string[]) {

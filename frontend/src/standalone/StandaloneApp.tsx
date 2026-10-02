@@ -8,7 +8,7 @@ import HHAnalyser, { type ReportFilters } from '../components/analyser/HHAnalyse
 import FullPeriodChart from './FullPeriodChart';
 import { AMERESCO_LOGO } from '../local/brand';
 import {
-  clearAll, downloadAnalyserChartsZip, downloadExcel, downloadPortfolioReport, downloadSiteSummary, forgetSession, friendlyError, getDefaultRate,
+  clearAll, loadCustomerLogo, removeCustomerLogo, downloadAnalyserChartsZip, downloadExcel, downloadPortfolioReport, downloadSiteSummary, forgetSession, friendlyError, getDefaultRate,
   listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/findings';
@@ -61,6 +61,7 @@ export default function StandaloneApp() {
   const [errors, setErrors] = useState<{ file: string; message: string }[]>([]);
   const [rate, setRate] = useState(getDefaultRate());
   const [title, setTitle] = useState('');
+  const [customerLogo, setCustomerLogo] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
 
   const refresh = useCallback(() => setSites(listSites()), []);
@@ -75,6 +76,7 @@ export default function StandaloneApp() {
     setSelected(null);
     setErrors([]);
     setTitle('');
+    setCustomerLogo(null);
     setRate(getDefaultRate());
   }
 
@@ -222,6 +224,40 @@ export default function StandaloneApp() {
                       value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appears on the reports"
                       className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Customer logo (on every PDF)</label>
+                    {customerLogo ? (
+                      <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-2 py-1 bg-white">
+                        <img src={customerLogo} alt="Customer logo" className="h-6 max-w-28 object-contain" />
+                        <button
+                          onClick={() => { removeCustomerLogo(); setCustomerLogo(null); }}
+                          className="text-xs text-slate-500 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="inline-block cursor-pointer text-sm border border-dashed border-slate-300 hover:border-[#0065a5] rounded-lg px-3 py-1.5 text-slate-600">
+                        Add logo…
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            try {
+                              const logo = await loadCustomerLogo(file);
+                              setCustomerLogo(logo.dataUrl);
+                            } catch (err) {
+                              setErrors([{ file: file.name, message: friendlyError(err, 'Could not read that logo.') }]);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                   <div className="w-44">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Default rate (p/kWh)</label>
