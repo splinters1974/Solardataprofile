@@ -28,7 +28,8 @@ import { buildPortfolioReport, buildSiteSummary, rankSites } from './pdf/portfol
 import { fmtDayMonYear } from './dates';
 import { analyseSite, DEFAULT_RATE_P, defaultSettings, type SiteMetrics, type SiteSettings } from './findings';
 import { drawCarpet } from './carpet';
-import { buildWorkbook } from './excelExport';
+import { buildSitesTableWorkbook, buildWorkbook } from './excelExport';
+import type { TableSite } from './siteTable';
 import { checkQuality, type QualityReport } from './dataQuality';
 import { analyseHeadroom, type HeadroomResult } from './headroom';
 
@@ -398,6 +399,14 @@ export async function downloadExcel(title: string, ids?: string[]) {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
+/** The sites table as shown, in the order shown, as a one-sheet workbook. */
+export async function downloadSitesTable(title: string, sites: TableSite[]) {
+  if (!sites.length) throw new Error('Load at least one site first.');
+  await yieldToUi();
+  saveBlob(buildSitesTableWorkbook(title, sites, defaultRateP), `${slug(title || 'portfolio')}-sites.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
 // --- Customer editions -----------------------------------------------------
 
 /** True once a customer edition has been unlocked: summary-only exports. */
@@ -419,6 +428,7 @@ export async function downloadCustomerEdition(customer: string, password: string
       filename: x.filename, warnings: x.warnings, format: x.format, settings: x.settings,
       dates: x.frame.dates,
       rows: x.frame.rows.map((r) => r.map((v) => Math.round(v * 1e4) / 1e4)),
+      blanks: x.frame.blanks ? [...x.frame.blanks] : undefined,
     })),
   };
   const html = editionHtml(await seal(data, password));
@@ -435,7 +445,7 @@ export async function openCustomerEdition(password: string): Promise<EditionData
   sessions.clear();
   for (const site of data.sites) {
     sessions.set(newId(), {
-      frame: { dates: site.dates, rows: site.rows },
+      frame: { dates: site.dates, rows: site.rows, blanks: site.blanks ? new Map(site.blanks) : undefined },
       filename: site.filename, warnings: site.warnings, format: site.format, settings: site.settings,
     });
   }

@@ -13,7 +13,7 @@
 
 ## What you get
 
-- **Where to start:** sites ranked by what out-of-hours use above base load costs each year.
+- **Where to start:** sites ranked by what out-of-hours use above base load costs each year, with the days of data in each file. Click any column heading to sort (A to Z for text, largest first for numbers; click again to reverse, or # to go back to the ranking). **Table to Excel** saves the table as shown, in the order shown.
 - **Findings for each site,** priced at the unit rate: out-of-hours use, base load, weekend running, bank holidays that look like working days, base load creep year on year, unusual days and supply headroom (if you enter the agreed kVA).
 - **Data quality check** on every file, graded Good, Check or Poor: missing days, zero days, dropouts, negative readings, stuck or copied (estimated) data and spikes. Each item says how it affects the numbers. Shown in the league table too.
 - **Electrification headroom,** once you enter the agreed supply capacity (kVA): peak demand by month against capacity, the worst case at each time of day, and the load that can be added at any time. **Test a new load** (a heat pump's electrical input, EV charging) with its hours and season to see whether it fits, and if not, when and by how much. A safety margin (10% by default) is held back from capacity.
@@ -29,6 +29,7 @@
 | Download all charts (PDF), on a site | Findings, headroom, heatmap, every chart and table | Client-ready |
 | Charts as separate PDFs (zip), on a site | The same report, one PDF per chart, numbered in report order, in one zip | Client-ready, for proposals |
 | Portfolio report (PDF) | Ranked table, then one page per site | Client-ready |
+| Table to Excel | The Where to start table, in the order shown | Internal or client |
 | Export to Excel | Summary, findings, monthly figures, profiles and the raw half-hourly data | Internal |
 | Customer edition | A locked, password-protected copy of the dashboard for one customer | Customer |
 
@@ -52,9 +53,9 @@ Before sending:
 
 A customer edition is a snapshot: it can't be updated or withdrawn once sent. To refresh it, make a new one.
 
-## Part-recorded days
+## Blank readings
 
-A day with half or more of its readings blank (often the last day in an export) is left out with a note, rather than counted as zero use. Otherwise it would pull base load and the bottom of the load duration curve down to zero.
+No readings are dropped. A blank half hour (for example the rest of a part-recorded last day) counts as no use in the totals, but is left out of base load, the lowest reading and the load duration curve, so it can't drag them to zero. A part day is also never reported as the lowest day. A dated row with nothing in it at all is treated as a missing day. Each site's data notes say how many blanks were found.
 
 ## Files it will refuse
 

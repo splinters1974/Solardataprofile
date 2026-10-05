@@ -21,6 +21,29 @@ const SSF: typeof XLSX.SSF = (XLSX as { SSF?: typeof XLSX.SSF }).SSF
 export interface Frame {
   dates: string[];       // "YYYY-MM-DD", ascending, unique
   rows: number[][];      // kWh per half hour, 48 per day
+  /** Half hours that were blank in the file (stored as 0), by date. */
+  blanks?: Map<string, number[]>;
+}
+
+/** The half hours of one day that were blank in the file. */
+export function blankSet(frame: Frame, date: string): Set<number> | null {
+  const b = frame.blanks?.get(date);
+  return b?.length ? new Set(b) : null;
+}
+
+/** Map of blank half hours, keeping only days that have some. */
+function blankMap(dates: string[], slots: number[][]): Map<string, number[]> | undefined {
+  const m = new Map<string, number[]>();
+  dates.forEach((d, i) => { if (slots[i]?.length) m.set(d, slots[i]); });
+  return m.size ? m : undefined;
+}
+
+export function blankNote(frame: Frame): string | null {
+  if (!frame.blanks) return null;
+  let cells = 0;
+  for (const v of frame.blanks.values()) cells += v.length;
+  return `${cells} blank half-hour reading(s) across ${frame.blanks.size} day(s), for example a part-recorded `
+    + 'last day. Kept, and counted as no use in the totals, but left out of base load and the load duration curve.';
 }
 
 export interface Parsed {
@@ -345,23 +368,19 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
   const oriented = format === 'B' ? transpose(raw) : raw;
   const { body, dates } = stripLeadingColumns(stripTitleRows(oriented));
 
-  // A day with half or more of its readings blank is incomplete (typically
-  // the last, part-recorded day, or a dated row with nothing in it). Counting
-  // its blanks as zero use drags base load and the load duration curve to 0,
-  // so such days are left out instead.
-  const blanks = body.map((r) => r.slice(0, 48).filter((c) => c === null || (typeof c === 'string' && !c.trim())).length);
-  const incomplete = blanks.map((b) => b >= 24);
-
+  // Blank cells count as zero use in totals, so no reading is lost or made
+  // up. They are remembered, though, so base load and the load duration
+  // curve can skip them: otherwise a part-recorded last day drags the lowest
+  // reading to zero.
+  const isBlank = (c: Cell) => c === null || (typeof c === 'string' && !c.trim());
   let bad = 0;
-  let rows = body.map((r, i) => r.map((c) => {
+  let rows = body.map((r) => r.map((c) => {
     const n = toNumber(c);
-    if (Number.isNaN(n)) { if (!incomplete[i]) bad++; return 0; }
+    if (Number.isNaN(n)) { bad++; return 0; }
     return n;
   }));
   if (bad > 0) warnings.push(`${bad} non-numeric cells replaced with 0.`);
-  const incompleteNote = (n: number) => `Left out ${n} day(s) with half or more of their readings blank `
-    + '(for example a last, part-recorded day), rather than counting the blanks as zero use.';
-
+  const blankSlots = body.map((r) => r.slice(0, 48).flatMap((c, s) => (isBlank(c) ? [s] : [])));
   const width = rows[0]?.length ?? 0;
   if (width < 48) {
     throw new Error(
@@ -380,7 +399,6 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
   let frame: Frame;
   if (parsed) {
     const keep = parsed.map((d) => d !== null);
-    const partDays = parsed.filter((d, i) => d !== null && incomplete[i]).length;
     const dropped = keep.filter((k) => !k).length;
     if (dropped) {
       warnings.push(
@@ -389,32 +407,31 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
       );
     }
     const seen = new Set<string>();
-    const pairs: [string, number[]][] = [];
+    const pairs: [string, number[], number[]][] = [];
     let repeats = 0;
-    if (partDays) warnings.push(incompleteNote(partDays));
+    let empty = 0;
     rows.forEach((r, i) => {
       const d = parsed![i];
-      if (!d || incomplete[i]) return;
+      if (!d) return;
+      // A dated row with no readings at all is a missing day, not a day of
+      // zero use. Nothing in it to keep.
+      if (blankSlots[i].length >= 48) { empty++; return; }
       if (seen.has(d)) { repeats++; return; }
       seen.add(d);
-      pairs.push([d, r]);
+      pairs.push([d, r, blankSlots[i]]);
     });
     checkRepeats(repeats, seen.size, warnings);
+    if (empty) warnings.push(`Skipped ${empty} dated row(s) with no readings in them; treated as missing days.`);
     pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    frame = { dates: pairs.map((p) => p[0]), rows: pairs.map((p) => p[1]) };
+    const ds = pairs.map((p) => p[0]);
+    frame = { dates: ds, rows: pairs.map((p) => p[1]), blanks: blankMap(ds, pairs.map((p) => p[2])) };
   } else {
-    // Trim trailing blank or part-recorded rows and assume a 1 January start.
-    // Only trailing ones: with no dates, dropping a row mid-file would shift
-    // every later day onto the wrong date.
+    // Trim trailing empty rows and assume a 1 January start.
     let last = -1;
-    rows.forEach((r, i) => { if (r.reduce((s, v) => s + v, 0) > 0 && !incomplete[i]) last = i; });
-    const trailingPart = rows.slice(last + 1).filter((r, k) => incomplete[last + 1 + k] && r.some((v) => v !== 0)).length;
+    rows.forEach((r, i) => { if (r.reduce((s, v) => s + v, 0) > 0) last = i; });
     if (last >= 0) rows = rows.slice(0, last + 1);
-    if (trailingPart) warnings.push(incompleteNote(trailingPart));
-    frame = {
-      dates: rows.map((_, i) => addDays('2024-01-01', i)),
-      rows,
-    };
+    const ds = rows.map((_, i) => addDays('2024-01-01', i));
+    frame = { dates: ds, rows, blanks: blankMap(ds, blankSlots) };
     warnings.push(
       'No usable date column found — assumed the data starts on 1 January. '
       + 'Seasonal solar matching may be shifted if that is wrong.',
@@ -423,6 +440,8 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
 
   const n = frame.dates.length;
   if (n === 0) throw new Error('No readings found in the file.');
+  const note = blankNote(frame);
+  if (note) warnings.push(note);
   if (n < 300) {
     warnings.push(
       `Only ${n} days of data found (expected ~365). Results are based on a partial year.`,

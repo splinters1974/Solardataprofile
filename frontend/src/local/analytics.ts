@@ -15,7 +15,7 @@ import {
   monthsBetween,
 } from './dates';
 import { holidaysBetween } from './holidays';
-import type { Frame } from './parser';
+import { blankSet, type Frame } from './parser';
 
 export const KW_PER_KWH_PER_HH = 2;
 export const DEFAULT_NIGHT_START_SLOT = 0;
@@ -49,7 +49,7 @@ export function slice(frame: Frame, from?: string, to?: string): Frame {
     dates.push(d);
     rows.push(frame.rows[i]);
   });
-  return { dates, rows };
+  return { dates, rows, blanks: frame.blanks };
 }
 
 function meanRows(rows: number[][], scale = 1): number[] {
@@ -153,7 +153,11 @@ export function loadDurationCurve(
 ): LoadDurationResponse {
   const w = slice(frame, from, to);
   const kw: number[] = [];
-  for (const r of w.rows) for (const v of r) if (!Number.isNaN(v)) kw.push(v * KW_PER_KWH_PER_HH);
+  // Blank half hours in the file are not readings, so they stay off the curve.
+  w.rows.forEach((r, i) => {
+    const skip = blankSet(w, w.dates[i]);
+    r.forEach((v, s) => { if (!Number.isNaN(v) && !skip?.has(s)) kw.push(v * KW_PER_KWH_PER_HH); });
+  });
   if (!kw.length) {
     return { curve: [], peak_kw: 0, base_kw: 0, average_kw: 0, load_factor: 0, hours_covered: 0 };
   }
@@ -296,19 +300,27 @@ export function summaryStats(frame: Frame): AnalyserSummary {
   let peakAt = [0, 0];
   let total = 0;
   let count = 0;
-  frame.rows.forEach((r, i) => r.forEach((v, s) => {
-    if (v > peak) { peak = v; peakAt = [i, s]; }
-    if (v < base) base = v;
-    total += v;
-    count += 1;
-  }));
+  const partDay = frame.dates.map((d) => (frame.blanks?.get(d)?.length ?? 0) > 0);
+  frame.rows.forEach((r, i) => {
+    const skip = blankSet(frame, frame.dates[i]);
+    r.forEach((v, s) => {
+      if (v > peak) { peak = v; peakAt = [i, s]; }
+      if (v < base && !skip?.has(s)) base = v;
+      total += v;
+      count += 1;
+    });
+  });
+  if (base === Infinity) base = 0;
 
+  // The lowest day is chosen from complete days, so a part-recorded day is
+  // not reported as the quietest.
   const daily = frame.rows.map(sum);
   let hi = 0;
-  let lo = 0;
+  let lo = partDay.findIndex((p) => !p);
+  if (lo < 0) lo = 0;
   daily.forEach((v, i) => {
     if (v > daily[hi]) hi = i;
-    if (v < daily[lo]) lo = i;
+    if (v < daily[lo] && !partDay[i]) lo = i;
   });
 
   const peakKw = peak * KW_PER_KWH_PER_HH;

@@ -25,6 +25,8 @@ export interface EditionSite {
   settings: SiteSettings;
   dates: string[];
   rows: number[][];
+  /** Blank half hours by date, as [date, slots] pairs. */
+  blanks?: [string, number[]][];
 }
 
 export interface EditionData {

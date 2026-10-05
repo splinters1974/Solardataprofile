@@ -8,6 +8,7 @@ import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from '
 import type { Frame } from './parser';
 import { VERDICT_TEXT, type QualityReport } from './dataQuality';
 import type { HeadroomResult } from './headroom';
+import { SITE_COLUMNS, type TableSite } from './siteTable';
 
 export interface ExportSite {
   settings: SiteSettings;
@@ -98,5 +99,21 @@ export function buildWorkbook(sites: ExportSite[], opts: { halfHourly: boolean }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName(s.settings.name, used));
   }
 
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+
+/** The sites table exactly as shown on screen: same columns, same order. */
+export function buildSitesTableWorkbook(title: string, sites: TableSite[], rateP: number): ArrayBuffer {
+  const rows: (string | number)[][] = [
+    [title ? `${title}: sites` : 'Sites'],
+    [`Ranked by out-of-hours use above base load. Costs at the rates set (default ${rateP}p/kWh), scaled to a year.`],
+    [],
+    SITE_COLUMNS.map((c) => c.label),
+    ...sites.map((s) => SITE_COLUMNS.map((c) => c.exportValue(s))),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = SITE_COLUMNS.map((c) => ({ wch: c.key === 'site' ? 28 : c.key === 'type' || c.key === 'findings' ? 22 : 13 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sites');
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 }

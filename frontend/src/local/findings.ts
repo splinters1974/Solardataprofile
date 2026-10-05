@@ -9,7 +9,7 @@
 import { dayOfWeek, fmtDayMonYear, monthsBetween, MONTHS_SHORT } from './dates';
 import { holidaysBetween } from './holidays';
 import { hhLabels, KW_PER_KWH_PER_HH, round } from './analytics';
-import type { Frame } from './parser';
+import { blankSet, type Frame } from './parser';
 import type { TestLoad } from './headroom';
 
 // --- Settings ---------------------------------------------------------------
@@ -201,17 +201,22 @@ export function analyseSite(frame: Frame, settings: SiteSettings, defaultRateP: 
   let total = 0;
   let peak = -Infinity;
   let peakAt = [0, 0];
-  frame.rows.forEach((r, i) => r.forEach((v, s) => {
-    total += v;
-    kwAll.push(v * KW_PER_KWH_PER_HH);
-    if (v > peak) { peak = v; peakAt = [i, s]; }
-  }));
+  frame.rows.forEach((r, i) => {
+    const skip = blankSet(frame, frame.dates[i]);
+    r.forEach((v, s) => {
+      total += v;
+      // Blank half hours are not readings, so they stay out of base load.
+      if (!skip?.has(s)) kwAll.push(v * KW_PER_KWH_PER_HH);
+      if (v > peak) { peak = v; peakAt = [i, s]; }
+    });
+  });
   const sortedKw = [...kwAll].sort((a, b) => a - b);
   // Base load: the 5th percentile of half-hourly demand. The minimum is too
   // easily a meter dropout reading zero.
   const baseKw = percentile(sortedKw, BASE_PERCENTILE);
   const peakKw = peak * KW_PER_KWH_PER_HH;
-  const averageKw = kwAll.length ? (total / kwAll.length) * KW_PER_KWH_PER_HH : 0;
+  const slots = frame.rows.length * 48;
+  const averageKw = slots ? (total / slots) * KW_PER_KWH_PER_HH : 0;
   const annualKwh = total * scale;
   const annualCost = annualKwh * price;
   const baseAnnualKwh = baseKw * 8766;
@@ -231,7 +236,9 @@ export function analyseSite(frame: Frame, settings: SiteSettings, defaultRateP: 
   const monthlyBaseKw = n ? monthsBetween(frame.dates[0], frame.dates[n - 1]).flatMap((m) => {
     const vals: number[] = [];
     frame.dates.forEach((d, i) => {
-      if (d.slice(0, 7) === m.key) for (const v of frame.rows[i]) vals.push(v * KW_PER_KWH_PER_HH);
+      if (d.slice(0, 7) !== m.key) return;
+      const skip = blankSet(frame, d);
+      frame.rows[i].forEach((v, s) => { if (!skip?.has(s)) vals.push(v * KW_PER_KWH_PER_HH); });
     });
     if (vals.length < 48 * 20) return []; // too few days to call
     return [{ month: `${MONTHS_SHORT[m.m - 1]} ${m.y}`, kw: round(percentile(vals.sort((a, b) => a - b), BASE_PERCENTILE), 2) }];

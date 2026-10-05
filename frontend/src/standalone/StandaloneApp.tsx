@@ -9,7 +9,7 @@ import FullPeriodChart from './FullPeriodChart';
 import { AMERESCO_LOGO } from '../local/brand';
 import {
   clearAll, loadCustomerLogo, removeCustomerLogo, downloadAnalyserChartsZip, downloadExcel, downloadPortfolioReport, downloadSiteSummary, forgetSession, friendlyError, getDefaultRate,
-  listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
+  downloadSitesTable, listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/findings';
 import { rankSites } from '../local/pdf/portfolioReport';
@@ -22,6 +22,7 @@ import HeadroomPanel from './HeadroomPanel';
 import EditionDialog from './EditionDialog';
 import BulkSettingsPanel from './BulkSettingsPanel';
 import { getCustomerLogo } from '../local/pdf/common';
+import { firstDir, SITE_COLUMNS, sortSites, type ColumnKey, type SortState } from '../local/siteTable';
 
 const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const btn = 'text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
@@ -120,6 +121,18 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   }
 
   const ranked = useMemo(() => rankSites(sites), [sites]);
+  // Null keeps the "Where to start" ranking.
+  const [sort, setSort] = useState<SortState | null>(null);
+  const shown = useMemo(
+    () => sortSites(ranked.map((s, i) => ({ ...s, rank: i + 1 })), sort),
+    [ranked, sort],
+  );
+  function sortBy(key: ColumnKey) {
+    const col = SITE_COLUMNS.find((c) => c.key === key)!;
+    setSort((cur) => (cur?.key === key
+      ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: firstDir(col) }));
+  }
   const site = sites.find((s) => s.id === selected) ?? null;
   // Must keep its identity between renders. The analyser treats a new one as
   // a new data source and re-fetches every chart (and resets its filters),
@@ -358,32 +371,52 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 </div>
 
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                  <div className="px-6 pt-5 pb-2">
-                    <h2 className="text-base font-semibold text-slate-800">Where to start</h2>
-                    <p className="text-sm text-slate-500">
-                      Ranked by out-of-hours use above base load: energy used when the building should be
-                      closed, usually the cheapest to remove. Click a site to
-                      {isCustomer ? ' see its full analysis and download its reports.' : ' set its type and hours and see the full analysis.'}
-                    </p>
+                  <div className="px-6 pt-5 pb-2 flex flex-wrap items-start justify-between gap-3">
+                    <div className="max-w-3xl">
+                      <h2 className="text-base font-semibold text-slate-800">Where to start</h2>
+                      <p className="text-sm text-slate-500">
+                        Ranked by out-of-hours use above base load: energy used when the building should be
+                        closed, usually the cheapest to remove. Click a column heading to sort, or # to go back to
+                        this ranking. Click a site to
+                        {isCustomer ? ' see its full analysis and download its reports.' : ' set its type and hours and see the full analysis.'}
+                      </p>
+                    </div>
+                    <button
+                      disabled={!!exporting}
+                      onClick={() => run('Table', () => downloadSitesTable(title, shown))}
+                      className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
+                    >
+                      {exporting === 'Table' ? 'Building…' : 'Table to Excel'}
+                    </button>
                   </div>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
-                        <th className="px-6 py-2 font-medium">Site</th>
-                        <th className="px-3 py-2 font-medium">Type</th>
-                        <th className="px-3 py-2 font-medium text-right">kWh a year</th>
-                        <th className="px-3 py-2 font-medium text-right">Annual cost</th>
-                        <th className="px-3 py-2 font-medium text-right">Base kW</th>
-                        <th className="px-3 py-2 font-medium text-right">Out of hours</th>
-                        <th className="px-3 py-2 font-medium text-right">Above base £/yr</th>
-                        <th className="px-3 py-2 font-medium text-right">Headroom kW</th>
-                        <th className="px-3 py-2 font-medium">Data</th>
-                        <th className="px-3 py-2 font-medium">Findings</th>
-                        <th className="px-3 py-2" />
+                        {SITE_COLUMNS.map((c) => {
+                          const active = sort?.key === c.key || (!sort && c.key === 'rank');
+                          const arrow = !active ? '' : !sort ? ' ▲' : sort.dir === 'asc' ? ' ▲' : ' ▼';
+                          const right = c.numeric && c.key !== 'findings';
+                          return (
+                            <th
+                              key={c.key}
+                              aria-sort={active && sort ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                              className={`py-2 font-medium ${c.key === 'rank' ? 'pl-6 pr-2' : 'px-2'} ${right ? 'text-right' : ''}`}
+                            >
+                              <button
+                                onClick={() => sortBy(c.key)}
+                                title={c.key === 'rank' ? 'Back to the Where to start ranking' : `Sort by ${c.label}`}
+                                className={`whitespace-nowrap hover:text-slate-800 ${active ? 'text-slate-800 font-semibold' : ''}`}
+                              >
+                                {c.short ?? c.label}{arrow}
+                              </button>
+                            </th>
+                          );
+                        })}
+                        <th className="px-2 py-2" />
                       </tr>
                     </thead>
                     <tbody>
-                      {ranked.map((s) => {
+                      {shown.map((s) => {
                         const m = s.metrics;
                         const counts = (['high', 'medium', 'low'] as const)
                           .map((l) => [l, m.findings.filter((f) => f.level === l).length] as const)
@@ -394,29 +427,33 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                             onClick={() => setSelected(s.id)}
                             className="border-b border-slate-100 last:border-0 hover:bg-blue-50/50 cursor-pointer"
                           >
-                            <td className="px-6 py-3">
+                            <td className="pl-6 pr-2 py-3 text-right tabular-nums text-slate-400">{s.rank}</td>
+                            <td className="px-2 py-3">
                               <p className="font-semibold text-slate-800">{s.settings.name}</p>
-                              <p className="text-xs text-slate-400">{m.days} days{s.warnings.length ? ' · has data notes' : ''}</p>
+                              {s.warnings.length > 0 && <p className="text-xs text-slate-400">has data notes</p>}
                             </td>
-                            <td className="px-3 py-3 text-slate-600">{SITE_TYPES[s.settings.type].label}</td>
-                            <td className="px-3 py-3 text-right tabular-nums">{m.annualKwh.toLocaleString('en-GB')}</td>
-                            <td className="px-3 py-3 text-right tabular-nums">{gbp(m.annualCost)}</td>
-                            <td className="px-3 py-3 text-right tabular-nums">{m.baseKw.toLocaleString('en-GB')}</td>
-                            <td className="px-3 py-3 text-right tabular-nums">
+                            <td className="px-2 py-3 text-slate-600">{SITE_TYPES[s.settings.type].label}</td>
+                            <td className="px-2 py-3 text-right tabular-nums" title={`${m.dateFrom} to ${m.dateTo}`}>
+                              {m.days.toLocaleString('en-GB')}
+                            </td>
+                            <td className="px-2 py-3 text-right tabular-nums">{m.annualKwh.toLocaleString('en-GB')}</td>
+                            <td className="px-2 py-3 text-right tabular-nums">{gbp(m.annualCost)}</td>
+                            <td className="px-2 py-3 text-right tabular-nums">{m.baseKw.toLocaleString('en-GB')}</td>
+                            <td className="px-2 py-3 text-right tabular-nums">
                               {m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : '24-7'}
                             </td>
-                            <td className="px-3 py-3 text-right tabular-nums font-semibold text-slate-800">
+                            <td className="px-2 py-3 text-right tabular-nums font-semibold text-slate-800">
                               {m.hasOutOfHours ? gbp(m.oohExcessCost) : '-'}
                             </td>
-                            <td className="px-3 py-3 text-right tabular-nums">
+                            <td className="px-2 py-3 text-right tabular-nums">
                               {s.headroom ? (
                                 <span className={s.headroom.firmHeadroomKw < 0 ? 'text-[#b42c2c] font-semibold' : ''}>
                                   {Math.round(s.headroom.firmHeadroomKw).toLocaleString('en-GB')}
                                 </span>
                               ) : <span className="text-slate-300" title="Enter the supply capacity on the site page">-</span>}
                             </td>
-                            <td className="px-3 py-3"><VerdictChip verdict={s.quality.verdict} /></td>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-3"><VerdictChip verdict={s.quality.verdict} /></td>
+                            <td className="px-2 py-3">
                               <div className="flex gap-1">
                                 {counts.length ? counts.map(([l, c]) => (
                                   <span key={l} className={`whitespace-nowrap text-[11px] font-semibold border rounded px-1.5 py-0.5 ${LEVEL_UI[l].chip} ${LEVEL_UI[l].text}`}>
@@ -425,7 +462,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                                 )) : <span className="text-xs text-slate-400">None</span>}
                               </div>
                             </td>
-                            <td className="px-3 py-3 text-right whitespace-nowrap">
+                            <td className="px-2 py-3 text-right whitespace-nowrap">
                               {!isCustomer && <button
                                 onClick={(e) => { e.stopPropagation(); void forgetSession(s.id).then(refresh); }}
                                 className="text-xs text-slate-400 hover:text-red-600"
