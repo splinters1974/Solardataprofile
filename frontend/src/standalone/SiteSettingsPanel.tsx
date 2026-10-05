@@ -1,43 +1,9 @@
 import {
-  SITE_TYPES, slotLabel, type DayHours, type OpeningHours, type SiteSettings, type SiteType,
+  SITE_TYPES, type OpeningHours, type SiteSettings, type SiteType,
 } from '../local/findings';
+import HoursEditor from './HoursEditor';
 
 const input = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
-const SLOTS = Array.from({ length: 49 }, (_, i) => i);
-
-function DayRow({ label, value, onChange }: {
-  label: string; value: DayHours; onChange: (v: DayHours) => void;
-}) {
-  const open = value !== null;
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="w-20 text-slate-600">{label}</span>
-      <label className="flex items-center gap-1.5 text-slate-600 w-24">
-        <input
-          type="checkbox"
-          checked={open}
-          onChange={(e) => onChange(e.target.checked ? { open: 16, close: 36 } : null)}
-          className="accent-blue-700"
-        />
-        Open
-      </label>
-      {open && (
-        <>
-          <select className="border border-slate-300 rounded-md px-2 py-1 text-sm" value={value.open}
-            onChange={(e) => onChange({ ...value, open: Math.min(Number(e.target.value), value.close) })}>
-            {SLOTS.slice(0, 48).map((s) => <option key={s} value={s}>{slotLabel(s)}</option>)}
-          </select>
-          <span className="text-slate-400">to</span>
-          <select className="border border-slate-300 rounded-md px-2 py-1 text-sm" value={value.close}
-            onChange={(e) => onChange({ ...value, close: Math.max(Number(e.target.value), value.open) })}>
-            {SLOTS.slice(1).map((s) => <option key={s} value={s}>{slotLabel(s)}</option>)}
-          </select>
-        </>
-      )}
-    </div>
-  );
-}
-
 /** Name, building type, opening hours and the costing inputs for one site. */
 export default function SiteSettingsPanel({ settings, defaultRate, onChange, locked = false }: {
   settings: SiteSettings;
@@ -84,20 +50,7 @@ export default function SiteSettingsPanel({ settings, defaultRate, onChange, loc
         <p className="text-xs font-medium text-slate-600 mb-2">
           Opening hours <span className="font-normal text-slate-400">(anything outside these counts as out of hours)</span>
         </p>
-        <div className="space-y-2">
-          <DayRow label="Weekdays" value={settings.hours.weekday} onChange={(v) => setHours({ weekday: v })} />
-          <DayRow label="Saturday" value={settings.hours.saturday} onChange={(v) => setHours({ saturday: v })} />
-          <DayRow label="Sunday" value={settings.hours.sunday} onChange={(v) => setHours({ sunday: v })} />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={settings.hours.holidaysLikeSunday}
-              onChange={(e) => setHours({ holidaysLikeSunday: e.target.checked })}
-              className="accent-blue-700"
-            />
-            Treat bank holidays like Sunday
-          </label>
-        </div>
+        <HoursEditor hours={settings.hours} onChange={setHours} />
       </div>
 
       </fieldset>
@@ -105,13 +58,22 @@ export default function SiteSettingsPanel({ settings, defaultRate, onChange, loc
       <div className="grid gap-4 md:grid-cols-3">
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Unit rate (p/kWh, fully delivered)</label>
+          {/* Starts from the portfolio default, so the arrows step up or down from
+              it rather than from zero. step="any" lets any price be typed while the
+              arrows move a whole penny. */}
           <input
-            type="number" min={0} step={0.1} className={input}
-            placeholder={`${defaultRate} (portfolio default)`}
-            value={settings.rateP ?? ''}
+            type="number" min={0} step="any"
+            className={`${input} ${settings.rateP === null ? 'text-slate-400' : ''}`}
+            value={settings.rateP ?? defaultRate}
             onChange={(e) => set('rateP', e.target.value === '' ? null : Number(e.target.value))}
           />
-          <p className="text-xs text-slate-400 mt-1">Leave blank to use the portfolio default.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            {settings.rateP === null ? 'Using the portfolio default.' : (
+              <button type="button" onClick={() => set('rateP', null)} className="underline hover:text-slate-700">
+                Back to the portfolio default ({defaultRate}p)
+              </button>
+            )}
+          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Agreed supply capacity (kVA)</label>

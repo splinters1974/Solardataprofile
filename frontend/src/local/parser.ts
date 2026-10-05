@@ -345,13 +345,22 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
   const oriented = format === 'B' ? transpose(raw) : raw;
   const { body, dates } = stripLeadingColumns(stripTitleRows(oriented));
 
+  // A day with half or more of its readings blank is incomplete (typically
+  // the last, part-recorded day, or a dated row with nothing in it). Counting
+  // its blanks as zero use drags base load and the load duration curve to 0,
+  // so such days are left out instead.
+  const blanks = body.map((r) => r.slice(0, 48).filter((c) => c === null || (typeof c === 'string' && !c.trim())).length);
+  const incomplete = blanks.map((b) => b >= 24);
+
   let bad = 0;
-  let rows = body.map((r) => r.map((c) => {
+  let rows = body.map((r, i) => r.map((c) => {
     const n = toNumber(c);
-    if (Number.isNaN(n)) { bad++; return 0; }
+    if (Number.isNaN(n)) { if (!incomplete[i]) bad++; return 0; }
     return n;
   }));
   if (bad > 0) warnings.push(`${bad} non-numeric cells replaced with 0.`);
+  const incompleteNote = (n: number) => `Left out ${n} day(s) with half or more of their readings blank `
+    + '(for example a last, part-recorded day), rather than counting the blanks as zero use.';
 
   const width = rows[0]?.length ?? 0;
   if (width < 48) {
@@ -371,6 +380,7 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
   let frame: Frame;
   if (parsed) {
     const keep = parsed.map((d) => d !== null);
+    const partDays = parsed.filter((d, i) => d !== null && incomplete[i]).length;
     const dropped = keep.filter((k) => !k).length;
     if (dropped) {
       warnings.push(
@@ -381,9 +391,10 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
     const seen = new Set<string>();
     const pairs: [string, number[]][] = [];
     let repeats = 0;
+    if (partDays) warnings.push(incompleteNote(partDays));
     rows.forEach((r, i) => {
       const d = parsed![i];
-      if (!d) return;
+      if (!d || incomplete[i]) return;
       if (seen.has(d)) { repeats++; return; }
       seen.add(d);
       pairs.push([d, r]);
@@ -392,10 +403,14 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
     pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     frame = { dates: pairs.map((p) => p[0]), rows: pairs.map((p) => p[1]) };
   } else {
-    // Trim trailing blank rows and assume a 1 January start.
+    // Trim trailing blank or part-recorded rows and assume a 1 January start.
+    // Only trailing ones: with no dates, dropping a row mid-file would shift
+    // every later day onto the wrong date.
     let last = -1;
-    rows.forEach((r, i) => { if (r.reduce((s, v) => s + v, 0) > 0) last = i; });
+    rows.forEach((r, i) => { if (r.reduce((s, v) => s + v, 0) > 0 && !incomplete[i]) last = i; });
+    const trailingPart = rows.slice(last + 1).filter((r, k) => incomplete[last + 1 + k] && r.some((v) => v !== 0)).length;
     if (last >= 0) rows = rows.slice(0, last + 1);
+    if (trailingPart) warnings.push(incompleteNote(trailingPart));
     frame = {
       dates: rows.map((_, i) => addDays('2024-01-01', i)),
       rows,

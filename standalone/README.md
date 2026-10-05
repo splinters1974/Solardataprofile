@@ -6,9 +6,9 @@
 
 1. Double-click the file. It opens in Chrome or Edge.
 2. Drop in meter files, **one file per meter**. Each becomes a site. Add as many as you like.
-3. Open each site and set its **building type** and **opening hours**. Every site starts as Office / commercial, so a school, hospital or leisure centre will show the wrong out-of-hours figures until you change it.
+3. Set each site's **building type** and **opening hours**. Every site starts as Office / commercial, so a school, hospital or leisure centre will show the wrong out-of-hours figures until you change it. With several sites, **Set building type and opening hours for all sites at once** (above the site tiles) does them in one go; change any single site afterwards.
 4. Enter the **agreed supply capacity** (kVA, from the bill) for any site where you want the headroom check.
-5. Optionally add the **customer's logo** (PNG, JPG or SVG). It prints beside the Ameresco logo on every page of every PDF until you remove it or clear all data.
+5. Optionally add the **customer's logo** (PNG, JPG or SVG). It prints beside the Ameresco logo on every page of every PDF until you remove it or clear all data, and goes into any customer edition you make.
 6. Set the **default rate** (25p/kWh fully delivered unless changed). Any site can override it.
 
 ## What you get
@@ -41,8 +41,8 @@ Costs are what each pattern costs now, at the rate entered. They aren't savings 
 **Customer edition…** (on the main page, once sites are loaded) makes a locked, password-protected copy of the dashboard for one customer, holding the sites loaded now with their settings and logo.
 
 - **Password:** by default the customer name in lower case (letters and digits only) plus the year, e.g. `compleatfoods2026`. It can be changed in the dialog.
-- **What the customer can do:** explore every chart and table, change dates and filters, try a different unit rate, add or replace their logo, and download the site summary, full report, separate chart PDFs, portfolio report and a **summary** spreadsheet.
-- **What they can't do:** add or remove sites, change site settings, opening hours or headroom settings, or export the half-hourly readings to a spreadsheet.
+- **What the customer can do:** explore every chart and table, change dates and filters, try a different unit rate, and download the site summary, full report, separate chart PDFs, portfolio report and a **summary** spreadsheet.
+- **What they can't do:** add or remove sites, change site settings, opening hours or headroom settings, change the logo, or export the half-hourly readings to a spreadsheet. Their logo shows in the dashboard header.
 - **Security:** the data is compressed and encrypted with AES-256-GCM, with the key derived from the password (PBKDF2-SHA-256, 310,000 rounds). Without the password the file holds nothing readable. Anyone who can view the charts can still read the numbers on screen; the password protects the file, not what an authorised viewer sees.
 
 Before sending:
@@ -51,6 +51,10 @@ Before sending:
 3. Remember the standard pattern is guessable by anyone who knows it. For wider use, add a random part to the password in the dialog.
 
 A customer edition is a snapshot: it can't be updated or withdrawn once sent. To refresh it, make a new one.
+
+## Part-recorded days
+
+A day with half or more of its readings blank (often the last day in an export) is left out with a note, rather than counted as zero use. Otherwise it would pull base load and the bottom of the load duration curve down to zero.
 
 ## Files it will refuse
 

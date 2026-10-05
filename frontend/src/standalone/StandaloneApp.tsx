@@ -20,6 +20,7 @@ import CarpetPlot from './CarpetPlot';
 import QualityPanel, { VerdictChip } from './QualityPanel';
 import HeadroomPanel from './HeadroomPanel';
 import EditionDialog from './EditionDialog';
+import BulkSettingsPanel from './BulkSettingsPanel';
 import { getCustomerLogo } from '../local/pdf/common';
 
 const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
@@ -144,6 +145,12 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
               <p className="text-xl font-bold text-[#0065a5] leading-tight">Data Analyser</p>
               <p className="text-xs text-slate-500">{isCustomer ? `${customer} energy dashboard` : 'Half-hourly energy data'}</p>
             </div>
+            {isCustomer && customerLogo && (
+              <>
+                <span className="h-9 w-px bg-slate-200" aria-hidden />
+                <img src={customerLogo} alt={customer} className="h-10 max-w-40 object-contain" />
+              </>
+            )}
           </div>
           <div className="flex-1" />
           <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
@@ -252,7 +259,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                       />
                     )}
                   </div>
-                  <div>
+                  {!isCustomer && <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Customer logo (on every PDF)</label>
                     {customerLogo ? (
                       <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-2 py-1 bg-white">
@@ -285,11 +292,11 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                         />
                       </label>
                     )}
-                  </div>
+                  </div>}
                   <div className="w-44">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Default rate (p/kWh)</label>
                     <input
-                      type="number" min={0} step={0.1} value={rate}
+                      type="number" min={0} step="any" value={rate}
                       onChange={(e) => { const v = Number(e.target.value); setRate(v); setDefaultRate(v); refresh(); }}
                       className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
@@ -323,6 +330,16 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                     initialCustomer={title}
                     siteCount={ranked.length}
                     onClose={() => setShowEdition(false)}
+                  />
+                )}
+
+                {!isCustomer && (
+                  <BulkSettingsPanel
+                    siteCount={ranked.length}
+                    onApply={({ type, hours }) => {
+                      for (const x of sites) updateSiteSettings(x.id, { ...x.settings, type, hours: structuredClone(hours) });
+                      refresh();
+                    }}
                   />
                 )}
 

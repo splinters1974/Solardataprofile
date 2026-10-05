@@ -168,3 +168,19 @@ class TestStackedMeters:
         df, _, warnings = load_and_normalise(self._csv(1, extra=1), filename="one.csv")
         assert len(df) == 60
         assert any("repeat a date" in w for w in warnings)
+
+
+class TestIncompleteDays:
+    """A part-recorded day must not be read as a day of zero use."""
+
+    def test_trailing_part_day_is_left_out(self):
+        days = pd.date_range("2024-01-01", periods=40, freq="D")
+        lines = ["Date," + ",".join(f"HH{i + 1}" for i in range(48))]
+        for d in days:
+            lines.append(d.strftime("%d/%m/%Y") + "," + ",".join(["1.0"] * 48))
+        # Last day recorded until 10:00 only, then blank.
+        lines.append("10/02/2024," + ",".join(["1.0"] * 20 + [""] * 28))
+        df, _, warnings = load_and_normalise("\n".join(lines).encode(), filename="part.csv")
+        assert len(df) == 40
+        assert df.values.min() == 1.0
+        assert any("half or more of their readings blank" in w for w in warnings)

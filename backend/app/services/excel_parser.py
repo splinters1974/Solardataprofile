@@ -168,10 +168,30 @@ def _read_excel(file_bytes: bytes) -> pd.DataFrame:
     )
 
 
-def _to_numeric_body(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+INCOMPLETE_NOTE = (
+    "Left out {n} day(s) with half or more of their readings blank "
+    "(for example a last, part-recorded day), rather than counting the blanks as zero use."
+)
+
+
+def _incomplete_rows(df: pd.DataFrame) -> np.ndarray:
+    """
+    Rows with half or more of their 48 readings blank.
+
+    Typically the last, part-recorded day, or a dated row with nothing in it.
+    Counting those blanks as zero use drags base load and the load duration
+    curve to zero, so such days are left out instead.
+    """
+    cells = df.iloc[:, :48]
+    blank = cells.isna() | cells.apply(lambda c: c.map(lambda v: isinstance(v, str) and not v.strip()))
+    return (blank.sum(axis=1) >= 24).to_numpy()
+
+
+def _to_numeric_body(df: pd.DataFrame, skip: np.ndarray | None = None) -> tuple[pd.DataFrame, list[str]]:
     warn_msgs: list[str] = []
     numeric = df.apply(pd.to_numeric, errors="coerce")
-    n_bad = int(numeric.isna().sum().sum())
+    counted = numeric if skip is None else numeric[~skip]
+    n_bad = int(counted.isna().sum().sum())
     if n_bad > 0:
         warn_msgs.append(f"{n_bad} non-numeric cells replaced with 0.")
     return numeric.fillna(0.0), warn_msgs
@@ -234,7 +254,10 @@ def load_and_normalise(
     all_warnings.extend(strip_warns)
 
     # --- Convert to numeric ---
-    numeric, num_warns = _to_numeric_body(body)
+    # Transposed files are reshaped below, so the day-by-day check only
+    # applies to the usual days-down-the-side layout.
+    incomplete = _incomplete_rows(body) if fmt == "A" else np.zeros(len(body), dtype=bool)
+    numeric, num_warns = _to_numeric_body(body, incomplete)
     all_warnings.extend(num_warns)
 
     # --- Orient to (days × 48) ---
@@ -260,8 +283,10 @@ def load_and_normalise(
     if parsed is not None:
         # A dated row is a real reading; an undated one is template padding or
         # a stray paste. Analyser workbooks routinely carry both.
-        keep = parsed.notna().to_numpy()
-        dropped = int((~keep).sum())
+        dated = parsed.notna().to_numpy()
+        dropped = int((~dated).sum())
+        part_days = int((dated & incomplete).sum())
+        keep = dated & ~incomplete
         numeric = numeric[keep].reset_index(drop=True)
         idx = pd.DatetimeIndex(parsed[keep].to_numpy())
         if dropped:
@@ -269,16 +294,24 @@ def load_and_normalise(
                 f"Ignored {dropped} row(s) with no date — these look like "
                 "template padding or data pasted below the dated block."
             )
+        if part_days:
+            all_warnings.append(INCOMPLETE_NOTE.format(n=part_days))
         numeric.index = idx
         repeats = int(numeric.index.duplicated(keep="first").sum())
         _check_repeats(repeats, len(numeric) - repeats, all_warnings)
         numeric = numeric[~numeric.index.duplicated(keep="first")].sort_index()
     else:
         # Fall back to trimming trailing blank rows and assuming a Jan start.
-        nonzero = numeric.sum(axis=1) > 0
+        # Only trailing rows: with no dates, dropping one mid-file would shift
+        # every later day onto the wrong date.
+        nonzero = (numeric.sum(axis=1) > 0).to_numpy() & ~incomplete[: len(numeric)]
         if nonzero.any():
-            last = int(np.flatnonzero(nonzero.to_numpy())[-1])
+            last = int(np.flatnonzero(nonzero)[-1])
+            tail = numeric.iloc[last + 1:]
+            trailing_part = int(((tail != 0).any(axis=1).to_numpy() & incomplete[last + 1: len(numeric)]).sum())
             numeric = numeric.iloc[: last + 1]
+            if trailing_part:
+                all_warnings.append(INCOMPLETE_NOTE.format(n=trailing_part))
         start = date(2024, 1, 1)
         numeric.index = pd.DatetimeIndex(
             [start + timedelta(days=i) for i in range(len(numeric))]
