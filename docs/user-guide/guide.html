@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Ameresco Data Analyser: User Guide</title>
+<style>
+@font-face { font-family: 'Open Sans'; src: url('fonts/opensans-latin.woff2') format('woff2'); font-weight: 300 800; }
+@page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+@page cover { margin: 0; }
+:root { --blue: #0065a5; --green: #008540; --ink: #1f2933; --muted: #5b6774; --line: #d9e1e8; --tint: #eef5fa; --gtint: #ebf6ef; --amber: #b7791f; --red: #b42c2c; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: 'Open Sans', 'Liberation Sans', sans-serif; color: var(--ink); font-size: 9.6pt; line-height: 1.5; margin: 0; }
+h1, h2, h3 { color: var(--blue); line-height: 1.2; font-weight: 700; }
+h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 2.5mm; border-bottom: 1.2mm solid var(--green); break-after: avoid; }
+h2 { font-size: 13pt; margin: 6mm 0 2mm; break-after: avoid; }
+h3 { font-size: 10.5pt; color: var(--ink); margin: 4mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2.5mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; }
+li { margin-bottom: 1mm; }
+strong { font-weight: 700; }
+code, .mono { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.4pt; background: var(--tint); padding: 0.2mm 1mm; border-radius: 1mm; }
+section.chapter { break-before: page; }
+table { width: 100%; border-collapse: collapse; margin: 1mm 0 4mm; font-size: 8.6pt; break-inside: auto; }
+th { background: var(--blue); color: #fff; text-align: left; font-weight: 600; padding: 1.6mm 2mm; }
+td { padding: 1.5mm 2mm; border-bottom: 0.25mm solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+tr:nth-child(even) td { background: #f7fafc; }
+td.n { white-space: nowrap; }
+figure { margin: 2mm 0 5mm; break-inside: avoid; }
+figure img { max-width: 100%; max-height: 78mm; width: auto; border: 0.3mm solid var(--line); border-radius: 1.5mm; display: block; margin: 0 auto; }
+figure.short img { max-height: 58mm; }
+figure.tiny img { max-height: 42mm; }
+figcaption { text-align: center; }
+thead { display: table-header-group; }
+thead tr { break-after: avoid; }
+table { break-before: auto; }
+figure.half img { width: 70%; margin: 0 auto; }
+figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
+.box { border-left: 1.4mm solid var(--blue); background: var(--tint); padding: 3mm 4mm; margin: 3mm 0 4mm; break-inside: avoid; border-radius: 0 1.5mm 1.5mm 0; }
+.box.green { border-color: var(--green); background: var(--gtint); }
+.box.warn { border-color: var(--amber); background: #fdf6e7; }
+.box p:last-child, .box ul:last-child, .box ol:last-child { margin-bottom: 0; }
+.box .label { font-weight: 700; color: var(--blue); display: block; margin-bottom: 1mm; }
+.box.green .label { color: var(--green); }
+.box.warn .label { color: var(--amber); }
+.steps { counter-reset: s; list-style: none; padding: 0; }
+.steps > li { counter-increment: s; position: relative; padding-left: 10mm; margin-bottom: 3mm; break-inside: avoid; }
+.steps > li::before { content: counter(s); position: absolute; left: 0; top: -0.3mm; width: 6.5mm; height: 6.5mm; border-radius: 50%; background: var(--green); color: #fff; font-weight: 700; text-align: center; line-height: 6.5mm; font-size: 9pt; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; }
+.cols figure img { max-height: 70mm; }
+.muted { color: var(--muted); }
+.small { font-size: 8.4pt; }
+
+/* Cover */
+.cover { page: cover; height: 297mm; position: relative; overflow: hidden; break-after: page; }
+.cover .top { padding: 24mm 20mm 0; }
+.cover .top img { height: 20mm; }
+.cover .band { position: absolute; left: 0; right: 0; top: 98mm; background: var(--blue); color: #fff; padding: 16mm 20mm 14mm; }
+.cover .band::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4mm; height: 4mm; background: var(--green); }
+.cover h1.title { color: #fff; border: 0; font-size: 34pt; margin: 0 0 3mm; padding: 0; font-weight: 700; }
+.cover .sub { font-size: 14pt; font-weight: 300; margin: 0; }
+.cover .meta { position: absolute; left: 20mm; right: 20mm; bottom: 22mm; font-size: 9.5pt; color: var(--muted); display: flex; justify-content: space-between; align-items: flex-end; }
+.cover .meta strong { color: var(--ink); }
+.cover .shot { position: absolute; left: 20mm; right: 20mm; top: 170mm; }
+.cover .shot img { width: 100%; border: 0.3mm solid var(--line); border-radius: 2mm; box-shadow: 0 2mm 6mm rgba(0,0,0,0.08); }
+
+/* Contents */
+.toc { list-style: none; padding: 0; margin: 0; columns: 1; }
+.toc li { display: flex; padding: 2mm 0; border-bottom: 0.25mm solid var(--line); font-size: 10.5pt; }
+.toc li span.num { color: var(--green); font-weight: 700; width: 9mm; }
+.toc li span.desc { color: var(--muted); margin-left: auto; font-size: 8.6pt; }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="top"><img src="{{LOGO}}" alt="Ameresco"></div>
+  <div class="band">
+    <h1 class="title">Data Analyser</h1>
+    <p class="sub">User guide for half-hourly energy data analysis</p>
+  </div>
+  <div class="shot"><img src="img/03-table.png" alt=""></div>
+  <div class="meta">
+    <div><strong>Ameresco UK</strong><br>Internal use. Version 1.0, October 2026</div>
+    <div style="text-align:right">For engineers, project development<br>and sales teams</div>
+  </div>
+</div>
+
+<!-- CONTENTS -->
+<section>
+  <h1>Contents</h1>
+  <ul class="toc">
+    <li><span class="num">1</span>Quick start<span class="desc">Ten minutes from files to a client-ready PDF</span></li>
+    <li><span class="num">2</span>What the tool is, and what it isn't<span class="desc">Scope, privacy, how much to trust it</span></li>
+    <li><span class="num">3</span>In the folder<span class="desc">The app, the sample data, this guide</span></li>
+    <li><span class="num">4</span>Loading meter data<span class="desc">Formats it reads, what it fixes, what it refuses</span></li>
+    <li><span class="num">5</span>Setting up sites<span class="desc">Building type, hours, rate, capacity</span></li>
+    <li><span class="num">6</span>The portfolio view<span class="desc">Where to start, sorting, exporting the table</span></li>
+    <li><span class="num">7</span>Findings<span class="desc">What each one means and how it's worked out</span></li>
+    <li><span class="num">8</span>Data quality check<span class="desc">The eight checks and the verdict</span></li>
+    <li><span class="num">9</span>Electrification headroom<span class="desc">Capacity, firm headroom, testing a new load</span></li>
+    <li><span class="num">10</span>Charts<span class="desc">Reading each one</span></li>
+    <li><span class="num">11</span>Outputs<span class="desc">PDFs and spreadsheets, and who they're for</span></li>
+    <li><span class="num">12</span>Customer editions<span class="desc">Password-protected dashboards for clients</span></li>
+    <li><span class="num">13</span>Calculation reference<span class="desc">Every formula and threshold in one place</span></li>
+    <li><span class="num">14</span>Limits and troubleshooting<span class="desc">Known limits, common problems, fixes</span></li>
+  </ul>
+
+  <div class="box green" style="margin-top:8mm">
+    <span class="label">If you only read one page</span>
+    <p>Read section 1. Then, before you send anything to a client, check two things on every site: the <strong>building type and opening hours</strong> are right, and the <strong>data quality</strong> verdict isn't Poor. Most wrong answers come from one of those two.</p>
+  </div>
+</section>
+
+<!-- 1 QUICK START -->
+<section class="chapter">
+  <h1>1. Quick start</h1>
+  <ol class="steps">
+    <li><strong>Open the app.</strong> Double-click <code>Ameresco-Data-Analyser.html</code>. It opens in Chrome or Edge. Nothing installs and nothing goes online.</li>
+    <li><strong>Load the meter files.</strong> Drag them onto the upload box, or click it to browse. Use <strong>one file per meter</strong>; each file becomes a site. Try the five sample files in the folder first.</li>
+    <li><strong>Set building type and hours.</strong> Every site starts as Office / commercial (07:00 to 19:00 weekdays). For several sites of the same kind, use <em>Set building type and opening hours for all sites at once</em> above the summary tiles. Then open any site that differs and correct it.</li>
+    <li><strong>Check the rate.</strong> The default is 25p/kWh fully delivered. Change it at the top of the page, or override it on any one site.</li>
+    <li><strong>Read the results.</strong> The <em>Where to start</em> table ranks sites by what out-of-hours use above base load costs a year. Click a site for its findings, data quality, headroom and charts.</li>
+    <li><strong>Export.</strong> On a site: <em>Site summary (PDF)</em>, <em>Download all charts (PDF)</em> or <em>Charts as separate PDFs (zip)</em>. On the main page: <em>Portfolio report (PDF)</em>, <em>Export to Excel</em> and <em>Table to Excel</em>. Add the client's name and logo first so they print on every page.</li>
+  </ol>
+
+  <figure><img src="img/02-portfolio.png" alt=""><figcaption>The main page with five sites loaded. Client name, logo and default rate at the top, the bulk settings link below, then the portfolio totals and the Where to start table.</figcaption></figure>
+
+  <div class="box warn">
+    <span class="label">Before anything goes to a client</span>
+    <ul>
+      <li>Building type and hours are right for every site. Wrong hours make the out-of-hours figures wrong.</li>
+      <li>The data quality verdict is Good or Check, and you've read any Check items. Don't quote figures from a Poor file.</li>
+      <li>The site has close to a year of data. Under 330 days, the annual figures are scaled up from part of the year.</li>
+      <li>Costs are described as what a pattern costs now, not a saving. The PDFs already say this; keep your covering email consistent.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 WHAT IT IS -->
+<section class="chapter">
+  <h1>2. What the tool is, and what it isn't</h1>
+  <p>The Data Analyser turns half-hourly (HH) electricity data into a ranked view of where a site or estate wastes energy, priced at a unit rate, plus a check on how much spare supply capacity there is for electrification. It handles a single site or a portfolio of hundreds, and produces Ameresco-branded PDFs and spreadsheets.</p>
+
+  <h2>It is</h2>
+  <ul>
+    <li><strong>A screening tool.</strong> It tells you where to look and roughly what's at stake, quickly enough to use in a first meeting or a bid.</li>
+    <li><strong>Offline and private.</strong> Everything runs in your browser. Files are read on your laptop and never uploaded anywhere. You can use it with no internet connection.</li>
+    <li><strong>Consistent.</strong> The same file gives the same answer for everyone, with the method written down (section 13).</li>
+  </ul>
+
+  <h2>It isn't</h2>
+  <ul>
+    <li><strong>An audit or a savings guarantee.</strong> A cost figure is what a pattern costs at the rate entered. How much of it can be removed is an engineering judgement made on site.</li>
+    <li><strong>A connection study.</strong> Headroom is worked out from the peak in the data supplied. A colder winter, a fault, or load not on that meter moves the answer. Treat it as a screen before talking to the DNO, not instead of it.</li>
+    <li><strong>A bill validation tool.</strong> It uses one fully delivered rate. It doesn't model time-of-use tariffs, capacity charges, DUoS bands or the Climate Change Levy separately.</li>
+    <li><strong>Gas or heat.</strong> It reads electricity HH data in kWh. Other half-hourly kWh data will load, but the findings are written for electricity.</li>
+  </ul>
+
+  <h2>Where the data goes</h2>
+  <p>Nowhere. Closing the browser tab clears it. <em>Clear all data</em> (top right) takes the app back to empty without closing it. A file you export (PDF, Excel, customer edition) is saved to your Downloads folder like any other download, so look after it in line with the client's data agreement.</p>
+</section>
+
+<!-- 3 FOLDER -->
+<section class="chapter">
+  <h1>3. In the folder</h1>
+  <table>
+    <thead><tr><th style="width:38%">File</th><th>What it is</th></tr></thead>
+    <tr><td><code>Ameresco-Data-Analyser.html</code></td><td>The app. One self-contained file, about 1.5 MB. Copy it anywhere; it doesn't need anything else beside it.</td></tr>
+    <tr><td>Five sample HH data sets</td><td>Practice files. Load all five at once to see a portfolio, then open each site. They cover different building types and data problems, so between them you'll see most findings and data quality checks.</td></tr>
+    <tr><td>This user guide (PDF)</td><td>What the app does, how it works things out, and how to use it.</td></tr>
+  </table>
+
+  <h2>Browser</h2>
+  <p>Use <strong>Chrome or Edge</strong>, current versions. Firefox and Safari generally work but aren't tested. If double-clicking opens the file in something else, right-click it and choose <em>Open with</em>, then Chrome or Edge.</p>
+
+  <h2>Versions</h2>
+  <p>The app doesn't update itself. When a new version comes out, replace your copy. The version you have is whatever file you opened; a customer edition always uses the version of the app that made it.</p>
+
+  <h2>Practising with the samples</h2>
+  <ol>
+    <li>Load all five sample files together and look at the Where to start table. Sort it by a few columns.</li>
+    <li>Set the building types. Try the bulk setting, then change one site on its own.</li>
+    <li>Open each site. Compare its findings with its heatmap: every finding should be visible in the picture.</li>
+    <li>Find the sample with data problems and read its data quality panel. Note how the problems move base load and the annual totals.</li>
+    <li>On one site, enter an agreed supply capacity and test a heat pump load.</li>
+    <li>Export a site summary, the portfolio report and a customer edition, then open the edition with its password.</li>
+  </ol>
+</section>
+
+<!-- 4 LOADING -->
+<section class="chapter">
+  <h1>4. Loading meter data</h1>
+  <figure class="tiny"><img src="img/01-start.png" alt=""><figcaption>The start screen. Drop files on the box or click to browse. You can add more files at any time; each one becomes another site.</figcaption></figure>
+
+  <h2>Files it reads</h2>
+  <ul>
+    <li><strong>File types:</strong> <code>.xlsx</code>, <code>.xlsm</code>, <code>.xls</code>, <code>.csv</code> and <code>.txt</code>. CSVs can be comma, semicolon or tab separated; the app works out which.</li>
+    <li><strong>One meter per file.</strong> Each file is one site. Name the file after the site; the file name becomes the site name (you can change it).</li>
+    <li><strong>Workbooks with several sheets:</strong> the app picks the sheet that looks most like HH data.</li>
+  </ul>
+
+  <h2>Layouts</h2>
+  <table>
+    <thead><tr><th style="width:24%">Layout</th><th>Looks like</th><th style="width:30%">Notes</th></tr></thead>
+    <tr><td><strong>Days down the side</strong> (most common)</td><td>One row per day: a date, then 48 half-hourly readings (00:00 to 23:30).</td><td>Meter ID or MPAN columns before the date are ignored.</td></tr>
+    <tr><td><strong>Days across the top</strong></td><td>One column per day, 48 rows of readings down the side.</td><td>Detected automatically and turned round.</td></tr>
+    <tr><td><strong>50-period exports</strong></td><td>A date, then 50 columns (the two extra are the clock-change periods).</td><td>The first 48 are used, with a note.</td></tr>
+  </table>
+
+  <h2>What it sorts out for you</h2>
+  <ul>
+    <li><strong>Title rows</strong> above the data (site name, meter number, report dates): up to 8 are skipped.</li>
+    <li><strong>Dates</strong> are read day first (UK), including Excel dates, text dates and two-digit years. Rows are put in date order.</li>
+    <li><strong>No date column:</strong> the data is assumed to start on 1 January, with a note. Day-of-week and bank holiday analysis will then be off, so add dates if you can.</li>
+    <li><strong>Rows with no date</strong> below the data (template padding) are ignored.</li>
+    <li><strong>A repeated date</strong> keeps the first row, with a note. See below for when it refuses instead.</li>
+    <li><strong>Text in a reading cell</strong> (an error code, say) counts as 0, with a count in the notes.</li>
+    <li><strong>Blank readings</strong>, such as the rest of a part-recorded last day, are kept and count as no use in the totals. They're left out of base load, the lowest reading and the load duration curve, so they can't drag those to zero. A dated row with no readings at all is treated as a missing day.</li>
+  </ul>
+
+  <h2>What it refuses</h2>
+  <p>A file with <strong>several meters stacked one after another</strong>, which is common in supplier portal exports, shows up as many repeated dates. The app refuses it with a message, rather than splicing different meters into one profile. Split it into one file per MPAN and load those.</p>
+
+  <h2>Data notes</h2>
+  <p>Anything the app had to fix or assume is listed in an amber box at the top of the site page, and the site shows <em>has data notes</em> in the table. Read them. They're also the first thing to check if a number looks wrong.</p>
+</section>
+
+<!-- 5 SETTING UP -->
+<section class="chapter">
+  <h1>5. Setting up sites</h1>
+  <figure><img src="img/05-site-top.png" alt=""><figcaption>The top of a site page: name, file, days of data and type, the report buttons, any data notes, then the site settings.</figcaption></figure>
+
+  <h2>Building type and opening hours</h2>
+  <p>Opening hours drive every out-of-hours figure, so this is the most important setting. Choosing a building type fills in typical hours, which you then adjust to match the site.</p>
+  <table>
+    <thead><tr><th style="width:26%">Type</th><th>Default hours</th></tr></thead>
+    <tr><td>Office / commercial</td><td>07:00 to 19:00 weekdays. Closed weekends and bank holidays.</td></tr>
+    <tr><td>School / education</td><td>07:00 to 17:30 weekdays. School holidays count as out of hours, which is usually right: the building should be near base load then.</td></tr>
+    <tr><td>Hospital / 24-7 estate</td><td>Open around the clock, so there's no out-of-hours analysis. Base load, peak and headroom still apply.</td></tr>
+    <tr><td>Leisure centre</td><td>06:00 to 22:30 weekdays, 07:00 to 20:00 weekends.</td></tr>
+    <tr><td>Retail</td><td>07:30 to 20:30 Monday to Saturday, 09:30 to 16:30 Sunday.</td></tr>
+    <tr><td>Industrial (two shift)</td><td>06:00 to 22:00 weekdays.</td></tr>
+    <tr><td>Custom hours</td><td>Set your own.</td></tr>
+  </table>
+  <p><strong>Treat bank holidays like Sunday</strong> is on by default: a bank holiday uses Sunday's hours. Turn it off for sites that work bank holidays. England and Wales bank holidays are built in, including the moved ones (2012, 2020, 2022). Scottish and Northern Irish holidays aren't, so treat those as normal days or adjust the hours.</p>
+
+  <h2>All sites at once</h2>
+  <figure class="short"><img src="img/04-bulk.png" alt=""><figcaption>Bulk settings. Apply one building type and set of hours to every loaded site, then change individual sites afterwards.</figcaption></figure>
+  <p>The bulk setting <strong>replaces</strong> each site's type and hours. It doesn't touch names, rates or capacity.</p>
+
+  <h2>Unit rate</h2>
+  <p>A fully delivered rate in p/kWh (energy, network, levies and VAT if the client pays it). The default is 25p and applies to every site; set it at the top of the main page. To give one site a different rate, type it on that site; the box goes from grey to black. <em>Back to the portfolio default</em> undoes it.</p>
+
+  <h2>Supply capacity and power factor</h2>
+  <p>Enter the <strong>agreed supply capacity in kVA</strong> (from the bill or supply agreement) to switch on the headroom check (section 9). Power factor converts metered kW to kVA. Use 0.95 if you don't know it; if the bill shows reactive power charges, the real figure is probably lower, and headroom will be smaller than shown.</p>
+</section>
+
+<!-- 6 PORTFOLIO -->
+<section class="chapter">
+  <h1>6. The portfolio view</h1>
+  <p>The main page shows totals for every site loaded, then the <strong>Where to start</strong> table.</p>
+  <figure class="short"><img src="img/03-table.png" alt=""><figcaption>Where to start. Click a heading to sort by it; the arrow shows the column and direction.</figcaption></figure>
+
+  <h2>Ranking</h2>
+  <p>Sites are ranked by <strong>out-of-hours use above base load, in £ a year</strong>. That's energy used when the building should be closed, over and above what never switches off. It's usually the cheapest saving to get (time controls, BMS schedules), which makes it a good first sort. Ties go to the site with the bigger bill.</p>
+
+  <h2>Sorting and exporting</h2>
+  <p>Click any heading to sort. Text columns sort A to Z first, number columns largest first; click again to reverse. Data sorts Good, Check, Poor; Findings sorts by the most High findings. Click <strong>#</strong> to go back to the ranking. <strong>Table to Excel</strong> saves the table as a one-sheet spreadsheet in the order shown, so sort first. It holds no half-hourly data, so it's fine to send to a client.</p>
+
+  <h2>Columns</h2>
+  <table>
+    <thead><tr><th style="width:22%">Column</th><th>What it shows</th></tr></thead>
+    <tr><td>#</td><td>Place in the ranking above. Stays with the site when you sort, so you can see where it came.</td></tr>
+    <tr><td>Site, Type</td><td>Site name and building type. <em>has data notes</em> under the name means the app fixed or assumed something when reading the file.</td></tr>
+    <tr><td>Days</td><td>Days of HH data in the file. Hover to see the date range.</td></tr>
+    <tr><td>kWh a year, Annual cost</td><td>Consumption scaled to a year, and that at the site's rate.</td></tr>
+    <tr><td>Base kW</td><td>Load that never switches off (section 13).</td></tr>
+    <tr><td>Out of hours</td><td>Share of consumption outside opening hours. Shows 24-7 for sites open around the clock.</td></tr>
+    <tr><td>Above base £/yr</td><td>The ranking figure.</td></tr>
+    <tr><td>Headroom kW</td><td>Firm headroom, once a capacity is entered. Red means the site is already over its usable capacity.</td></tr>
+    <tr><td>Data</td><td>The data quality verdict: Good, Check or Poor.</td></tr>
+    <tr><td>Findings</td><td>Count of High, Medium and Low findings.</td></tr>
+  </table>
+
+</section>
+
+<!-- 7 FINDINGS -->
+<section class="chapter">
+  <h1>7. Findings</h1>
+  <p>Each site page lists what stands out, most important first. A finding is <strong>High</strong> when it costs 10% or more of the site's annual bill, <strong>Medium</strong> at 4% or more, and <strong>Low</strong> below that, so a £2,000 issue matters more at a small site than a big one. Some findings have a fixed level (see the table).</p>
+  <figure class="short"><img src="img/06-findings.png" alt=""><figcaption>Findings for one site. The £ figure is what the pattern costs a year at the site's rate.</figcaption></figure>
+
+  <table>
+    <thead><tr><th style="width:21%">Finding</th><th>When it appears</th><th style="width:25%">Level</th></tr></thead>
+    <tr><td>Out-of-hours use above base load</td><td>Any site with closed hours. Out-of-hours consumption over and above base load, priced. Points to plant, lighting or heating running when the building is closed.</td><td>By cost against the bill</td></tr>
+    <tr><td>Base load</td><td>Always. The load that never switches off, and what it costs. Each 1 kW removed saves 8,766 kWh a year.</td><td>Medium if base load is half or more of consumption at a site that closes; otherwise information only</td></tr>
+    <tr><td>Weekend running</td><td>Site set as closed at weekends, but a typical weekend day uses 50% or more of a typical weekday.</td><td>High at 70% or more, otherwise Medium</td></tr>
+    <tr><td>Bank holidays like working days</td><td>A bank holiday uses at least 80% of a typical weekday at a site that closes on them.</td><td>Medium</td></tr>
+    <tr><td>Base load creep</td><td>Base load is up 15% or more on the same months a year earlier. Needs about 14 months of data; it compares like months so it doesn't mistake seasons for creep.</td><td>By cost of the increase</td></tr>
+    <tr><td>Unusual days</td><td>Days far outside the normal range for their day of the week (see section 13). Check against site events, faults or missing data.</td><td>Low</td></tr>
+    <tr><td>Supply capacity</td><td>Capacity entered. Peak at 90% or more of capacity (little room for electrification), or 50% or less (possibly paying for capacity it doesn't use, or room to electrify).</td><td>High at 90%+; information at 50% or less</td></tr>
+  </table>
+
+  <div class="box">
+    <span class="label">How to use the £ figures</span>
+    <p>They're what each pattern costs <strong>now</strong>, at the rate entered. They overlap (weekend running is part of the out-of-hours figure), so don't add findings together. For a savings estimate, take the out-of-hours figure and apply your own judgement about how much is controllable.</p>
+  </div>
+</section>
+
+<!-- 8 QUALITY -->
+<section class="chapter">
+  <h1>8. Data quality check</h1>
+  <p>Every file is checked for the problems that most often distort HH analysis. Each problem says how it affects the numbers. The verdict is:</p>
+  <ul>
+    <li><strong>Good:</strong> nothing found. The figures can be relied on.</li>
+    <li><strong>Check:</strong> usable, but read the flagged items first.</li>
+    <li><strong>Poor:</strong> at least one problem big enough to distort the figures. Fix or replace the data before using them.</li>
+  </ul>
+  <figure class="short"><img src="img/14-quality-poor.png" alt=""><figcaption>A Poor file: whole days of zero, dropouts and a copied (estimated) day.</figcaption></figure>
+
+  <table>
+    <thead><tr><th style="width:23%">Check</th><th>What it looks for</th><th style="width:28%">Check / Fail</th></tr></thead>
+    <tr><td>Coverage</td><td>Days of data. Annual figures are scaled up from what's there.</td><td>Check under 330 days; Fail under 180</td></tr>
+    <tr><td>Missing days</td><td>Days missing between the first and last date.</td><td>Fail if over 10% of the period</td></tr>
+    <tr><td>Zero days</td><td>Whole days with (almost) no use: usually missing data recorded as zero.</td><td>Fail if over 3% of days</td></tr>
+    <tr><td>Dropouts</td><td>Readings of exactly zero for 2 hours or more inside an otherwise normal day.</td><td>Fail if over 5% of days</td></tr>
+    <tr><td>Negative readings</td><td>Export from on-site generation, a reversed CT, or a sign error.</td><td>Always Fail</td></tr>
+    <tr><td>Stuck readings</td><td>The same non-zero value for 6 hours or more: usually estimated or profiled data.</td><td>Fail if over 10% of days</td></tr>
+    <tr><td>Copied days</td><td>A day identical to an earlier one. Real metering never repeats exactly; these are estimates.</td><td>Fail if over 5% of days</td></tr>
+    <tr><td>Spikes</td><td>Readings over 3 times the normal peak (99.5th percentile) and at least 5 kW above it.</td><td>Check only</td></tr>
+  </table>
+  <p class="small muted">Stuck readings can be normal on a small site whose meter records whole kWh only. Ignore that check if so.</p>
+
+  <div class="box warn">
+    <span class="label">Why this matters</span>
+    <p>Zero days and dropouts pull base load and annual totals down. Estimated data hides how the site really ran. A single spike sets the peak demand figure and the headroom answer. Check the verdict before quoting peak, capacity or savings.</p>
+  </div>
+</section>
+
+<!-- 9 HEADROOM -->
+<section class="chapter">
+  <h1>9. Electrification headroom</h1>
+  <p>Enter the agreed supply capacity (kVA) on a site to see how much load (heat pumps, EV charging, new plant) it can add before it outgrows the supply.</p>
+  <figure><img src="img/08-headroom.png" alt=""><figcaption>Headroom with a 40 kVA supply, testing a 12 kW load from 06:00 to 22:00, October to April.</figcaption></figure>
+
+  <h2>The figures</h2>
+  <ul>
+    <li><strong>Usable capacity:</strong> agreed capacity less a safety margin (10% by default, changeable), held back for start-up currents and a colder winter than the one in the data.</li>
+    <li><strong>Peak demand (kVA):</strong> the highest half-hour in the data, as kW divided by power factor.</li>
+    <li><strong>Firm headroom (kW):</strong> (usable kVA minus peak kVA) times power factor. The load you could add at <em>any</em> time of year and stay within usable capacity.</li>
+    <li><strong>Peak by month</strong> shows the seasonal shape. <strong>Highest demand at each time of day</strong> shows the worst case in each half hour, for the whole year and for December to February, which is usually the pinch.</li>
+  </ul>
+
+  <h2>Test a new load</h2>
+  <p>Enter a load in kW, the hours it runs and whether it runs all year or October to April. The app adds it to every half hour it would run in and reports whether it fits, how often and by how much it wouldn't, and when the worst clash is.</p>
+  <ul>
+    <li><strong>Heat pumps:</strong> enter the electrical input, not the heat output. A 150 kW (heat) unit at a COP of 3 draws about 50 kW.</li>
+    <li><strong>Overnight EV charging:</strong> e.g. 22:00 until 06:00. Hours that wrap past midnight are fine. The same start and end means all day.</li>
+    <li>A load that doesn't fit at the worst time may still fit with controls that hold it off at peak. The time-of-day chart shows where the room is.</li>
+  </ul>
+
+  <div class="box warn">
+    <span class="label">Limits</span>
+    <p>This uses one year's peak from one meter. It doesn't know about a colder year, load on other meters on the same supply, or DNO constraints upstream. It's a screen to decide whether a capacity conversation is needed, not a substitute for one.</p>
+  </div>
+</section>
+
+<!-- 10 CHARTS -->
+<section class="chapter">
+  <h1>10. Charts</h1>
+  <p>Each site page has these charts, and all of them go into <em>Download all charts (PDF)</em>. The analyser charts lower down share a date range filter and an option to leave out bank holidays; the PDF uses whatever filters are set.</p>
+
+  <h2>The year at a glance (heatmap)</h2>
+  <figure><img src="img/09-heatmap.png" alt=""><figcaption>One column per day, one row per half hour, darker for more demand. Hover for the reading.</figcaption></figure>
+  <p>The fastest way to read a site. Look for dark bands outside opening hours, weekends that look like weekdays, holidays that don't show up, a step change in the pattern, and gaps.</p>
+
+  <h2>Every half hour, whole period</h2>
+  <figure class="short"><img src="img/10-fullperiod.png" alt=""><figcaption>Every reading in date order, or daily totals. Missing days show as gaps.</figcaption></figure>
+
+  <h2>The analyser charts</h2>
+  <table>
+    <thead><tr><th style="width:28%">Chart</th><th>Use it to</th></tr></thead>
+    <tr><td>Average demand by day of week</td><td>Compare the shape of a typical Monday, Saturday, Sunday and so on, half hour by half hour. Toggle series on and off. Shows start-up and shut-down times and weekend running.</td></tr>
+    <tr><td>Load duration curve</td><td>See demand sorted from highest to lowest, as hours per year at or above each level. A short spike on the left is an expensive peak; the flat right-hand end is base load. Shows peak, average, base (lowest reading) and load factor.</td></tr>
+    <tr><td>Day and night by month</td><td>Split each month's use between day and night (night is 00:00 to 07:00 by default; adjustable). High night use at a site that closes is a quick out-of-hours check.</td></tr>
+    <tr><td>Week profile and week comparison</td><td>Look at one week in detail, or two weeks side by side (before and after a change, summer against winter).</td></tr>
+    <tr><td>Every half-hourly reading</td><td>A scatter of every reading against time of day. A tight band is a predictable site; a wide spread means the average hides a lot.</td></tr>
+  </table>
+  <figure class="short"><img src="img/11-ldc.png" alt=""><figcaption>Load duration curve.</figcaption></figure>
+</section>
+
+<!-- 11 OUTPUTS -->
+<section class="chapter">
+  <h1>11. Outputs</h1>
+  <p>Every PDF carries the Ameresco logo and, if you've added one, the client's logo on every page. Set the client name and logo on the main page <strong>before</strong> exporting.</p>
+  <table>
+    <thead><tr><th style="width:26%">Output</th><th>What's in it</th><th style="width:18%">Audience</th></tr></thead>
+    <tr><td>Site summary (PDF)</td><td>One page per site: costs, findings, data quality and the year at a glance.</td><td>Client-ready</td></tr>
+    <tr><td>Download all charts (PDF)</td><td>Full site report: findings, headroom, heatmap, every chart and table.</td><td>Client-ready</td></tr>
+    <tr><td>Charts as separate PDFs (zip)</td><td>The same report as one PDF per chart, numbered in report order. Handy for dropping into proposals.</td><td>Client-ready</td></tr>
+    <tr><td>Portfolio report (PDF)</td><td>Ranked table of all sites, then one page per site.</td><td>Client-ready</td></tr>
+    <tr><td>Table to Excel</td><td>The Where to start table, in the order shown.</td><td>Internal or client</td></tr>
+    <tr><td>Export to Excel</td><td>Summary, findings, data quality, monthly figures, headroom, average profiles and the raw half-hourly data for every site.</td><td>Internal (contains the raw data)</td></tr>
+    <tr><td>Customer edition</td><td>A locked, password-protected dashboard file for one client (section 12).</td><td>Client</td></tr>
+  </table>
+
+  <h2>Client logo</h2>
+  <p>PNG, JPG or SVG. A wide logo on a white or transparent background works best. It stays until you remove it or clear all data, and it goes into any customer edition you make.</p>
+
+  <div class="box">
+    <span class="label">Tip</span>
+    <p>The PDFs and charts follow the date range and bank holiday filter set on the site page. To report a specific year, set the range first.</p>
+  </div>
+</section>
+
+<!-- 12 EDITIONS -->
+<section class="chapter">
+  <h1>12. Customer editions</h1>
+  <p>A customer edition is a single HTML file holding one client's sites, locked with a password. The client opens it in their browser, explores their own data and downloads their own reports, without getting the raw data or being able to change the set-up.</p>
+
+  <div class="cols">
+    <figure><img src="img/15-edition-dialog.png" alt=""><figcaption>Creating an edition.</figcaption></figure>
+    <figure><img src="img/16-gate.png" alt=""><figcaption>What the client sees first.</figcaption></figure>
+  </div>
+
+  <h2>Making one</h2>
+  <ol class="steps">
+    <li>Load only that client's sites, set them up fully, and add the client name and logo.</li>
+    <li>Click <strong>Customer edition…</strong> on the main page. Check the customer name and year; the password fills in.</li>
+    <li>Click <strong>Create file</strong>. It saves to Downloads as <code>client-name-energy-dashboard.html</code>.</li>
+    <li>Open it yourself with the password and check it before sending.</li>
+    <li>Send the file and the password <strong>separately</strong>: file by email, password by phone or text.</li>
+  </ol>
+
+  <h2>The password</h2>
+  <p>The standard password is the customer name in lower case, letters and digits only, followed by the year it was made. For example, Compleat Foods in 2026 is <code>compleatfoods2026</code>. You can type a different one in the dialog.</p>
+  <div class="box warn">
+    <span class="label">The standard pattern is guessable</span>
+    <p>Anyone who knows the convention, or has seen this guide, can work out a client's password. That's fine for low-sensitivity data. For anything sensitive, or larger public sector estates, add a random part (e.g. <code>compleatfoods2026-tulip84</code>) and keep a note of it. Never send the password in the same email as the file.</p>
+  </div>
+
+  <h2>What the client can and can't do</h2>
+  <table>
+    <thead><tr><th>They can</th><th>They can't</th></tr></thead>
+    <tr><td>Explore every chart and table, change dates and filters, sort and export the sites table</td><td>Add or remove sites</td></tr>
+    <tr><td>Try a different unit rate and see the costs change</td><td>Change building types, hours, capacity or headroom settings</td></tr>
+    <tr><td>Download the site summary, full report, separate chart PDFs, portfolio report and a summary spreadsheet</td><td>Export the half-hourly readings to a spreadsheet</td></tr>
+    <tr><td>Lock the dashboard again</td><td>Change or remove the logos</td></tr>
+  </table>
+
+  <h2>Security and limits</h2>
+  <ul>
+    <li>The data is compressed and encrypted with AES-256-GCM, with the key derived from the password (PBKDF2-SHA-256, 310,000 rounds). Without the password the file holds nothing readable.</li>
+    <li>The password protects the file, not what an authorised viewer sees: anyone who opens it can read the numbers on screen.</li>
+    <li>An edition is a snapshot. It can't be updated or withdrawn once sent. To refresh it, make and send a new one.</li>
+    <li>A forgotten password can't be recovered. Make a new edition.</li>
+  </ul>
+  <figure><img src="img/17-customer.png" alt=""><figcaption>The client's view: their logo in the header, no upload, settings or raw data export.</figcaption></figure>
+</section>
+
+<!-- 13 CALCS -->
+<section class="chapter">
+  <h1>13. Calculation reference</h1>
+  <table>
+    <thead><tr><th style="width:27%">Figure</th><th>How it's worked out</th></tr></thead>
+    <tr><td>Demand (kW)</td><td>Half-hourly kWh × 2.</td></tr>
+    <tr><td>Annual kWh and cost</td><td>Total kWh in the file × 365.25 ÷ days of data. Cost = annual kWh × unit rate. Missing periods are assumed to look like the ones present.</td></tr>
+    <tr><td>Base load (kW)</td><td>The 5th percentile of all half-hourly demand, not the minimum, so a single dropout or zero reading doesn't set it. Blank readings are left out.</td></tr>
+    <tr><td>Base load cost</td><td>Base kW × 8,766 hours × rate.</td></tr>
+    <tr><td>Out-of-hours use</td><td>All kWh in half hours outside opening hours, scaled to a year.</td></tr>
+    <tr><td>Out-of-hours above base</td><td>For each out-of-hours half hour, demand above base load (never below zero), scaled to a year and priced. This is the ranking figure.</td></tr>
+    <tr><td>Peak and load factor</td><td>Peak is the highest half hour (× 2 for kW). Load factor = average kW ÷ peak kW.</td></tr>
+    <tr><td>Finding level</td><td>£ a year ÷ annual bill: 10% or more High, 4% or more Medium, below that Low.</td></tr>
+    <tr><td>Weekend running</td><td>Median weekend day ÷ median weekday. Reported at 50%, High at 70%.</td></tr>
+    <tr><td>Bank holidays</td><td>Holidays using 80% or more of the median weekday, at sites that close on them.</td></tr>
+    <tr><td>Base load creep</td><td>5th percentile base for each month with 20+ days of data. Months paired with the same month a year later; reported if the average rises 15% or more over at least two pairs. Cost = increase × 8,766 × rate.</td></tr>
+    <tr><td>Unusual days</td><td>Each day's kWh against the median for its kind (weekday, Saturday, Sunday; bank holidays counted as Sundays). Flagged if more than 4 robust standard deviations (1.4826 × median absolute deviation) away and at least 25% off the median.</td></tr>
+    <tr><td>Peak kVA</td><td>Peak kW ÷ power factor (0.95 default).</td></tr>
+    <tr><td>Usable capacity</td><td>Agreed kVA × (1 − safety margin). Margin 10% by default.</td></tr>
+    <tr><td>Firm headroom</td><td>(Usable kVA − peak kVA) × power factor, in kW.</td></tr>
+    <tr><td>Test load</td><td>Load kW ÷ power factor added to each half hour in its time window and season (all year, or October to April). Any half hour over usable kVA counts as a clash.</td></tr>
+    <tr><td>Day and night</td><td>Night 00:00 to 07:00 by default, adjustable on the chart.</td></tr>
+  </table>
+  <p class="small muted">The app's maths is tested against the Python version of the same analysis on reference files, so both give the same answers.</p>
+</section>
+
+<!-- 14 LIMITS / TROUBLESHOOTING -->
+<section class="chapter">
+  <h1>14. Limits and troubleshooting</h1>
+  <h2>Known limits</h2>
+  <ul>
+    <li><strong>One flat rate.</strong> No time-of-use bands, capacity charges or reactive power charges.</li>
+    <li><strong>Clock changes.</strong> Each day is treated as 48 half hours. On a 50-period export the two extra clock-change periods are dropped; on a 46-period day the last hour is blank. The effect on annual figures is negligible.</li>
+    <li><strong>Bank holidays</strong> are England and Wales only.</li>
+    <li><strong>School holidays</strong> aren't built in; they count as out of hours, which is usually what you want.</li>
+    <li><strong>Large files.</strong> Several years of data or 100+ sites will work but take longer. Load in batches if the browser struggles.</li>
+    <li><strong>Nothing is saved between sessions.</strong> Closing the tab clears everything. Export what you need first.</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+  <table>
+    <thead><tr><th style="width:34%">Problem</th><th>What to do</th></tr></thead>
+    <tr><td>File refused: several meters stacked</td><td>The file holds more than one meter. Split it into one file per MPAN.</td></tr>
+    <tr><td>Expected 48 half-hour columns</td><td>The file isn't half-hourly (it may be hourly or daily), or the readings are in an unusual layout. Re-export it as one row per day with 48 readings.</td></tr>
+    <tr><td>Could not read file</td><td>Open it in Excel and save it as <code>.xlsx</code> or <code>.csv</code>. Password-protected workbooks can't be read.</td></tr>
+    <tr><td>"No usable date column", data assumed to start 1 January</td><td>Add a date column, one date per row. Without dates, weekdays, weekends and bank holidays are guessed.</td></tr>
+    <tr><td>Out-of-hours figure looks far too high</td><td>Check the building type and hours. A 24-hour site set as an office will show most of its use as out of hours.</td></tr>
+    <tr><td>Base load or peak looks wrong</td><td>Read the data quality panel. Zero days, dropouts and spikes move both.</td></tr>
+    <tr><td>No base load creep finding</td><td>It needs about 14 months of data, so like months can be compared.</td></tr>
+    <tr><td>Customer edition won't open</td><td>Check the password (lower case, no spaces). The file must be opened in Chrome or Edge; previewing it in Outlook or Teams won't work. Save it, then double-click.</td></tr>
+    <tr><td>Logo not on the PDF</td><td>Add the client logo on the main page before exporting. It applies to every PDF made after that.</td></tr>
+    <tr><td>Page slow to respond</td><td>Close other heavy tabs. With very large estates, load fewer sites at a time.</td></tr>
+  </table>
+
+  <div class="box green">
+    <span class="label">Questions, bugs and ideas</span>
+    <p>Send them to the app owner with the file that caused the problem (or a description if it's client-confidential), what you expected, and what you saw. Screenshots of the data notes help.</p>
+  </div>
+</section>
+
+</body>
+</html>
