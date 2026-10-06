@@ -33,3 +33,15 @@ test('part-recorded last day is kept, blanks skipped for base and LDC', () => {
   assert.ok(warnings.some((w) => w.includes('28 blank half-hour reading(s) across 1 day(s)')));
   assert.ok(warnings.some((w) => w.includes('Skipped 1 dated row(s) with no readings')));
 });
+
+test('50-period export keeps 00:00 as the first reading', () => {
+  const lines = ['MPAN,Date,' + Array.from({ length: 50 }, (_, i) => `P${i + 1}`).join(',')];
+  for (let d = 1; d <= 31; d++) {
+    lines.push(`1234567890123,${String(d).padStart(2, '0')}/01/2025,${Array.from({ length: 50 }, (_, i) => (i < 48 ? i + 1 : 0)).join(',')}`);
+  }
+  const { frame, warnings } = parseHHFile(new TextEncoder().encode(lines.join('\n')), 'p50.csv');
+  assert.equal(frame.rows[0][0], 1);
+  assert.equal(frame.rows[0][47], 48);
+  assert.equal(frame.dates[0], '2025-01-01');
+  assert.ok(warnings.some((w) => w.startsWith('Each day has 50 reading columns')));
+});

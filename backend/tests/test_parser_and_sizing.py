@@ -168,3 +168,17 @@ class TestStackedMeters:
         df, _, warnings = load_and_normalise(self._csv(1, extra=1), filename="one.csv")
         assert len(df) == 60
         assert any("repeat a date" in w for w in warnings)
+
+
+class TestFiftyPeriods:
+    """A 50-period export must not lose 00:00-01:00 off the front."""
+
+    def test_first_reading_is_midnight(self):
+        lines = ["MPAN,Date," + ",".join(f"P{i + 1}" for i in range(50))]
+        for d in range(1, 32):
+            vals = ",".join(str(i + 1 if i < 48 else 0) for i in range(50))
+            lines.append(f"1234567890123,{d:02d}/01/2025,{vals}")
+        df, _, warnings = load_and_normalise("\n".join(lines).encode(), filename="p50.csv")
+        assert df.iloc[0, 0] == 1
+        assert df.iloc[0, 47] == 48
+        assert any(w.startswith("Each day has 50 reading columns") for w in warnings)

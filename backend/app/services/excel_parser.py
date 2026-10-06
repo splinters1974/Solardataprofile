@@ -41,6 +41,12 @@ def _parse_dates(values) -> pd.Series | None:
     return parsed
 
 
+EXTRA_PERIODS_NOTE = (
+    "Each day has {n} reading columns after the date. Used the first 48 (00:00 to 23:30); "
+    "the extra columns are usually the clock-change periods."
+)
+
+
 def _strip_headers(raw: pd.DataFrame) -> tuple[pd.DataFrame, list, list[str]]:
     """
     Strip non-data header rows and leading label/date columns.
@@ -70,9 +76,18 @@ def _strip_headers(raw: pd.DataFrame) -> tuple[pd.DataFrame, list, list[str]]:
         if df.shape[1] <= 48:
             break
         col0 = df.iloc[:, 0]
-        if sum(1 for v in col0.dropna() if _is_date_like(v)) > len(col0) * 0.3:
+        is_date = sum(1 for v in col0.dropna() if _is_date_like(v)) > len(col0) * 0.3
+        if is_date:
             dates = list(col0)
         df = df.iloc[:, 1:].reset_index(drop=True)
+        # Readings start straight after the date. Anything still over 48 is
+        # at the end of the row (the two clock-change periods in a 50-period
+        # export), so stripping more from the front would lose 00:00-01:00
+        # and shift every reading an hour early.
+        if is_date:
+            if df.shape[1] > 48:
+                warn_msgs.append(EXTRA_PERIODS_NOTE.format(n=df.shape[1]))
+            break
 
     # Layouts that are already 48 wide can still lead with a date column when
     # the export omits a slot; only strip it if it clearly is not a reading.

@@ -307,18 +307,32 @@ function detectFormat(raw: Cell[][]): 'A' | 'B' {
 }
 
 /** Strip identifier columns down to 48, keeping any date column found. */
-function stripLeadingColumns(rows: Cell[][]): { body: Cell[][]; dates: Cell[] } {
+function stripLeadingColumns(rows: Cell[][]): { body: Cell[][]; dates: Cell[]; extra: string | null } {
   let body = rows;
   let dates: Cell[] = [];
+  let extra: string | null = null;
   for (let i = 0; i < 10; i++) {
     const width = body[0]?.length ?? 0;
     if (width <= 48) break;
     const col0 = body.map((r) => r[0]);
-    if (col0.filter(isDateLike).length > col0.length * 0.3) dates = col0;
+    const isDate = col0.filter(isDateLike).length > col0.length * 0.3;
+    if (isDate) dates = col0;
     body = body.map((r) => r.slice(1));
+    // Readings start straight after the date. Anything still over 48 is at
+    // the end of the row (the two clock-change periods in a 50-period
+    // export), so stripping more from the front would lose 00:00-01:00 and
+    // shift every reading an hour early.
+    if (isDate) {
+      const n = body[0]?.length ?? 0;
+      if (n > 48) {
+        extra = `Each day has ${n} reading columns after the date. Used the first 48 (00:00 to 23:30); `
+          + 'the extra columns are usually the clock-change periods.';
+      }
+      break;
+    }
   }
   if ((body[0]?.length ?? 0) > 48) body = body.map((r) => r.slice(0, 48));
-  return { body, dates };
+  return { body, dates, extra };
 }
 
 /**
@@ -366,7 +380,8 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string): Parsed {
 
   const format = detectFormat(raw);
   const oriented = format === 'B' ? transpose(raw) : raw;
-  const { body, dates } = stripLeadingColumns(stripTitleRows(oriented));
+  const { body, dates, extra } = stripLeadingColumns(stripTitleRows(oriented));
+  if (extra) warnings.push(extra);
 
   // Blank cells count as zero use in totals, so no reading is lost or made
   // up. They are remembered, though, so base load and the load duration
