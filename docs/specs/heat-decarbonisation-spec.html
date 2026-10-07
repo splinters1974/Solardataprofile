@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Heat Decarbonisation Module: Specification</title>
+{{STYLE}}
+<style>
+body { font-size: 9.2pt; }
+.head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3mm; }
+.head img { height: 11mm; }
+.head .meta { text-align: right; font-size: 8pt; color: var(--muted); line-height: 1.4; }
+h1 { font-size: 18pt; }
+h2 { margin-top: 5mm; }
+.sub { color: var(--muted); font-size: 10.5pt; margin: -2mm 0 4mm; }
+td.k { width: 30%; font-weight: 600; }
+.status { display: inline-block; font-size: 7.5pt; font-weight: 700; padding: 0.3mm 1.6mm; border-radius: 1mm; background: #fdf6e7; color: var(--amber); border: 0.25mm solid #f0d9a8; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <img src="{{LOGO}}" alt="Ameresco">
+  <div class="meta">Data Analyser upgrade<br>Draft 0.1 for engineering review<br>October 2026</div>
+</div>
+<h1>Heat decarbonisation module: specification</h1>
+<p class="sub">Asset register, gas data and indicative heat pump sizing against electrical headroom</p>
+
+<div class="box green">
+  <span class="label">In one paragraph</span>
+  <p>Add three things to the Data Analyser, in order. (1) A short asset register for existing CHP, solar PV and heat pumps, so headroom and data checks reflect what's on site. (2) Gas meter data, half-hourly or daily, analysed like electricity. (3) Indicative heat pump sizing: heat demand from gas, adjusted for weather, turned into a half-hourly electrical load and tested against the site's supply capacity. The headline output is a coverage curve: heat pump size against the share of annual heat it covers, marked fits or doesn't fit the existing supply. It stays a screening tool, offline, with every assumption visible and editable.</p>
+</div>
+
+<h2>1. Purpose and audience</h2>
+<ul>
+  <li><strong>Question it answers:</strong> roughly how big a heat pump does this site need, how much of its heat could it cover, and can the existing electricity supply take it?</li>
+  <li><strong>Used by:</strong> engineers and project development at feasibility and bid stage, including funding applications. Sales use the outputs in proposals.</li>
+  <li><strong>Not for:</strong> detailed design, equipment selection or DNO applications. Those still need a heat loss survey and a design.</li>
+</ul>
+
+<h2>2. Scope by phase</h2>
+<table>
+  <thead><tr><th style="width:22%">Phase</th><th>Delivers</th><th style="width:20%">Rough size</th></tr></thead>
+  <tr><td><strong>1. Asset register</strong></td><td>Per site: existing CHP, solar PV and heat pumps. Headroom with CHP off. PV-aware data checks (export no longer flagged as a fault). Install dates shown on the heatmap and timeline to explain step changes.</td><td>Small, 2 to 3 days</td></tr>
+  <tr><td><strong>2. Gas data</strong></td><td>Load gas files (half-hourly or daily, kWh or volume). Quality checks, heatmap, profiles and gas findings: out-of-hours heating, summer base (hot water and catering), heating in warm weather. Weather link via degree days.</td><td>Medium, about 1 week</td></tr>
+  <tr><td><strong>3. Heat pump sizing</strong></td><td>Weather-adjusted heat demand, coverage curve, shaped heat pump electrical load added to the electricity profile, fit against headroom, running cost and carbon change.</td><td>Larger, about 2 weeks including validation</td></tr>
+</table>
+<p class="small muted">Sizes are build estimates only and assume test data is available. Phase 3 depends on 1 and 2; phase 1 is worth doing on its own.</p>
+
+<h2>3. Inputs</h2>
+<h3>Asset register (per site)</h3>
+<table>
+  <thead><tr><th style="width:22%">Field</th><th>Notes</th></tr></thead>
+  <tr><td>Type</td><td>CHP, solar PV, heat pump (air or ground source), other generation.</td></tr>
+  <tr><td>Size</td><td>kWe for CHP and PV (kWp); heat pump thermal kW and, if known, electrical input kW.</td></tr>
+  <tr><td>Install date</td><td>Optional. Used to mark step changes and to split before and after.</td></tr>
+  <tr><td>Behind the meter?</td><td>Yes if its output or demand shows in the meter file being analysed. Only behind-the-meter assets change the electricity analysis.</td></tr>
+  <tr><td>Notes</td><td>Free text: run strategy, condition, separate metering.</td></tr>
+</table>
+
+<h3>Gas data</h3>
+<ul>
+  <li><strong>Half-hourly or daily.</strong> Many public sector sites only have daily or monthly reads; daily must be supported. Monthly data is out of scope (too coarse to size from).</li>
+  <li><strong>Units.</strong> kWh, m³ or hundreds of cubic feet. Volume converts as kWh = m³ × 1.02264 × CV ÷ 3.6, with the calorific value (CV, MJ/m³) from the bill. Default CV 39.5, editable. One hundred cubic feet = 2.83 m³.</li>
+  <li><strong>Pairing.</strong> A gas file is linked to an electricity site by the user. Different date ranges are allowed; see method step 6.</li>
+  <li><strong>Non-heating gas.</strong> Catering or process gas on the same meter, as an editable percentage or estimated from the summer base (method step 2).</li>
+</ul>
+
+<h3>Weather</h3>
+<ul>
+  <li>Heating degree days (base 15.5°C, the UK convention) for the site's region and the gas data's dates.</li>
+  <li><strong>Offline constraint:</strong> the app can't fetch these live. Either bundle a regional table in the app, or let the user paste a column of daily degree days. See open question Q5 on data source and licensing.</li>
+</ul>
+
+<h2>4. Method</h2>
+<ol class="steps">
+  <li><strong>Heat demand.</strong> Heat (kWh) = gas (kWh) × boiler seasonal efficiency. Default 80%, editable.</li>
+  <li><strong>Split heating from hot water and other use.</strong> Summer weekday gas use (June to August) is treated as hot water, catering and process, assumed flat all year. Heating = heat demand minus that base. The user decides whether hot water is in the heat pump's scope.</li>
+  <li><strong>Weather adjustment.</strong> Regress daily heating demand against daily degree days, occupied days only: heating = a + b × HDD. Check the fit (R²) and show it; a poor fit (below 0.7) is flagged, as it usually means controls problems or data issues. Design-day heating = a + b × (15.5 − design temperature). Default design temperature −3°C, editable by region.</li>
+  <li><strong>Size from daily demand, not the gas peak.</strong> Gas half-hourly peaks reflect boiler oversizing and morning boost, not the building's need. Design-day heat is spread over the heat pump's run hours (default 20 hours a day, assuming buffer storage). Heat pump thermal size for full coverage = design-day heat ÷ run hours. The gas half-hourly peak is shown alongside for comparison.</li>
+  <li><strong>Coverage curve.</strong> For candidate sizes from 10% to 120% of the full-coverage size, simulate each day of the year: heat delivered = the lesser of that day's demand and size × run hours. Coverage = delivered ÷ annual heat. The boilers make up the rest.</li>
+  <li><strong>Electrical load.</strong> Heat pump electricity = heat delivered ÷ COP. COP varies with outdoor temperature (daily mean taken as 15.5 − HDD when HDD &gt; 0) and flow temperature, from an editable curve with a default per flow temperature band (Q2). The heat is spread across the run window to give a half-hourly load. Where gas and electricity cover the same dates, add date by date. Where they don't, match by month and day type and say so on the output.</li>
+  <li><strong>Fit against supply.</strong> Add the heat pump load to the electricity profile and run the existing headroom check, with behind-the-meter CHP assumed off (import + CHP kWe) and PV assumed absent at the winter peak. Report fit or no fit, half hours over, worst clash and peak kVA with the heat pump.</li>
+  <li><strong>Cost and carbon.</strong> Gas saved, extra electricity, net running cost at the entered gas and electricity rates, and carbon change using the current DESNZ conversion factors (year shown, editable).</li>
+</ol>
+
+<h2>5. Outputs</h2>
+<ul>
+  <li><strong>Coverage curve:</strong> heat pump size (kW thermal) against share of annual heat covered, each point marked fits or doesn't fit within usable capacity. Lines at 100%, 90% and 80% coverage.</li>
+  <li><strong>Options table:</strong> for 100%, 90% and 80% coverage and the largest size that fits: thermal kW, electrical kW at design day, peak kVA with the heat pump, fits yes or no, gas saved, extra electricity, net cost change, carbon change.</li>
+  <li><strong>Weather chart:</strong> daily heating against degree days with the fitted line, R² and the design-day point.</li>
+  <li><strong>Profile chart:</strong> the design-week electricity profile with and without the heat pump, against usable capacity.</li>
+  <li><strong>Assumptions panel</strong> listing every value used, printed on every output.</li>
+  <li>All of it in the site PDF, the Excel export and customer editions, where heat pump settings are read-only like the rest.</li>
+</ul>
+
+<div class="box warn">
+  <span class="label">Caveat wording (on screen and on every output)</span>
+  <p>"Indicative heat pump sizing based on metered gas use and the assumptions shown. This is not a design. Sizing, coverage and running costs are subject to a heat loss survey, emitter and flow temperature assessment, hot water strategy and confirmation of supply capacity with the DNO."</p>
+</div>
+
+<h2>6. Proposed defaults for engineering to confirm</h2>
+<table>
+  <thead><tr><th style="width:34%">Assumption</th><th style="width:22%">Proposed default</th><th>Why, and what to check</th></tr></thead>
+  <tr><td>Boiler seasonal efficiency</td><td>80%</td><td>Between older non-condensing and condensing plant. Should the default depend on boiler age?</td></tr>
+  <tr><td>Gas calorific value</td><td>39.5 MJ/m³</td><td>Typical UK value; the bill gives the actual figure.</td></tr>
+  <tr><td>Degree-day base</td><td>15.5°C</td><td>UK convention.</td></tr>
+  <tr><td>Design outdoor temperature</td><td>−3°C</td><td>Placeholder. Engineering to give regional values and the source.</td></tr>
+  <tr><td>Heat pump run hours, design day</td><td>20 hours</td><td>Assumes buffer storage. Should it be lower without storage?</td></tr>
+  <tr><td>COP curve</td><td>By flow temperature band</td><td>Engineering to supply curves for, say, 45°C, 55°C and 65°C flow, air and ground source.</td></tr>
+  <tr><td>Weather fit threshold</td><td>R² 0.7</td><td>Below this, flag the result as unreliable.</td></tr>
+  <tr><td>Supply safety margin</td><td>10%</td><td>As now in headroom.</td></tr>
+</table>
+
+<h2>7. Validation before release</h2>
+<ul>
+  <li>Two or three real gas files (half-hourly and daily) from different building types, with bills for the calorific value.</li>
+  <li>At least one site with a heat pump already installed and metered: compare predicted heat pump electricity with what was actually used.</li>
+  <li>One site with CHP: confirm the CHP-off headroom against what the site team knows about trips.</li>
+  <li>Engineering sign-off of the method and defaults in section 6, recorded with a version number.</li>
+</ul>
+
+<h2>8. Open questions</h2>
+<table>
+  <thead><tr><th style="width:6%">#</th><th>Question</th><th style="width:20%">For</th></tr></thead>
+  <tr><td>Q1</td><td>Is hot water in scope for the heat pump by default, or heating only?</td><td>Engineering</td></tr>
+  <tr><td>Q2</td><td>COP curves and flow temperature bands to use. Do we have manufacturer data we can embed?</td><td>Engineering</td></tr>
+  <tr><td>Q3</td><td>Should hybrid (heat pump plus retained boilers) be the default framing, or full replacement?</td><td>Engineering and sales</td></tr>
+  <tr><td>Q4</td><td>Regional design temperatures: which source, and at what granularity?</td><td>Engineering</td></tr>
+  <tr><td>Q5</td><td>Degree-day data: which source, and can we bundle it in a tool we hand to clients (licence terms)?</td><td>Engineering and legal</td></tr>
+  <tr><td>Q6</td><td>Should funding scheme outputs (for example carbon cost per tonne) be included? Which current schemes and rules?</td><td>Project development</td></tr>
+  <tr><td>Q7</td><td>Who signs off the method, and who owns the defaults when they change?</td><td>Martyn</td></tr>
+</table>
+
+<div class="box">
+  <span class="label">What we need to start</span>
+  <p>Answers to Q1, Q2 and Q7, plus the test data in section 7. Phase 1 (asset register) can start now without any of it.</p>
+</div>
+
+</body>
+</html>
