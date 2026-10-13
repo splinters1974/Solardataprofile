@@ -6,7 +6,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadDurationCurve, summaryStats } from '../src/local/analytics';
-import { analyseSite, defaultSettings } from '../src/local/findings';
+import { defaultSettings } from '../src/local/site';
+import { analyse } from './helpers';
 import { parseHHFile } from '../src/local/parser';
 
 function csv(): Uint8Array {
@@ -22,14 +23,17 @@ function csv(): Uint8Array {
   return new TextEncoder().encode(lines.join('\n'));
 }
 
-test('part-recorded last day is kept, blanks skipped for base and LDC', () => {
+test('part-recorded last day is kept, blanks treated as missing not zero', () => {
   const { frame, warnings } = parseHHFile(csv(), 'part.csv');
   assert.equal(frame.dates.length, 41, 'part day kept, empty day skipped');
   assert.equal(frame.rows[40].slice(0, 20).reduce((a, b) => a + b, 0), 40, 'readings kept');
   assert.equal(loadDurationCurve(frame).base_kw, 4);
   assert.equal(summaryStats(frame).base_kw, 4);
   assert.notEqual(summaryStats(frame).lowest_day, '10 Feb 2025');
-  assert.equal(analyseSite(frame, defaultSettings('x'), 25).baseKw, 4);
+  const m = analyse(frame, defaultSettings('x'));
+  assert.equal(m.baseAll.kw, 4);
+  // Average demand divides by valid hours: the blanks do not pull it down.
+  assert.equal(m.averageKw, 4);
   assert.ok(warnings.some((w) => w.includes('28 blank half-hour reading(s) across 1 day(s)')));
   assert.ok(warnings.some((w) => w.includes('Skipped 1 dated row(s) with no readings')));
 });
@@ -43,5 +47,5 @@ test('50-period export keeps 00:00 as the first reading', () => {
   assert.equal(frame.rows[0][0], 1);
   assert.equal(frame.rows[0][47], 48);
   assert.equal(frame.dates[0], '2025-01-01');
-  assert.ok(warnings.some((w) => w.startsWith('Each day has 50 reading columns')));
+  assert.ok(!warnings.some((w) => /columns 49 and 50/.test(w)), 'zeros in the clock-change columns on ordinary days are not readings');
 });

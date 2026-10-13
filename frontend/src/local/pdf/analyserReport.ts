@@ -10,11 +10,14 @@ import type {
 import { fmtLong } from '../dates';
 import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
 import { RAMP_HEX } from '../carpet';
-import { describeHours, SITE_TYPES, type SiteMetrics, type SiteSettings } from '../findings';
-import { VERDICT_TEXT, type QualityReport } from '../dataQuality';
-import { inWindow, type HeadroomResult } from '../headroom';
+import { VERDICT_TEXT } from '../dataQuality';
+import { inWindow } from '../headroom';
+import type { CarbonFactor } from '../findings';
+import type { ScenarioRun } from '../scenarios';
+import type { SiteSummary } from '../localClient';
+import { opportunitiesAppendix, topThree } from './appendix';
 import {
-  barChart, carpetImage, findingsList, fmt, imageBlock, qualityBlock, hex, hourAxis, lineChart, Report, scatterChart,
+  barChart, carpetImage, fmt, imageBlock, qualityBlock, hex, hourAxis, lineChart, Report, scatterChart,
   type RGB,
 } from './common';
 
@@ -28,13 +31,19 @@ const SERIES_COLOURS: Record<string, RGB> = {
 };
 const DAY_COLOURS = ['#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#f59e0b', '#ef4444'].map(hex);
 
-const DISCLAIMER = 'Produced from the half-hourly consumption data supplied. Demand is shown '
-  + 'in kW, which is twice the kWh recorded in each half hour. Bank holidays are England '
-  + 'and Wales. Figures describe the metered period stated above and are not '
-  + 'weather-corrected or adjusted for changes in occupancy or operation since.';
+const DISCLAIMER = 'Produced from the half-hourly consumption data supplied. Demand is in kW: interval kWh divided '
+  + 'by the 0.5-hour interval, so a peak is the highest half-hour average, not an instantaneous maximum. Missing and '
+  + 'excluded readings are left out, not counted as zero. Figures describe the metered period and are not '
+  + 'weather-normalised or adjusted for changes in occupancy or operation since. Whole-site data cannot identify '
+  + 'which equipment is responsible for a pattern.';
 
 const halfHourPoints = (values: number[]): [number, number][] =>
   values.map((v, i) => [i / 2, v]);
+
+const mean = (values: (number | null)[]) => {
+  const v = values.filter((x): x is number => x !== null);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+};
 
 export interface AnalyserReportInput {
   siteName: string;
@@ -52,11 +61,10 @@ export interface AnalyserReportInput {
   filterNote: string;
   /** Findings, costs and the year heatmap. Absent on the hosted build. */
   site?: {
-    metrics: SiteMetrics;
-    settings: SiteSettings;
+    summary: SiteSummary;
+    scenarioRun: ScenarioRun | null;
+    carbon: CarbonFactor | null;
     carpet: { canvas: HTMLCanvasElement; maxKw: number; dates: string[] } | null;
-    quality: QualityReport;
-    headroom: HeadroomResult | null;
     /** Whole-period charts, pre-drawn: every half hour, and daily totals. */
     series: { hh: HTMLCanvasElement; daily: HTMLCanvasElement } | null;
   };
@@ -72,7 +80,7 @@ function newReport(i: AnalyserReportInput, what: string) {
   return new Report({
     orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
     footer: `Ameresco Data Analyser  ·  ${i.siteName}  ·  ${what}`,
-    title: `${i.siteName} — ${what}`,
+    title: `${i.siteName}: ${what}`,
   });
 }
 
@@ -81,15 +89,16 @@ function drawCover(r: Report, i: AnalyserReportInput) {
   r.title('Half Hourly Data Analysis',
     `${i.siteName}  ·  ${i.dateFrom} to ${i.dateTo}  ·  issued ${fmtLong(new Date())}`);
   const s = i.summary;
-  const m = i.site?.metrics;
+  const site = i.site?.summary;
+  const m = site?.metrics;
   r.tiles(m ? [
-    [`£${fmt(m.annualCost)}`, 'ANNUAL COST'],
-    [fmt(m.annualKwh), 'kWh A YEAR'],
-    [`${fmt(s.peak_kw)} kW`, 'PEAK DEMAND'],
-    [`${fmt(m.baseKw, 1)} kW`, 'BASE LOAD'],
-    [m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : 'n/a', 'OUT OF HOURS'],
+    m.annual ? [`£${fmt(m.annual.cost)}`, 'EST. ENERGY COST A YEAR'] : [`£${fmt(m.observed.cost)}`, 'ENERGY COST, PERIOD'],
+    m.annual ? [fmt(m.annual.kwh), 'kWh A YEAR (EST.)'] : [fmt(m.observed.kwh), 'kWh OBSERVED'],
+    [`${fmt(m.peak.kw)} kW`, 'HIGHEST HALF HOUR'],
+    [`${fmt(m.baseAll.kw, 1)} kW`, 'BASE LOAD REFERENCE'],
+    [m.hasClosed ? `${Math.round(m.closed.share * 100)}%` : '24-7', 'USE IN CLOSED HOURS'],
   ] : [
-    [`${fmt(s.peak_kw)} kW`, 'PEAK DEMAND'],
+    [`${fmt(s.peak_kw)} kW`, 'HIGHEST HALF HOUR'],
     [`${fmt(s.average_kw)} kW`, 'AVERAGE DEMAND'],
     [`${(s.load_factor * 100).toFixed(0)}%`, 'LOAD FACTOR'],
     [fmt(s.total_kwh), 'TOTAL kWh'],
@@ -97,18 +106,14 @@ function drawCover(r: Report, i: AnalyserReportInput) {
   ]);
   r.paragraph(i.filterNote);
 
-  if (i.site && m) {
-    const st = i.site.settings;
-    r.h2('What stands out', 40);
-    findingsList(r, m.findings);
+  if (site && m) {
+    r.h2('Top investigations', 40);
+    topThree(r, site);
     r.space(2);
-    qualityBlock(r, i.site.quality, VERDICT_TEXT);
+    qualityBlock(r, site.quality, VERDICT_TEXT);
     r.space(2);
-    r.small(`Costs use ${m.rateP}p/kWh fully delivered and are scaled to a year from ${m.days} days of data. `
-      + `They show what each pattern costs now, not a guaranteed saving. Building type: `
-      + `${SITE_TYPES[st.type].label}. Opening hours: ${describeHours(st.hours)}`
-      + `${st.hours.holidaysLikeSunday ? ', bank holidays as Sunday' : ''}. Base load is the 5th `
-      + 'percentile of half-hourly demand.');
+    r.small(`${m.annualisation.method} Rates: ${m.rate.description}. Costs are estimated energy cost associated with a pattern, `
+      + 'not a guaranteed saving. Every finding, the scenarios and the method are in the opportunities appendix at the end.');
   }
 }
 
@@ -118,10 +123,10 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
   const out: Section[] = [];
   const site = i.site;
 
-  if (site?.headroom) {
-    const h = site.headroom;
+  if (site?.summary.headroom) {
+    const h = site.summary.headroom;
     out.push({ key: 'headroom', title: 'Electrification headroom', draw: (r) => {
-      const st = site.settings;
+      const st = site.summary.settings;
       r.h2('Electrification headroom');
       r.paragraph('How much load (heat pumps, EV charging, new plant) the site can add before it outgrows '
         + `its agreed supply capacity of ${fmt(h.capacityKva)} kVA. ${st.headroomMarginPct}% is held back as a `
@@ -134,8 +139,9 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
         [`${fmt(h.firmHeadroomKw)} kW`, 'FIRM HEADROOM'],
         [`${Math.round((h.peakKva / h.capacityKva) * 100)}%`, 'CAPACITY USED'],
       ]);
-      r.small(`Peak demand: ${h.peakWhen}. Firm headroom is the largest constant load that fits at every half `
-        + 'hour of the period.');
+      r.small(`Highest half-hour average: ${h.peakWhen}, ${h.intervals.toLocaleString('en-GB')} half hours analysed. Firm headroom is the `
+        + 'largest constant load that stays within usable capacity in every analysed half hour, under the entered assumptions. '
+        + 'A historical screen, not confirmation of DNO capacity.');
       barChart(r, {
         title: 'Peak demand by month (kVA)', height: 44,
         categories: h.monthly.map((x) => x.month),
@@ -166,7 +172,7 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
         r.callout(h.test.summary, {
           fill: h.test.fits ? hex('#f0fdf4') : hex('#fef2f2'),
           border: h.test.fits ? hex('#0ca30c') : hex('#d03b3b'),
-          bold: h.test.fits ? 'New load fits.' : 'New load does not fit.',
+          bold: h.test.fits ? 'No exceedance in the analysed data.' : 'Exceeds usable capacity in the analysed data.',
         });
       }
     } });
@@ -220,7 +226,7 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       });
 
       r.newPage();
-      r.h2('Average demand by day of week — hourly values (kW)');
+      r.h2('Average demand by day of week: hourly values (kW)');
       // Half-hourly would be 48 rows and unreadable; hourly keeps it to a page.
       const ordered = [
         ...i.profile.series.filter((x) => x.group === 'day'),
@@ -250,7 +256,7 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       r.tiles([
         [`${fmt(i.ldc.peak_kw)} kW`, 'PEAK'],
         [`${fmt(i.ldc.average_kw)} kW`, 'AVERAGE'],
-        [`${fmt(i.ldc.base_kw)} kW`, 'BASE'],
+        [`${fmt(i.ldc.base_kw)} kW`, 'LOWEST HALF HOUR'],
         [`${(i.ldc.load_factor * 100).toFixed(0)}%`, 'LOAD FACTOR'],
         [fmt(i.ldc.hours_covered), 'HOURS OF DATA'],
       ]);
@@ -299,19 +305,19 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
   for (const [week, title] of [[i.weekA, 'Week profile'], [i.weekB, 'Comparison week']] as const) {
     if (!week || !week.days.length) continue;
     out.push({ key: title === 'Week profile' ? 'week-profile' : 'comparison-week', title, draw: (r) => {
-        r.h2(`${title} — week commencing ${week.week_commencing}`);
+        r.h2(`${title}, week commencing ${week.week_commencing}`);
         lineChart(r, {
           title: `${title} (kW)`,
           height: 80,
           xa: hourAxis,
           series: week.days.map((d, k) => ({
             name: d.label, color: DAY_COLOURS[k % DAY_COLOURS.length], width: 0.45,
-            points: halfHourPoints(d.values),
+            points: d.values.flatMap((v, k): [number, number][] => (v === null ? [] : [[k / 2, v]])),
           })),
         });
         r.y = r.table(['Day', 'Total kWh', 'Peak kW', 'Average kW', 'Min kW'], week.days.map((d) => [
-          d.label, fmt(d.total_kwh), fmt(Math.max(...d.values), 1),
-          fmt(d.values.reduce((a, b) => a + b, 0) / d.values.length, 1), fmt(Math.min(...d.values), 1),
+          d.label, fmt(d.total_kwh), fmt(Math.max(...d.values.filter((v): v is number => v !== null)), 1),
+          fmt(mean(d.values), 1), fmt(Math.min(...d.values.filter((v): v is number => v !== null)), 1),
         ]), { widths: [0.28, 0.18, 0.18, 0.18, 0.18] }) + 3;
     } });
   }
@@ -332,10 +338,10 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       });
       r.h2('Notable days', 40);
       r.y = r.table(['', 'Date', 'Value'], [
-        ['Peak half hour', s.peak_when, `${fmt(s.peak_kw)} kW`],
+        ['Highest half-hour average', s.peak_when, `${fmt(s.peak_kw)} kW`],
         ['Highest day', s.highest_day, `${fmt(s.highest_day_kwh)} kWh`],
         ['Lowest day', s.lowest_day, `${fmt(s.lowest_day_kwh)} kWh`],
-        ['Lowest half hour', '—', `${fmt(s.base_kw, 1)} kW`],
+        ['Lowest half hour', '-', `${fmt(s.base_kw, 1)} kW`],
       ], { widths: [0.3, 0.4, 0.3], fontSize: 8.5 }) + 3;
   } });
 
@@ -355,6 +361,10 @@ export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
     r.newPage();
     section.draw(r);
   }
+  if (i.site) {
+    r.newPage();
+    opportunitiesAppendix(r, { site: i.site.summary, scenarioRun: i.site.scenarioRun, carbon: i.site.carbon });
+  }
   basis(r, i);
   return r.finish();
 }
@@ -365,6 +375,13 @@ export function buildAnalyserSectionPdfs(i: AnalyserReportInput): { key: string;
   drawCover(cover, i);
   basis(cover, i);
   const out = [{ key: 'summary', title: 'Summary', pdf: cover.finish() }];
+  if (i.site) {
+    const site = i.site;
+    const r = newReport(i, 'opportunities appendix');
+    opportunitiesAppendix(r, { site: site.summary, scenarioRun: site.scenarioRun, carbon: site.carbon });
+    basis(r, i);
+    out.push({ key: 'opportunities', title: 'Opportunities appendix', pdf: r.finish() });
+  }
   for (const section of sectionsFor(i)) {
     const r = newReport(i, section.title.toLowerCase());
     r.subhead(`${i.siteName}  ·  ${i.dateFrom} to ${i.dateTo}  ·  issued ${fmtLong(new Date())}`);

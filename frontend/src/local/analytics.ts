@@ -1,9 +1,12 @@
 /**
  * Usage overview and HH Analyser maths, in the browser.
  *
- * Ports of backend/app/services/usage_analytics.py and hh_analytics.py.
- * Demand is in kW throughout: a half-hourly reading of X kWh is an average
- * of 2X kW across that half hour.
+ * Ports of backend/app/services/usage_analytics.py and hh_analytics.py, with
+ * one deliberate difference: readings flagged as missing or excluded are
+ * left out, never counted as zero. Averages divide by the readings present.
+ *
+ * Demand is in kW: kW = interval kWh / interval hours, so a 30-minute reading
+ * of 50 kWh is an average of 100 kW across that half hour.
  */
 import type {
   AnalyserSummary, DayNightResponse, DayProfileResponse, HeatmapData,
@@ -15,9 +18,12 @@ import {
   monthsBetween,
 } from './dates';
 import { holidaysBetween } from './holidays';
-import { blankSet, type Frame } from './parser';
+import {
+  dayKwh, INTERVAL_HOURS, isCompleteDay, isValid, SLOTS, sliceFrame, type Frame,
+} from './frame';
 
-export const KW_PER_KWH_PER_HH = 2;
+/** kW per kWh for a half-hour reading (1 / interval hours). */
+export const KW_PER_KWH_PER_HH = 1 / INTERVAL_HOURS;
 export const DEFAULT_NIGHT_START_SLOT = 0;
 export const DEFAULT_NIGHT_END_SLOT = 14;
 
@@ -40,22 +46,17 @@ export function hhLabels(): string[] {
 }
 
 /** The date-range filter every chart has. */
-export function slice(frame: Frame, from?: string, to?: string): Frame {
-  if (!from && !to) return frame;
-  const dates: string[] = [];
-  const rows: number[][] = [];
-  frame.dates.forEach((d, i) => {
-    if ((from && d < from) || (to && d > to)) return;
-    dates.push(d);
-    rows.push(frame.rows[i]);
-  });
-  return { dates, rows, blanks: frame.blanks };
-}
+export const slice = sliceFrame;
 
-function meanRows(rows: number[][], scale = 1): number[] {
-  const out = new Array(48).fill(0);
-  for (const r of rows) for (let s = 0; s < 48; s++) out[s] += r[s];
-  return out.map((v) => (v / rows.length) * scale);
+/** Mean of valid readings in each slot across the given days. Slots with none read 0. */
+function meanValid(f: Frame, idx: number[], scale = 1): number[] {
+  const tot = new Array(SLOTS).fill(0);
+  const n = new Array(SLOTS).fill(0);
+  for (const i of idx) {
+    const r = f.rows[i];
+    for (let s = 0; s < SLOTS; s++) if (isValid(f, i, s)) { tot[s] += r[s]; n[s]++; }
+  }
+  return tot.map((v, s) => (n[s] ? (v / n[s]) * scale : 0));
 }
 
 type DayClass = 'Weekday' | 'Weekend' | 'Bank holiday';
@@ -77,38 +78,40 @@ export function hhSeries(frame: Frame): HHPoint[] {
   const out: HHPoint[] = [];
   frame.dates.forEach((d, i) => {
     const r = frame.rows[i];
-    for (let s = 0; s < 48; s++) out.push({ datetime: `${d}T${labels[s]}`, kwh: round(r[s], 3) });
+    for (let s = 0; s < SLOTS; s++) {
+      if (isValid(frame, i, s)) out.push({ datetime: `${d}T${labels[s]}`, kwh: round(r[s], 3) });
+    }
   });
   return out;
 }
 
 export function dailySeries(frame: Frame): DailyPoint[] {
-  return frame.dates.map((d, i) => ({ date: d, kwh: round(sum(frame.rows[i]), 2) }));
+  return frame.dates.map((d, i) => ({ date: d, kwh: round(dayKwh(frame, i), 2) }));
 }
 
 /** Per calendar month, including empty months inside a gap. */
-function monthlyBuckets(frame: Frame, value: (row: number[]) => number) {
+function monthlyBuckets(frame: Frame, value: (i: number) => number) {
   if (!frame.dates.length) return [];
   const months = monthsBetween(frame.dates[0], frame.dates[frame.dates.length - 1]);
   const index = new Map(months.map((m, i) => [m.key, i]));
   const totals = months.map((m) => ({ ...m, total: 0, days: 0 }));
   frame.dates.forEach((d, i) => {
     const b = totals[index.get(d.slice(0, 7))!];
-    b.total += value(frame.rows[i]);
+    b.total += value(i);
     b.days += 1;
   });
   return totals;
 }
 
 export function monthlyTotals(frame: Frame): MonthlyTotal[] {
-  return monthlyBuckets(frame, sum).map((b) => ({ month: b.key, kwh: round(b.total, 2) }));
+  return monthlyBuckets(frame, (i) => dayKwh(frame, i)).map((b) => ({ month: b.key, kwh: round(b.total, 2) }));
 }
 
 export function heatmapMatrix(frame: Frame): HeatmapData {
   const matrix: number[][] = [];
   for (let dow = 0; dow < 7; dow++) {
-    const rows = frame.rows.filter((_, i) => dayOfWeek(frame.dates[i]) === dow);
-    matrix.push(rows.length ? meanRows(rows).map((v) => round(v, 4)) : new Array(48).fill(0));
+    const idx = frame.dates.flatMap((d, i) => (dayOfWeek(d) === dow ? [i] : []));
+    matrix.push(idx.length ? meanValid(frame, idx).map((v) => round(v, 4)) : new Array(SLOTS).fill(0));
   }
   return {
     dow_labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
@@ -128,23 +131,22 @@ export function dayOfWeekProfile(
   const classes = classifyDays(w.dates, excludeHolidays);
   const series: ProfileSeries[] = [];
   const counts: Record<string, number> = {};
-  const values = (rows: number[][]) =>
-    meanRows(rows, KW_PER_KWH_PER_HH).map((v) => round(v, 2));
+  const values = (idx: number[]) => meanValid(w, idx, KW_PER_KWH_PER_HH).map((v) => round(v, 2));
 
-  DOW_LABELS.forEach((name, i) => {
-    const rows = w.rows.filter((_, k) => dayOfWeek(w.dates[k]) === i);
-    counts[name] = rows.length;
-    if (rows.length) series.push({ name, group: 'day', values: values(rows) });
+  DOW_LABELS.forEach((name, d) => {
+    const idx = w.dates.flatMap((x, k) => (dayOfWeek(x) === d ? [k] : []));
+    counts[name] = idx.length;
+    if (idx.length) series.push({ name, group: 'day', values: values(idx) });
   });
 
   for (const name of ['Weekday', 'Weekend', 'Bank holiday'] as const) {
-    const rows = w.rows.filter((_, k) => classes[k] === name);
-    counts[name] = rows.length;
-    if (rows.length) series.push({ name, group: 'summary', values: values(rows) });
+    const idx = classes.flatMap((c, k) => (c === name ? [k] : []));
+    counts[name] = idx.length;
+    if (idx.length) series.push({ name, group: 'summary', values: values(idx) });
   }
 
-  counts.Total = w.rows.length;
-  series.push({ name: 'Total', group: 'summary', values: values(w.rows) });
+  counts.Total = w.dates.length;
+  series.push({ name: 'Total', group: 'summary', values: values(w.dates.map((_, k) => k)) });
   return { labels: hhLabels(), series, day_counts: counts };
 }
 
@@ -153,16 +155,15 @@ export function loadDurationCurve(
 ): LoadDurationResponse {
   const w = slice(frame, from, to);
   const kw: number[] = [];
-  // Blank half hours in the file are not readings, so they stay off the curve.
+  // Missing and excluded half hours are not readings, so they stay off the curve.
   w.rows.forEach((r, i) => {
-    const skip = blankSet(w, w.dates[i]);
-    r.forEach((v, s) => { if (!Number.isNaN(v) && !skip?.has(s)) kw.push(v * KW_PER_KWH_PER_HH); });
+    for (let s = 0; s < SLOTS; s++) if (isValid(w, i, s)) kw.push(r[s] * KW_PER_KWH_PER_HH);
   });
   if (!kw.length) {
     return { curve: [], peak_kw: 0, base_kw: 0, average_kw: 0, load_factor: 0, hours_covered: 0 };
   }
   kw.sort((a, b) => b - a);
-  const totalHours = kw.length / 2;
+  const totalHours = kw.length * INTERVAL_HOURS;
   // Annualise so the x axis reads "hours per year" whatever the upload spans.
   const scale = totalHours ? 8766 / totalHours : 1;
 
@@ -179,8 +180,9 @@ export function loadDurationCurve(
   const peak = kw[0];
   const average = sum(kw) / kw.length;
   return {
-    curve: idx.map((i) => ({ hours: round(((i + 1) / 2) * scale, 1), kw: round(kw[i], 2) })),
+    curve: idx.map((i) => ({ hours: round((i + 1) * INTERVAL_HOURS * scale, 1), kw: round(kw[i], 2) })),
     peak_kw: round(peak, 2),
+    // The lowest valid half-hour, not the 5th-percentile base load reference.
     base_kw: round(kw[kw.length - 1], 2),
     average_kw: round(average, 2),
     load_factor: peak > 0 ? round(average / peak, 4) : 0,
@@ -201,11 +203,14 @@ export function dayNightSplit(
   const isNight = (s: number) => (nightStart <= nightEnd
     ? s >= nightStart && s < nightEnd
     : s >= nightStart || s < nightEnd);
-  const nightOf = (r: number[]) => r.reduce((t, v, s) => (isNight(s) ? t + v : t), 0);
-  const dayOf = (r: number[]) => r.reduce((t, v, s) => (isNight(s) ? t : t + v), 0);
+  const part = (night: boolean) => (i: number) => {
+    let t = 0;
+    for (let s = 0; s < SLOTS; s++) if (isNight(s) === night && isValid(w, i, s)) t += w.rows[i][s];
+    return t;
+  };
 
-  const night = monthlyBuckets(w, nightOf);
-  const day = monthlyBuckets(w, dayOf);
+  const night = monthlyBuckets(w, part(true));
+  const day = monthlyBuckets(w, part(false));
 
   const months = day.map((b, i) => ({
     month: fmtMonYear(b.y, b.m),
@@ -222,7 +227,7 @@ export function dayNightSplit(
   const labels = hhLabels();
   return {
     months,
-    night_window: `${labels[nightStart]} to ${labels[nightEnd % 48]}`,
+    night_window: `${labels[nightStart]} to ${labels[nightEnd % SLOTS]}`,
     totals: {
       day_kwh: round(totalDay, 1),
       night_kwh: round(totalNight, 1),
@@ -238,13 +243,14 @@ export function weekProfile(frame: Frame, weekCommencing?: string): WeekResponse
   const end = addDays(start, 7);
 
   const days = frame.dates
-    .map((d, i) => ({ d, r: frame.rows[i] }))
+    .map((d, i) => ({ d, i }))
     .filter(({ d }) => d >= start && d < end)
-    .map(({ d, r }) => ({
+    .map(({ d, i }) => ({
       date: d,
       label: fmtDowDayMon(d),
-      values: r.map((v) => round(v * KW_PER_KWH_PER_HH, 2)),
-      total_kwh: round(sum(r), 1),
+      // Missing readings break the line rather than drop it to zero.
+      values: frame.rows[i].map((v, s) => (isValid(frame, i, s) ? round(v * KW_PER_KWH_PER_HH, 2) : null)),
+      total_kwh: round(dayKwh(frame, i), 1),
     }));
   return { labels: hhLabels(), days, week_commencing: start };
 }
@@ -272,25 +278,28 @@ export function fullYearScatter(
   if (!n) return { points: [], sampled: false, total_readings: 0 };
 
   const classes = classifyDays(frame.dates, excludeHolidays);
-  const daysWanted = Math.max(1, Math.floor(maxPoints / 48));
+  const daysWanted = Math.max(1, Math.floor(maxPoints / SLOTS));
   const sampled = n > daysWanted;
   const step = sampled ? Math.ceil(n / daysWanted) : 1;
 
   const points: ScatterResponse['points'] = [];
+  let total = 0;
   frame.dates.forEach((d, i) => {
+    for (let s = 0; s < SLOTS; s++) if (isValid(frame, i, s)) total++;
     // Bank holidays always survive: an even sample misses most of them and
     // they show a closed site's true base load.
     if (sampled && i % step !== 0 && classes[i] !== 'Bank holiday') return;
     frame.rows[i].forEach((v, s) => {
+      if (!isValid(frame, i, s)) return;
       points.push({
-        hour: round(s / 2, 2),
+        hour: round(s * INTERVAL_HOURS, 2),
         kw: round(v * KW_PER_KWH_PER_HH, 2),
         type: classes[i],
         date: d,
       });
     });
   });
-  return { points, sampled, total_readings: n * 48 };
+  return { points, sampled, total_readings: total };
 }
 
 export function summaryStats(frame: Frame): AnalyserSummary {
@@ -300,44 +309,49 @@ export function summaryStats(frame: Frame): AnalyserSummary {
   let peakAt = [0, 0];
   let total = 0;
   let count = 0;
-  const partDay = frame.dates.map((d) => (frame.blanks?.get(d)?.length ?? 0) > 0);
   frame.rows.forEach((r, i) => {
-    const skip = blankSet(frame, frame.dates[i]);
-    r.forEach((v, s) => {
+    for (let s = 0; s < SLOTS; s++) {
+      if (!isValid(frame, i, s)) continue;
+      const v = r[s];
       if (v > peak) { peak = v; peakAt = [i, s]; }
-      if (v < base && !skip?.has(s)) base = v;
+      if (v < base) base = v;
       total += v;
       count += 1;
-    });
+    }
   });
-  if (base === Infinity) base = 0;
+  if (!count) { peak = 0; base = 0; }
 
-  // The lowest day is chosen from complete days, so a part-recorded day is
-  // not reported as the quietest.
-  const daily = frame.rows.map(sum);
-  let hi = 0;
-  let lo = partDay.findIndex((p) => !p);
-  if (lo < 0) lo = 0;
+  // Highest and lowest days are chosen from complete days, so a part-recorded
+  // day is not reported as the quietest.
+  const daily = frame.rows.map((_, i) => dayKwh(frame, i));
+  const complete = frame.dates.map((_, i) => isCompleteDay(frame, i));
+  let hi = complete.findIndex(Boolean);
+  let lo = hi;
+  if (hi < 0) { hi = 0; lo = 0; }
   daily.forEach((v, i) => {
+    if (!complete[i]) return;
     if (v > daily[hi]) hi = i;
-    if (v < daily[lo] && !partDay[i]) lo = i;
+    if (v < daily[lo]) lo = i;
   });
+  const completeDays = complete.filter(Boolean).length;
 
   const peakKw = peak * KW_PER_KWH_PER_HH;
-  const averageKw = (total / count) * KW_PER_KWH_PER_HH;
+  const averageKw = count ? (total / count) * KW_PER_KWH_PER_HH : 0;
   return {
     days: frame.dates.length,
     total_kwh: round(total, 1),
     peak_kw: round(peakKw, 2),
-    peak_when: `${fmtDayMonYear(frame.dates[peakAt[0]])} at ${labels[peakAt[1]]}`,
+    peak_when: frame.dates.length ? `${fmtDayMonYear(frame.dates[peakAt[0]])} at ${labels[peakAt[1]]}` : '',
     average_kw: round(averageKw, 2),
     base_kw: round(base * KW_PER_KWH_PER_HH, 2),
     load_factor: peakKw ? round(averageKw / peakKw, 4) : 0,
-    highest_day_kwh: round(daily[hi], 1),
-    highest_day: fmtDayMonYear(frame.dates[hi]),
-    lowest_day_kwh: round(daily[lo], 1),
-    lowest_day: fmtDayMonYear(frame.dates[lo]),
-    average_day_kwh: round(sum(daily) / daily.length, 1),
+    highest_day_kwh: round(daily[hi] ?? 0, 1),
+    highest_day: frame.dates.length ? fmtDayMonYear(frame.dates[hi]) : '',
+    lowest_day_kwh: round(daily[lo] ?? 0, 1),
+    lowest_day: frame.dates.length ? fmtDayMonYear(frame.dates[lo]) : '',
+    // Average over complete days so part days do not drag it down.
+    average_day_kwh: completeDays
+      ? round(daily.filter((_, i) => complete[i]).reduce((a, b) => a + b, 0) / completeDays, 1)
+      : 0,
   };
 }
-

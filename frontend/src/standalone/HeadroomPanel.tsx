@@ -4,8 +4,8 @@ import {
 } from 'recharts';
 import type { HeadroomResult, TestLoad } from '../local/headroom';
 import { inWindow } from '../local/headroom';
-import type { SiteSettings } from '../local/findings';
-import { slotLabel } from '../local/findings';
+import type { SiteSettings } from '../local/site';
+import { slotLabel } from '../local/site';
 
 const input = 'w-full border border-slate-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
 const fmt = (v: number, dp = 0) => v.toLocaleString('en-GB', { maximumFractionDigits: dp });
@@ -87,13 +87,17 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
       {header}
 
+      <p className="text-xs text-slate-500">
+        Based on {h.intervals.toLocaleString('en-GB')} valid half hours, an assumed power factor of {pf} and a {settings.headroomMarginPct}% margin.
+        Half-hour averages, not instantaneous peaks. A historical screen, not confirmation of DNO capacity or future operation.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Tile label="Agreed capacity" value={`${fmt(h.capacityKva)} kVA`} hint={`${fmt(h.usableKva)} kVA usable after ${settings.headroomMarginPct}% margin`} />
-        <Tile label="Peak demand" value={`${fmt(h.peakKva)} kVA`} hint={h.peakWhen} />
+        <Tile label="Highest half hour (kVA)" value={`${fmt(h.peakKva)} kVA`} hint={`${h.peakWhen}; kW / assumed PF ${pf}`} />
         <Tile
           label="Firm headroom"
           value={`${fmt(h.firmHeadroomKw)} kW`}
-          hint={h.firmHeadroomKw >= 0 ? 'can be added at any time of year' : 'already over usable capacity'}
+          hint={h.firmHeadroomKw >= 0 ? 'no exceedance at any analysed half hour' : 'analysed data already exceeds usable capacity'}
           tone={h.firmHeadroomKw < 0 ? 'bad' : undefined}
         />
         <Tile label="Capacity used at peak" value={`${Math.round((h.peakKva / h.capacityKva) * 100)}%`} hint={`power factor ${pf}`} />
@@ -138,7 +142,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
       {locked ? (h.test && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${h.test.fits ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
           <p className={`font-semibold ${h.test.fits ? 'text-[#08780a]' : 'text-[#b42c2c]'}`}>
-            {h.test.fits ? 'Proposed load fits within usable capacity' : 'Proposed load does not fit'}
+            {h.test.fits ? 'No exceedance in the analysed half hours, under the entered assumptions' : 'Exceeds usable capacity in the analysed data'}
           </p>
           <p className="text-slate-700 mt-0.5">{h.test.summary}</p>
         </div>
@@ -185,7 +189,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
         {h.test ? (
           <div className={`rounded-lg border px-4 py-3 text-sm ${h.test.fits ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
             <p className={`font-semibold ${h.test.fits ? 'text-[#08780a]' : 'text-[#b42c2c]'}`}>
-              {h.test.fits ? 'Fits within usable capacity' : 'Does not fit'}
+              {h.test.fits ? 'No exceedance in the analysed half hours, under the entered assumptions' : 'Exceeds usable capacity in the analysed data'}
             </p>
             <p className="text-slate-700 mt-0.5">{h.test.summary}</p>
           </div>

@@ -51,7 +51,7 @@ export default function FullPeriodChart({ frame }: { frame: Frame }) {
   return (
     <Panel
       title="Every half hour, whole period"
-      subtitle="Consumption in date order across the whole file. Use it to spot when the pattern changes, gaps, and odd spikes."
+      subtitle="Consumption in date order across the whole file. Missing readings and days are gaps in the line, not zero. Use it to spot when the pattern changes and odd spikes."
       action={(
         <div className="flex rounded-lg border border-slate-300 overflow-hidden text-xs">
           {([['hh', 'Half-hourly kWh'], ['daily', 'Daily kWh']] as const).map(([m, text]) => (
@@ -92,8 +92,10 @@ export default function FullPeriodChart({ frame }: { frame: Frame }) {
             >
               <p className="font-semibold text-slate-800">{label}</p>
               <p className="text-slate-600 tabular-nums">
-                {values[hover.i].toLocaleString('en-GB', { maximumFractionDigits: 2 })} kWh
-                {mode === 'hh' && ` · ${(values[hover.i] * 2).toLocaleString('en-GB', { maximumFractionDigits: 1 })} kW`}
+                {values[hover.i] === null ? 'No valid reading' : <>
+                  {values[hover.i]!.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kWh
+                  {mode === 'hh' && ` · ${(values[hover.i]! * 2).toLocaleString('en-GB', { maximumFractionDigits: 1 })} kW average`}
+                </>}
               </p>
             </div>
           </>

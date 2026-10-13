@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultPassword, seal, unseal, type EditionData } from '../src/local/customerEdition';
-import { defaultSettings } from '../src/local/findings';
+import { defaultSettings } from '../src/local/site';
 
 test('standard password is the name in lower case, letters and digits only, plus the year', () => {
   assert.equal(defaultPassword('Compleat Foods', 2026), 'compleatfoods2026');

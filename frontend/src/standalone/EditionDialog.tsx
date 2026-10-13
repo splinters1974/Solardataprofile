@@ -19,13 +19,14 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [includeNotes, setIncludeNotes] = useState(false);
   const password = custom ?? defaultPassword(customer, year);
 
   async function create() {
     setBusy(true);
     setError(null);
     try {
-      await downloadCustomerEdition(customer, password);
+      await downloadCustomerEdition(customer, password, { includeNotes });
       setDone(true);
     } catch (e) {
       setError(friendlyError(e, 'Could not create the file.'));
@@ -41,9 +42,9 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
           <h2 className="text-lg font-semibold text-slate-800">Create customer edition</h2>
           <p className="text-sm text-slate-500 mt-0.5">
             A locked copy of this dashboard holding the {siteCount} site{siteCount === 1 ? '' : 's'} loaded now,
-            with their current settings and logo. The customer can explore every chart, try a different unit
-            rate and download PDFs and a summary spreadsheet. They cannot change site settings or get the
-            half-hourly data out as a spreadsheet.
+            with their current settings, logo, findings, action statuses and savings scenarios. The customer can explore every chart,
+            try a different flat unit rate and download PDFs and a summary spreadsheet. They cannot change site settings, calendars,
+            scenarios or actions, or get the half-hourly data out as a spreadsheet.
           </p>
         </div>
 
@@ -73,6 +74,12 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
             file (by phone or a separate message), never in the same email.
           </p>
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input type="checkbox" className="mt-0.5" checked={includeNotes} onChange={(e) => setIncludeNotes(e.target.checked)} />
+          <span>Include action owners, target dates and internal notes<br />
+            <span className="text-xs text-slate-500">Off by default: the customer sees each finding's status only.</span></span>
+        </label>
 
         {error && <p className="text-sm text-[#b42c2c]">{error}</p>}
         {done && (

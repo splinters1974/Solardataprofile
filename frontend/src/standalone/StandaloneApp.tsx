@@ -1,31 +1,32 @@
 /**
- * The offline app: a portfolio of sites, one meter file each, ranked by
- * opportunity, with the full HH Analyser behind every site.
+ * The offline app: a portfolio of meters, one file each, ranked by the cost
+ * associated with closed-hours use, with an estate-wide opportunities list,
+ * like-for-like comparisons, and the full analysis behind every site.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import HHAnalyser, { type ReportFilters } from '../components/analyser/HHAnalyser';
-import FullPeriodChart from './FullPeriodChart';
 import { AMERESCO_LOGO } from '../local/brand';
 import {
-  clearAll, loadCustomerLogo, removeCustomerLogo, downloadAnalyserChartsZip, downloadExcel, downloadPortfolioReport, downloadSiteSummary, forgetSession, friendlyError, getDefaultRate,
-  downloadSitesTable, listSites, setDefaultRate, updateSiteSettings, uploadHHFile, type SiteSummary,
+  clearAll, countedInTotals, downloadExcel, downloadPortfolioReport, downloadSitesTable, editionShowsNotes, forgetSession,
+  friendlyError, getCarbon, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
+  setCarbon, setDefaultRate, setTitle as storeTitle, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
-import { SITE_TYPES } from '../local/findings';
+import { SITE_TYPES } from '../local/site';
+import type { SiteTab } from '../local/findings';
 import { rankSites } from '../local/pdf/portfolioReport';
-import FindingsPanel from './FindingsPanel';
-import { LEVEL_UI } from './levelUi';
-import SiteSettingsPanel from './SiteSettingsPanel';
-import CarpetPlot from './CarpetPlot';
-import QualityPanel, { VerdictChip } from './QualityPanel';
-import HeadroomPanel from './HeadroomPanel';
-import EditionDialog from './EditionDialog';
-import BulkSettingsPanel from './BulkSettingsPanel';
 import { getCustomerLogo } from '../local/pdf/common';
 import { firstDir, SITE_COLUMNS, sortSites, type ColumnKey, type SortState } from '../local/siteTable';
-
-const gbp = (v: number) => `£${Math.round(v).toLocaleString('en-GB')}`;
-const btn = 'text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
+import { overlapWarnings } from '../local/estate';
+import { LEVEL_UI } from './levelUi';
+import { VerdictChip } from './QualityPanel';
+import EditionDialog from './EditionDialog';
+import BulkSettingsPanel from './BulkSettingsPanel';
+import { mergeCalendar } from '../local/calendar';
+import SiteView from './SiteView';
+import OpportunitiesView from './OpportunitiesView';
+import EstateView from './EstateView';
+import { Note, Tabs } from './ui';
+import { btn, btnPrimary, btnSecondary, gbp, kwh, num } from './format';
 
 function Uploader({ onFiles, busy }: { onFiles: (f: File[]) => void; busy: string | null }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -52,16 +53,19 @@ function Uploader({ onFiles, busy }: { onFiles: (f: File[]) => void; busy: strin
         {busy ?? (isDragActive ? 'Drop the meter files here' : 'Drag and drop HH meter files here, one file per meter')}
       </p>
       <p className="text-slate-400 text-sm mt-1">
-        or click to browse. Add as many as you like; each becomes a site. .xlsx, .xls, .csv
+        or click to browse. Day-per-row, day-per-column or timestamped files: .xlsx, .xls, .csv
       </p>
     </div>
   );
 }
 
+type View = 'sites' | 'opportunities' | 'estate';
+
 /**
  * `internal` is the engineers' tool. `customer` is the locked edition a
  * customer unlocks with a password: their sites only, no uploads or
- * removals, site settings read-only except the unit rate, summary exports.
+ * removals, settings, scenarios and actions read-only except the flat
+ * unit rate, summary exports only.
  */
 export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   mode?: 'internal' | 'customer';
@@ -70,27 +74,29 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   const isCustomer = mode === 'customer';
   const [sites, setSites] = useState<SiteSummary[]>(() => (isCustomer ? listSites() : []));
   const [showEdition, setShowEdition] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ id: string; tab?: SiteTab; date?: string; nav: number } | null>(null);
+  const [view, setView] = useState<View>('sites');
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ file: string; message: string }[]>([]);
   const [rate, setRate] = useState(getDefaultRate());
-  const [title, setTitle] = useState(customer);
+  const [title, setTitleState] = useState(isCustomer ? customer : getTitle());
+  const [carbon, setCarbonState] = useState(getCarbon());
   const [customerLogo, setCustomerLogo] = useState<string | null>(() => getCustomerLogo()?.dataUrl ?? null);
   const [exporting, setExporting] = useState<string | null>(null);
 
   const refresh = useCallback(() => setSites(listSites()), []);
+  const setTitle = (t: string) => { setTitleState(t); storeTitle(t); };
 
   function startAgain() {
-    const ok = window.confirm(
-      'Clear all sites and settings and start again? Anything not exported will be lost.',
-    );
+    const ok = window.confirm('Clear all sites and settings and start again? Anything not saved as a project or exported will be lost.');
     if (!ok) return;
     clearAll();
     setSites([]);
     setSelected(null);
     setErrors([]);
-    setTitle('');
+    setTitleState('');
     setCustomerLogo(null);
+    setCarbonState(null);
     setRate(getDefaultRate());
   }
 
@@ -109,6 +115,25 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
     refresh();
   }
 
+  async function openProjectFile(file: File) {
+    if (sites.length && !window.confirm('Opening a project replaces everything loaded now. Continue?')) return;
+    setBusy(`Opening ${file.name}…`);
+    try {
+      const p = await openProject(file);
+      setTitleState(p.title);
+      setRate(getDefaultRate());
+      setCarbonState(getCarbon());
+      setCustomerLogo(getCustomerLogo()?.dataUrl ?? null);
+      setSelected(null);
+      setErrors([]);
+    } catch (e) {
+      setErrors([{ file: file.name, message: friendlyError(e, 'Could not open that project.') }]);
+    } finally {
+      setBusy(null);
+      refresh();
+    }
+  }
+
   async function run(label: string, job: () => Promise<void>) {
     setExporting(label);
     try {
@@ -121,36 +146,31 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   }
 
   const ranked = useMemo(() => rankSites(sites), [sites]);
-  // Null keeps the "Where to start" ranking.
   const [sort, setSort] = useState<SortState | null>(null);
-  const shown = useMemo(
-    () => sortSites(ranked.map((s, i) => ({ ...s, rank: i + 1 })), sort),
-    [ranked, sort],
-  );
+  const shown = useMemo(() => {
+    let r = 0;
+    return sortSites(ranked.map((s) => ({ ...s, rank: s.metrics.rankValue === null ? null : ++r })), sort);
+  }, [ranked, sort]);
   function sortBy(key: ColumnKey) {
     const col = SITE_COLUMNS.find((c) => c.key === key)!;
-    setSort((cur) => (cur?.key === key
-      ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' }
-      : { key, dir: firstDir(col) }));
+    setSort((cur) => (cur?.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: firstDir(col) }));
   }
-  const site = sites.find((s) => s.id === selected) ?? null;
-  // Must keep its identity between renders. The analyser treats a new one as
-  // a new data source and re-fetches every chart (and resets its filters),
-  // which is what made every keystroke on this page lag.
-  const downloadSeparate = useCallback(
-    (opts: ReportFilters) => downloadAnalyserChartsZip(selected ?? '', opts),
-    [selected],
-  );
-  const runForSite = useCallback(
-    <T,>(job: (id: string) => Promise<T>) => job(selected ?? ''),
-    [selected],
-  );
-  const total = (f: (s: SiteSummary) => number) => ranked.reduce((a, s) => a + f(s), 0);
+  const openSite = useCallback((id: string, tab?: SiteTab, date?: string) => {
+    setSelected((cur) => ({ id, tab, date, nav: (cur?.nav ?? 0) + 1 }));
+    window.scrollTo({ top: 0 });
+  }, []);
+  const site = sites.find((s) => s.id === selected?.id) ?? null;
+  const counted = sites.filter(countedInTotals);
+  const annualised = counted.filter((s) => s.metrics.annual);
+  const sum = (list: SiteSummary[], f: (s: SiteSummary) => number) => list.reduce((a, s) => a + f(s), 0);
+  const warnings = useMemo(() => overlapWarnings(sites), [sites]);
+  const allFrom = sites.map((s) => s.frame.dates[0]).filter(Boolean).sort()[0] ?? '';
+  const allTo = sites.map((s) => s.frame.dates[s.frame.dates.length - 1]).filter(Boolean).sort().reverse()[0] ?? '';
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center gap-3">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-4">
             <img src={AMERESCO_LOGO} alt="Ameresco" className="h-10 w-auto" />
             <span className="h-9 w-px bg-slate-200" aria-hidden />
@@ -166,23 +186,27 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
             )}
           </div>
           <div className="flex-1" />
-          <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
-            Offline · data stays on this computer
-          </span>
+          <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">Offline · data stays on this computer</span>
+          {!isCustomer && (
+            <>
+              <label className={`${btnSecondary} cursor-pointer !py-1.5`} title="Open a saved project file (.adproject)">
+                Open project
+                <input type="file" accept=".adproject" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void openProjectFile(f); }} />
+              </label>
+              {sites.length > 0 && (
+                <button disabled={!!exporting} onClick={() => run('Project', saveProject)} className={`${btnSecondary} !py-1.5`}
+                  title="Save everything (readings, settings, calendars, reviews, actions, scenarios) to carry on later">
+                  {exporting === 'Project' ? 'Saving…' : 'Save project'}
+                </button>
+              )}
+            </>
+          )}
           {isCustomer && (
-            <button
-              onClick={() => window.location.reload()}
-              title="Close the dashboard; the password is needed to open it again"
-              className="text-sm font-medium text-slate-600 border border-slate-300 hover:border-[#0065a5] rounded-lg px-4 py-1.5"
-            >
-              Lock
-            </button>
+            <button onClick={() => window.location.reload()} title="Close the dashboard; the password is needed to open it again"
+              className="text-sm font-medium text-slate-600 border border-slate-300 hover:border-[#0065a5] rounded-lg px-4 py-1.5">Lock</button>
           )}
           {!isCustomer && sites.length > 0 && (
-            <button
-              onClick={startAgain}
-              className="text-sm font-medium text-slate-600 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-lg px-4 py-1.5 transition-colors"
-            >
+            <button onClick={startAgain} className="text-sm font-medium text-slate-600 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-lg px-4 py-1.5 transition-colors">
               Clear all data
             </button>
           )}
@@ -190,167 +214,110 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        {site ? (
-          <>
-            <button onClick={() => setSelected(null)} className="text-sm text-[#0065a5] hover:text-[#00528a] font-medium">
-              ← All sites
-            </button>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">{site.settings.name}</h1>
-                <p className="text-sm text-slate-500">
-                  {site.filename} · {site.metrics.days} days · {SITE_TYPES[site.settings.type].label}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  disabled={!!exporting}
-                  onClick={() => run('Summary', () => downloadSiteSummary(site.id))}
-                  title="One page: costs, findings, data quality and the year at a glance"
-                  className={`${btn} bg-[#0065a5] hover:bg-[#00528a] text-white`}
-                >
-                  {exporting === 'Summary' ? 'Building PDF…' : 'Site summary (PDF)'}
-                </button>
-                <button
-                  disabled={!!exporting}
-                  onClick={() => run('Excel', () => downloadExcel(site.settings.name, [site.id]))}
-                  className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
-                >
-                  {exporting === 'Excel' ? 'Building…' : 'Export to Excel'}
-                </button>
-              </div>
-            </div>
-            {site.warnings.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-                {site.warnings.map((w, i) => <p key={i}>{w}</p>)}
-              </div>
-            )}
-            <SiteSettingsPanel
-              settings={site.settings}
-              defaultRate={rate}
-              locked={isCustomer}
-              onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
-            />
-            <QualityPanel report={site.quality} />
-            <FindingsPanel metrics={site.metrics} />
-            <HeadroomPanel
-              settings={site.settings}
-              headroom={site.headroom}
-              locked={isCustomer}
-              onChange={(s) => { updateSiteSettings(site.id, s); refresh(); }}
-            />
-            <CarpetPlot frame={site.frame} />
-            <FullPeriodChart frame={site.frame} />
-            <HHAnalyser
-              key={site.id}
-              sessionId={site.id}
-              runWithSession={runForSite}
-              onDownloadSeparate={downloadSeparate}
-            />
-          </>
+        {errors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 space-y-1">
+            {errors.map((e, i) => <p key={i}><strong>{e.file}:</strong> {e.message}</p>)}
+          </div>
+        )}
+        {site && selected ? (
+          <SiteView
+            key={`${site.id}-${selected.nav}`}
+            site={site} rate={rate} locked={isCustomer} showNotes={!isCustomer || editionShowsNotes()}
+            refresh={refresh} onBack={() => setSelected(null)} run={run}
+            initial={{ tab: selected.tab, date: selected.date }}
+          />
         ) : (
           <>
             {!isCustomer && <Uploader onFiles={addFiles} busy={busy} />}
 
-            {errors.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 space-y-1">
-                {errors.map((e, i) => <p key={i}><strong>{e.file}:</strong> {e.message}</p>)}
-              </div>
-            )}
-
             {ranked.length > 0 && (
               <>
-                <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 flex flex-wrap items-end gap-4">
-                  <div className="flex-1 min-w-48">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">{isCustomer ? 'Customer' : 'Client or estate name'}</label>
-                    {isCustomer ? (
-                      <p className="text-sm font-semibold text-slate-800 py-1.5">{customer}</p>
-                    ) : (
-                      <input
-                        value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appears on the reports"
-                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    )}
+                <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 space-y-4">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="flex-1 min-w-48">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{isCustomer ? 'Customer' : 'Client or estate name'}</label>
+                      {isCustomer ? <p className="text-sm font-semibold text-slate-800 py-1.5">{customer}</p> : (
+                        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Appears on the reports"
+                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      )}
+                    </div>
+                    {!isCustomer && <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Customer logo (on every PDF)</label>
+                      {customerLogo ? (
+                        <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-2 py-1 bg-white">
+                          <img src={customerLogo} alt="Customer logo" className="h-6 max-w-28 object-contain" />
+                          <button onClick={() => { removeCustomerLogo(); setCustomerLogo(null); }} className="text-xs text-slate-500 hover:text-red-700">Remove</button>
+                        </div>
+                      ) : (
+                        <label className="inline-block cursor-pointer text-sm border border-dashed border-slate-300 hover:border-[#0065a5] rounded-lg px-3 py-1.5 text-slate-600">
+                          Add logo…
+                          <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (!file) return;
+                              try { setCustomerLogo((await loadCustomerLogo(file)).dataUrl); } catch (err) {
+                                setErrors([{ file: file.name, message: friendlyError(err, 'Could not read that logo.') }]);
+                              }
+                            }} />
+                        </label>
+                      )}
+                    </div>}
+                    <div className="w-40">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Default flat rate (p/kWh)</label>
+                      <input type="number" min={0} step="any" value={rate}
+                        onChange={(e) => { const v = Number(e.target.value); setRate(v); setDefaultRate(v); refresh(); }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
                   </div>
-                  {!isCustomer && <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Customer logo (on every PDF)</label>
-                    {customerLogo ? (
-                      <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-2 py-1 bg-white">
-                        <img src={customerLogo} alt="Customer logo" className="h-6 max-w-28 object-contain" />
-                        <button
-                          onClick={() => { removeCustomerLogo(); setCustomerLogo(null); }}
-                          className="text-xs text-slate-500 hover:text-red-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="inline-block cursor-pointer text-sm border border-dashed border-slate-300 hover:border-[#0065a5] rounded-lg px-3 py-1.5 text-slate-600">
-                        Add logo…
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file) return;
-                            try {
-                              const logo = await loadCustomerLogo(file);
-                              setCustomerLogo(logo.dataUrl);
-                            } catch (err) {
-                              setErrors([{ file: file.name, message: friendlyError(err, 'Could not read that logo.') }]);
-                            }
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>}
-                  <div className="w-44">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Default rate (p/kWh)</label>
-                    <input
-                      type="number" min={0} step="any" value={rate}
-                      onChange={(e) => { const v = Number(e.target.value); setRate(v); setDefaultRate(v); refresh(); }}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="w-36">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Carbon factor (kgCO2e/kWh)</label>
+                      <input type="number" min={0} step="any" disabled={isCustomer} value={carbon?.kgPerKwh ?? ''} placeholder="Not entered"
+                        onChange={(e) => {
+                          const v = e.target.value === '' ? null : Number(e.target.value);
+                          const c = v && v > 0 ? { kgPerKwh: v, year: carbon?.year ?? '', source: carbon?.source ?? '' } : null;
+                          setCarbon(c); setCarbonState(getCarbon()); refresh();
+                        }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
+                    </div>
+                    <div className="w-28">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Reporting year</label>
+                      <input disabled={isCustomer || !carbon} value={carbon?.year ?? ''} placeholder="e.g. 2025"
+                        onChange={(e) => { if (carbon) { setCarbon({ ...carbon, year: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
+                    </div>
+                    <div className="flex-1 min-w-48">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Source</label>
+                      <input disabled={isCustomer || !carbon} value={carbon?.source ?? ''} placeholder="e.g. UK Government GHG conversion factors"
+                        onChange={(e) => { if (carbon) { setCarbon({ ...carbon, source: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
+                    </div>
+                    <p className="text-xs text-slate-400 basis-full">
+                      No default factor: carbon is shown only when you enter one, as kWh x factor. It is an estimate from one entered factor, not
+                      time-resolved grid carbon, and does not show any benefit from moving load in time.
+                    </p>
                   </div>
-                  <button
-                    disabled={!!exporting}
-                    onClick={() => run('Portfolio PDF', () => downloadPortfolioReport(title))}
-                    className={`${btn} bg-[#0065a5] hover:bg-[#00528a] text-white`}
-                  >
-                    {exporting === 'Portfolio PDF' ? 'Building PDF…' : 'Portfolio report (PDF)'}
-                  </button>
-                  <button
-                    disabled={!!exporting}
-                    onClick={() => run('Excel', () => downloadExcel(title))}
-                    className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
-                  >
-                    {exporting === 'Excel' ? 'Building…' : isCustomer ? 'Summary to Excel' : 'Export to Excel'}
-                  </button>
-                  {!isCustomer && (
-                    <button
-                      onClick={() => setShowEdition(true)}
-                      title="A locked, password-protected copy of this dashboard for the customer"
-                      className={`${btn} bg-white border border-[#008540] text-[#008540] hover:bg-green-50`}
-                    >
-                      Customer edition…
+                  <div className="flex flex-wrap gap-2">
+                    <button disabled={!!exporting} onClick={() => run('Portfolio PDF', () => downloadPortfolioReport(title))} className={btnPrimary}>
+                      {exporting === 'Portfolio PDF' ? 'Building PDF…' : 'Portfolio report (PDF)'}
                     </button>
-                  )}
+                    <button disabled={!!exporting} onClick={() => run('Excel', () => downloadExcel(title))} className={btnSecondary}>
+                      {exporting === 'Excel' ? 'Building…' : isCustomer ? 'Summary to Excel' : 'Export to Excel'}
+                    </button>
+                    {!isCustomer && (
+                      <button onClick={() => setShowEdition(true)} title="A locked, password-protected copy of this dashboard for the customer"
+                        className={`${btn} bg-white border border-[#008540] text-[#008540] hover:bg-green-50`}>Customer edition…</button>
+                    )}
+                  </div>
                 </div>
-                {showEdition && (
-                  <EditionDialog
-                    initialCustomer={title}
-                    siteCount={ranked.length}
-                    onClose={() => setShowEdition(false)}
-                  />
-                )}
+                {showEdition && <EditionDialog initialCustomer={title} siteCount={ranked.length} onClose={() => setShowEdition(false)} />}
 
                 {!isCustomer && (
                   <BulkSettingsPanel
-                    siteCount={ranked.length}
-                    onApply={({ type, hours }) => {
-                      for (const x of sites) updateSiteSettings(x.id, { ...x.settings, type, hours: structuredClone(hours) });
+                    siteCount={ranked.length} dataFrom={allFrom} dataTo={allTo}
+                    onApply={({ type, calendar }) => {
+                      for (const x of sites) updateSiteSettings(x.id, { ...x.settings, type, calendar: mergeCalendar(x.settings.calendar, calendar) });
                       refresh();
                     }}
                   />
@@ -358,129 +325,125 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
-                    ['Sites', String(ranked.length)],
-                    ['Annual consumption', `${Math.round(total((s) => s.metrics.annualKwh)).toLocaleString('en-GB')} kWh`],
-                    ['Annual cost', gbp(total((s) => s.metrics.annualCost))],
-                    ['Out of hours above base', `${gbp(total((s) => s.metrics.oohExcessCost))} a year`],
-                  ].map(([label, value]) => (
+                    ['Meters in totals', `${counted.length}${counted.length < sites.length ? ` of ${sites.length}` : ''}`, counted.length < sites.length ? 'submeters left out' : ''],
+                    ['Electricity, observed', kwh(sum(counted, (s) => s.metrics.observed.kwh)), 'each meter\'s own period'],
+                    ['Energy cost a year (estimate)', annualised.length ? gbp(sum(annualised, (s) => s.metrics.annual!.cost)) : 'n/a', `${annualised.length} of ${counted.length} meters annualised`],
+                    ['Closed-hours excess a year (associated)', annualised.length ? gbp(sum(annualised, (s) => s.metrics.excess?.annual?.cost ?? 0)) : 'n/a', 'not a saving; overlaps other findings'],
+                  ].map(([label, value, hint]) => (
                     <div key={label} className="bg-white rounded-xl border border-slate-200 px-4 py-3">
                       <p className="text-xl font-bold text-slate-800 tabular-nums">{value}</p>
                       <p className="text-xs font-medium text-slate-600 mt-0.5">{label}</p>
+                      {hint && <p className="text-xs text-slate-400">{hint}</p>}
                     </div>
                   ))}
                 </div>
+                {warnings.length > 0 && <Note tone="warn">{warnings.map((w, i) => <p key={i}>{w}</p>)}</Note>}
 
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                  <div className="px-6 pt-5 pb-2 flex flex-wrap items-start justify-between gap-3">
-                    <div className="max-w-3xl">
-                      <h2 className="text-base font-semibold text-slate-800">Where to start</h2>
-                      <p className="text-sm text-slate-500">
-                        Ranked by out-of-hours use above base load: energy used when the building should be
-                        closed, usually the cheapest to remove. Click a column heading to sort, or # to go back to
-                        this ranking. Click a site to
-                        {isCustomer ? ' see its full analysis and download its reports.' : ' set its type and hours and see the full analysis.'}
-                      </p>
+                <Tabs<View>
+                  tabs={[
+                    { key: 'sites', label: 'Where to start' },
+                    { key: 'opportunities', label: 'Opportunities', badge: sites.reduce((a, s) => a + s.metrics.findings.filter((f) => f.level === 'high').length, 0) },
+                    { key: 'estate', label: 'Estate comparison' },
+                  ]}
+                  value={view} onChange={setView}
+                />
+
+                {view === 'opportunities' && (
+                  <OpportunitiesView sites={sites} locked={isCustomer} showNotes={!isCustomer || editionShowsNotes()} refresh={refresh} openSite={openSite} />
+                )}
+                {view === 'estate' && <EstateView sites={sites} openSite={(id) => openSite(id)} />}
+                {view === 'sites' && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+                    <div className="px-6 pt-5 pb-2 flex flex-wrap items-start justify-between gap-3">
+                      <div className="max-w-3xl">
+                        <h2 className="text-base font-semibold text-slate-800">Where to start</h2>
+                        <p className="text-sm text-slate-500">
+                          Ranked by the estimated annual cost associated with closed-hours use above the reference: energy used when the
+                          building should be closed, beyond what never switches off. An associated cost, not a guaranteed saving. Meters
+                          with too little data to annualise are listed after, unranked. Click a heading to sort, or # to go back to the ranking.
+                        </p>
+                      </div>
+                      <button disabled={!!exporting} onClick={() => run('Table', () => downloadSitesTable(title, shown))} className={btnSecondary}>
+                        {exporting === 'Table' ? 'Building…' : 'Table to Excel'}
+                      </button>
                     </div>
-                    <button
-                      disabled={!!exporting}
-                      onClick={() => run('Table', () => downloadSitesTable(title, shown))}
-                      className={`${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`}
-                    >
-                      {exporting === 'Table' ? 'Building…' : 'Table to Excel'}
-                    </button>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
-                        {SITE_COLUMNS.map((c) => {
-                          const active = sort?.key === c.key || (!sort && c.key === 'rank');
-                          const arrow = !active ? '' : !sort ? ' ▲' : sort.dir === 'asc' ? ' ▲' : ' ▼';
-                          const right = c.numeric && c.key !== 'findings';
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                          {SITE_COLUMNS.map((c) => {
+                            const active = sort?.key === c.key || (!sort && c.key === 'rank');
+                            const arrow = !active ? '' : !sort ? ' ▲' : sort.dir === 'asc' ? ' ▲' : ' ▼';
+                            const right = c.numeric && c.key !== 'findings';
+                            return (
+                              <th key={c.key} aria-sort={active && sort ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                className={`py-2 font-medium ${c.key === 'rank' ? 'pl-5 pr-1' : 'px-1.5'} ${right ? 'text-right' : ''}`}>
+                                <button onClick={() => sortBy(c.key)} title={c.key === 'rank' ? 'Back to the ranking' : `Sort by ${c.label}`}
+                                  className={`whitespace-nowrap hover:text-slate-800 ${active ? 'text-slate-800 font-semibold' : ''}`}>
+                                  {c.short ?? c.label}{arrow}
+                                </button>
+                              </th>
+                            );
+                          })}
+                          <th className="px-1.5 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shown.map((s) => {
+                          const m = s.metrics;
+                          const counts = (['high', 'medium', 'low'] as const)
+                            .map((l) => [l, m.findings.filter((f) => f.level === l).length] as const).filter(([, c]) => c > 0);
                           return (
-                            <th
-                              key={c.key}
-                              aria-sort={active && sort ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                              className={`py-2 font-medium ${c.key === 'rank' ? 'pl-6 pr-2' : 'px-2'} ${right ? 'text-right' : ''}`}
-                            >
-                              <button
-                                onClick={() => sortBy(c.key)}
-                                title={c.key === 'rank' ? 'Back to the Where to start ranking' : `Sort by ${c.label}`}
-                                className={`whitespace-nowrap hover:text-slate-800 ${active ? 'text-slate-800 font-semibold' : ''}`}
-                              >
-                                {c.short ?? c.label}{arrow}
-                              </button>
-                            </th>
+                            <tr key={s.id} onClick={() => openSite(s.id)} className="border-b border-slate-100 last:border-0 hover:bg-blue-50/50 cursor-pointer">
+                              <td className="pl-5 pr-1 py-3 text-right tabular-nums text-slate-400">{s.rank ?? '-'}</td>
+                              <td className="px-1.5 py-3">
+                                <p className="font-semibold text-slate-800">{s.settings.name}</p>
+                                <p className="text-xs text-slate-400">
+                                  {s.settings.meterId || ''}{s.settings.role === 'sub' ? ' · submeter' : ''}{s.settings.group ? ` · ${s.settings.group}` : ''}
+                                  {!s.settings.calendar.confirmed && ' · hours unconfirmed'}
+                                </p>
+                              </td>
+                              <td className="px-1.5 py-3 text-slate-600">{SITE_TYPES[s.settings.type].label}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums" title={`${m.coverage.from} to ${m.coverage.to}`}>{num(m.coverage.validDays)}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{(m.coverage.share * 100).toFixed(0)}%</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{num(m.observed.kwh)}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{m.annual ? num(m.annual.kwh) : <span className="text-slate-300" title="Under 180 valid days">-</span>}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{m.annual ? gbp(m.annual.cost) : <span className="text-slate-300">-</span>}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{num(m.baseAll.kw, 1)}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">{m.hasClosed ? `${Math.round(m.closed.share * 100)}%` : '24-7'}</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums font-semibold text-slate-800">
+                                {m.excess?.annual ? gbp(m.excess.annual.cost) : m.excess ? <span className="text-slate-400 font-normal" title="Observed period, not annualised">{gbp(m.excess.observed.cost)}*</span> : '-'}
+                              </td>
+                              <td className="px-1.5 py-3 text-right tabular-nums">
+                                {s.headroom ? <span className={s.headroom.firmHeadroomKw < 0 ? 'text-[#b42c2c] font-semibold' : ''}>{num(s.headroom.firmHeadroomKw)}</span>
+                                  : <span className="text-slate-300" title="Enter the supply capacity on the site's Capacity tab">-</span>}
+                              </td>
+                              <td className="px-1.5 py-3"><VerdictChip verdict={s.quality.verdict} /></td>
+                              <td className="px-1.5 py-3">
+                                <div className="flex gap-1">
+                                  {counts.length ? counts.map(([l, c]) => (
+                                    <span key={l} className={`whitespace-nowrap text-[11px] font-semibold border rounded px-1.5 py-0.5 ${LEVEL_UI[l].chip} ${LEVEL_UI[l].text}`}>{c} {LEVEL_UI[l].label}</span>
+                                  )) : <span className="text-xs text-slate-400">None</span>}
+                                </div>
+                              </td>
+                              <td className="px-1.5 py-3 text-right whitespace-nowrap">
+                                {!isCustomer && <button onClick={(e) => { e.stopPropagation(); void forgetSession(s.id).then(refresh); }}
+                                  className="text-xs text-slate-400 hover:text-red-600" aria-label={`Remove ${s.settings.name}`}>Remove</button>}
+                              </td>
+                            </tr>
                           );
                         })}
-                        <th className="px-2 py-2" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shown.map((s) => {
-                        const m = s.metrics;
-                        const counts = (['high', 'medium', 'low'] as const)
-                          .map((l) => [l, m.findings.filter((f) => f.level === l).length] as const)
-                          .filter(([, c]) => c > 0);
-                        return (
-                          <tr
-                            key={s.id}
-                            onClick={() => setSelected(s.id)}
-                            className="border-b border-slate-100 last:border-0 hover:bg-blue-50/50 cursor-pointer"
-                          >
-                            <td className="pl-6 pr-2 py-3 text-right tabular-nums text-slate-400">{s.rank}</td>
-                            <td className="px-2 py-3">
-                              <p className="font-semibold text-slate-800">{s.settings.name}</p>
-                              {s.warnings.length > 0 && <p className="text-xs text-slate-400">has data notes</p>}
-                            </td>
-                            <td className="px-2 py-3 text-slate-600">{SITE_TYPES[s.settings.type].label}</td>
-                            <td className="px-2 py-3 text-right tabular-nums" title={`${m.dateFrom} to ${m.dateTo}`}>
-                              {m.days.toLocaleString('en-GB')}
-                            </td>
-                            <td className="px-2 py-3 text-right tabular-nums">{m.annualKwh.toLocaleString('en-GB')}</td>
-                            <td className="px-2 py-3 text-right tabular-nums">{gbp(m.annualCost)}</td>
-                            <td className="px-2 py-3 text-right tabular-nums">{m.baseKw.toLocaleString('en-GB')}</td>
-                            <td className="px-2 py-3 text-right tabular-nums">
-                              {m.hasOutOfHours ? `${Math.round(m.oohShare * 100)}%` : '24-7'}
-                            </td>
-                            <td className="px-2 py-3 text-right tabular-nums font-semibold text-slate-800">
-                              {m.hasOutOfHours ? gbp(m.oohExcessCost) : '-'}
-                            </td>
-                            <td className="px-2 py-3 text-right tabular-nums">
-                              {s.headroom ? (
-                                <span className={s.headroom.firmHeadroomKw < 0 ? 'text-[#b42c2c] font-semibold' : ''}>
-                                  {Math.round(s.headroom.firmHeadroomKw).toLocaleString('en-GB')}
-                                </span>
-                              ) : <span className="text-slate-300" title="Enter the supply capacity on the site page">-</span>}
-                            </td>
-                            <td className="px-2 py-3"><VerdictChip verdict={s.quality.verdict} /></td>
-                            <td className="px-2 py-3">
-                              <div className="flex gap-1">
-                                {counts.length ? counts.map(([l, c]) => (
-                                  <span key={l} className={`whitespace-nowrap text-[11px] font-semibold border rounded px-1.5 py-0.5 ${LEVEL_UI[l].chip} ${LEVEL_UI[l].text}`}>
-                                    {c} {LEVEL_UI[l].label}
-                                  </span>
-                                )) : <span className="text-xs text-slate-400">None</span>}
-                              </div>
-                            </td>
-                            <td className="px-2 py-3 text-right whitespace-nowrap">
-                              {!isCustomer && <button
-                                onClick={(e) => { e.stopPropagation(); void forgetSession(s.id).then(refresh); }}
-                                className="text-xs text-slate-400 hover:text-red-600"
-                                aria-label={`Remove ${s.settings.name}`}
-                              >
-                                Remove
-                              </button>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-slate-400 px-6 py-3">
+                      * Observed period only (not enough data to annualise). Observed kWh covers each meter's own period, so periods differ.
+                      Base kW is the all-period 5th-percentile reference.
+                    </p>
+                  </div>
+                )}
                 <p className="text-xs text-slate-400">
                   {isCustomer
-                    ? 'Prepared by Ameresco. Costs use the unit rate shown and are what each pattern costs now, not a guaranteed saving.'
-                    : 'All sites start as Office / commercial at the default rate. Open each one to set its building type and opening hours, or the out-of-hours figures will be wrong for schools, hospitals and leisure sites.'}
+                    ? 'Prepared by Ameresco. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings.'
+                    : 'Every site starts as Office / commercial with unconfirmed preset hours. Check each calendar (or set them all at once above) before relying on closed-hours figures.'}
                 </p>
               </>
             )}

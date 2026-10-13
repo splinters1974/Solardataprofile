@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { addDays } from '../src/local/dates';
 import { checkQuality } from '../src/local/dataQuality';
 import { analyseHeadroom } from '../src/local/headroom';
-import type { Frame } from '../src/local/parser';
+import type { Frame } from '../src/local/frame';
 
 /** A believable site: varied readings, 40 kW peak at 17:00 in winter, lower in summer. */
 function site(days = 365, start = '2024-01-01'): Frame {
@@ -82,10 +82,15 @@ test('a heat pump that overlaps the winter peak does not fit; one that avoids it
   const clash = analyseHeadroom(f, { ...base, test: { kw: 10, start: 12, end: 44, months: 'heating' } }).test!;
   assert.equal(clash.fits, false);
   assert.ok(clash.daysOver >= 80 && clash.daysOver <= 92, `days over ${clash.daysOver}`);
-  assert.match(clash.summary, /would take the site over/);
+  assert.match(clash.summary, /would exceed usable capacity in the analysed data/);
+  assert.match(shiftedSummary(f, base), /no exceedance of usable capacity/);
   // Same load held off between 16:00 and 19:00 (runs 19:00 to 16:00, wrapping midnight): fits.
   const shifted = analyseHeadroom(f, { ...base, test: { kw: 10, start: 38, end: 32, months: 'heating' } }).test!;
   assert.equal(shifted.fits, true, shifted.summary);
   // 6 kW all year, all day: 40.4 + 6 > 45 only if over; it is not.
   assert.equal(analyseHeadroom(f, { ...base, test: { kw: 4, start: 0, end: 0, months: 'all' } }).test!.fits, true);
 });
+
+function shiftedSummary(f: Frame, base: { capacityKva: number; powerFactor: number; marginPct: number }) {
+  return analyseHeadroom(f, { ...base, test: { kw: 10, start: 38, end: 32, months: 'heating' } }).test!.summary;
+}

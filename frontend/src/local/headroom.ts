@@ -9,7 +9,7 @@
  */
 import { KW_PER_KWH_PER_HH, round } from './analytics';
 import { MONTHS_SHORT, monthsBetween, parts } from './dates';
-import type { Frame } from './parser';
+import { isValid, type Frame } from './frame';
 
 export interface TestLoad {
   kw: number;
@@ -39,6 +39,10 @@ export interface HeadroomResult {
   worstByTime: { slot: number; kva: number }[];
   /** Same, winter months only (Dec, Jan, Feb), which is usually the pinch. */
   worstWinterByTime: { slot: number; kva: number }[];
+  /** Valid half hours analysed. */
+  intervals: number;
+  powerFactor: number;
+  marginPct: number;
   test: null | {
     fits: boolean;
     halfHoursOver: number;
@@ -75,9 +79,12 @@ export function analyseHeadroom(frame: Frame, input: HeadroomInput): HeadroomRes
   let peakAt = [0, 0];
   const worst = new Array(48).fill(0);
   const worstWinter = new Array(48).fill(0);
+  let intervals = 0;
   frame.rows.forEach((r, i) => {
     const winter = WINTER.has(parts(frame.dates[i]).m);
     r.forEach((v, s) => {
+      if (!isValid(frame, i, s)) return;
+      intervals++;
       const kva = toKva(v);
       if (kva > peakKva) { peakKva = kva; peakAt = [i, s]; }
       if (kva > worst[s]) worst[s] = kva;
@@ -92,7 +99,7 @@ export function analyseHeadroom(frame: Frame, input: HeadroomInput): HeadroomRes
     frame.dates.forEach((d, i) => {
       if (d.slice(0, 7) !== m.key) return;
       any = true;
-      for (const v of frame.rows[i]) peak = Math.max(peak, toKva(v));
+      frame.rows[i].forEach((v, s) => { if (isValid(frame, i, s)) peak = Math.max(peak, toKva(v)); });
     });
     return any ? [{
       month: `${MONTHS_SHORT[m.m - 1]} ${String(m.y).slice(2)}`,
@@ -115,6 +122,7 @@ export function analyseHeadroom(frame: Frame, input: HeadroomInput): HeadroomRes
       const m = parts(frame.dates[i]).m;
       const monthOn = t.months === 'all' || HEATING_MONTHS.has(m);
       r.forEach((v, s) => {
+        if (!isValid(frame, i, s)) return;
         const kva = toKva(v) + (monthOn && inWindow(s, t.start, t.end) ? addKva : 0);
         if (kva > peakWith) peakWith = kva;
         const excess = kva - usableKva;
@@ -139,13 +147,15 @@ export function analyseHeadroom(frame: Frame, input: HeadroomInput): HeadroomRes
       worstWhen: fits ? '' : `${shortDate(frame.dates[worstAt[0]])} at ${label(worstAt[1])}`,
       peakWithLoadKva: round(peakWith, 1),
       summary: fits
-        ? `A ${t.kw} kW load running ${window}, ${season}, fits. Peak with it would be `
-          + `${Math.round(peakWith)} kVA against ${Math.round(usableKva)} kVA usable.`
-        : `A ${t.kw} kW load running ${window}, ${season}, would take the site over its usable capacity in `
+        ? `A ${t.kw} kW load running ${window}, ${season}: no exceedance of usable capacity in the ${intervals.toLocaleString('en-GB')} `
+          + `analysed half hours under the entered assumptions (power factor ${pf}, ${input.marginPct}% margin). Highest half hour with it `
+          + `would be ${Math.round(peakWith)} kVA against ${Math.round(usableKva)} kVA usable. A historical screen, not confirmation of `
+          + 'DNO capacity or future operation.'
+        : `A ${t.kw} kW load running ${window}, ${season}, would exceed usable capacity in the analysed data in `
           + `${over} half hour${over > 1 ? 's' : ''} on ${days.size} day${days.size > 1 ? 's' : ''}, mostly in `
           + `${busiest.join(', ')}. The worst is ${Math.round(worstOver)} kVA over, on `
           + `${shortDate(frame.dates[worstAt[0]])} at ${label(worstAt[1])}. Either a capacity increase, a smaller `
-          + 'load, or controls that hold it off at peak times.',
+          + `load, or controls that hold it off at peak times. Assumes power factor ${pf} and a ${input.marginPct}% margin.`,
     };
   }
 
@@ -155,6 +165,9 @@ export function analyseHeadroom(frame: Frame, input: HeadroomInput): HeadroomRes
     peakKva: round(peakKva, 1),
     peakWhen: n ? `${shortDate(frame.dates[peakAt[0]])} at ${label(peakAt[1])}` : '',
     firmHeadroomKw: round((usableKva - peakKva) * pf, 1),
+    intervals,
+    powerFactor: pf,
+    marginPct: input.marginPct,
     monthly,
     worstByTime: worst.map((kva, slot) => ({ slot, kva: round(kva, 1) })),
     worstWinterByTime: worstWinter.map((kva, slot) => ({ slot, kva: round(kva, 1) })),

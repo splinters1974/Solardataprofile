@@ -192,7 +192,8 @@ export interface DayNightResponse {
 export interface WeekDay {
   date: string;
   label: string;
-  values: number[];
+  /** kW per half hour; null where the reading is missing (offline app only). */
+  values: (number | null)[];
   total_kwh: number;
 }
 

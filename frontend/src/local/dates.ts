@@ -87,3 +87,34 @@ export function monthsBetween(first: string, last: string): { y: number; m: numb
   }
   return out;
 }
+
+// --- Clock changes (Europe/London) -------------------------------------------------
+
+/** Last Sunday of a month, as an ISO date. */
+export function lastSunday(year: number, month: number): string {
+  const last = month < 12 ? addDays(iso(year, month + 1, 1), -1) : iso(year, 12, 31);
+  return addDays(last, -((dayOfWeek(last) + 1) % 7));
+}
+
+/** Clocks go forward at 01:00 GMT: 01:00 to 02:00 local time does not happen. */
+export const isSpringForward = (date: string) => date === lastSunday(Number(date.slice(0, 4)), 3);
+
+/** Clocks go back at 02:00 BST: 01:00 to 02:00 local time happens twice. */
+export const isFallBack = (date: string) => date === lastSunday(Number(date.slice(0, 4)), 10);
+
+/** Minutes since 1970-01-01 00:00 for a date and minute of day, ignoring time zones. */
+export const naiveMinutes = (date: string, minute: number) => dayNum(date) * 1440 + minute;
+
+export function fromNaiveMinutes(t: number): { date: string; minute: number } {
+  const d = Math.floor(t / 1440);
+  return { date: fromDayNum(d), minute: t - d * 1440 };
+}
+
+/** UK local time (GMT or BST) for a UTC instant given as naive minutes. */
+export function utcToLondon(t: number): number {
+  const { date } = fromNaiveMinutes(t);
+  const y = Number(date.slice(0, 4));
+  const start = naiveMinutes(lastSunday(y, 3), 60); // 01:00 UTC
+  const end = naiveMinutes(lastSunday(y, 10), 60); // 01:00 UTC
+  return t >= start && t < end ? t + 60 : t;
+}

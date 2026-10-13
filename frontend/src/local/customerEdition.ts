@@ -12,28 +12,25 @@
  * always the same version of the app that made it.
  */
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
-import type { SiteSettings } from './findings';
 import type { CustomerLogo } from './pdf/common';
+import type { SerialSite } from './project';
+import type { CarbonFactor } from './findings';
 
 export const EDITION_ELEMENT_ID = 'customer-edition';
 const ITERATIONS = 310_000;
 
-export interface EditionSite {
-  filename: string;
-  warnings: string[];
-  format: 'A' | 'B';
-  settings: SiteSettings;
-  dates: string[];
-  rows: number[][];
-  /** Blank half hours by date, as [date, slots] pairs. */
-  blanks?: [string, number[]][];
-}
+/** A site inside an edition: the same form as in a project file. */
+export type EditionSite = SerialSite;
 
 export interface EditionData {
   customer: string;
   createdAt: string;
   defaultRateP: number;
   customerLogo: CustomerLogo | null;
+  /** Added in October 2026; absent in earlier editions. */
+  carbon?: CarbonFactor | null;
+  /** Owners and notes on actions were included. */
+  includesInternalNotes?: boolean;
   sites: EditionSite[];
 }
 

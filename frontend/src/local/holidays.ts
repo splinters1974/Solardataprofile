@@ -1,6 +1,7 @@
 /**
- * England and Wales bank holidays, computed rather than tabulated.
- * Port of backend/app/services/bank_holidays.py.
+ * UK bank holidays, computed rather than tabulated: England and Wales (the
+ * default, a port of backend/app/services/bank_holidays.py), Scotland and
+ * Northern Ireland. One-off royal holidays and moved dates are listed.
  */
 import { addDays, dayOfWeek, iso } from './dates';
 
@@ -89,12 +90,64 @@ export function holidaysForYear(year: number): Set<string> {
   return days;
 }
 
-export function holidaysBetween(start: string, end: string): Set<string> {
+export type Nation = 'ew' | 'sc' | 'ni';
+
+export const NATION_LABEL: Record<Nation, string> = {
+  ew: 'England and Wales',
+  sc: 'Scotland',
+  ni: 'Northern Ireland',
+};
+
+/** Fixed-date holidays: a weekend date moves to the next weekday not already a holiday. */
+function substitute(days: Set<string>, fixed: string[]) {
+  for (const d of fixed) {
+    let out = d;
+    while (dayOfWeek(out) >= 5 || days.has(out)) out = addDays(out, 1);
+    days.add(out);
+  }
+}
+
+const nationCache = new Map<string, Set<string>>();
+
+export function holidaysForNation(year: number, nation: Nation): Set<string> {
+  if (nation === 'ew') return holidaysForYear(year);
+  const key = `${nation}${year}`;
+  const hit = nationCache.get(key);
+  if (hit) return hit;
+  const easter = easterSunday(year);
+  const days = new Set<string>();
+  if (nation === 'sc') {
+    days.add(addDays(easter, -2));
+    days.add(firstMonday(year, 5));
+    days.add(lastMonday(year, 5));
+    days.add(firstMonday(year, 8));
+    substitute(days, [iso(year, 1, 1), iso(year, 1, 2)]);
+    substitute(days, [iso(year, 11, 30)]);
+  } else {
+    days.add(addDays(easter, -2));
+    days.add(addDays(easter, 1));
+    days.add(firstMonday(year, 5));
+    days.add(lastMonday(year, 5));
+    days.add(lastMonday(year, 8));
+    substitute(days, [iso(year, 1, 1)]);
+    substitute(days, [iso(year, 3, 17)]);
+    substitute(days, [iso(year, 7, 12)]);
+  }
+  substitute(days, [iso(year, 12, 25), iso(year, 12, 26)]);
+  for (const d of EXTRAS[year] ?? []) days.add(d);
+  for (const [from, to] of MOVED[year] ?? []) {
+    if (days.delete(from)) days.add(to);
+  }
+  nationCache.set(key, days);
+  return days;
+}
+
+export function holidaysBetween(start: string, end: string, nation: Nation = 'ew'): Set<string> {
   const out = new Set<string>();
   const y0 = Number(start.slice(0, 4));
   const y1 = Number(end.slice(0, 4));
   for (let y = y0; y <= y1; y++) {
-    for (const d of holidaysForYear(y)) {
+    for (const d of holidaysForNation(y, nation)) {
       if (d >= start && d <= end) out.add(d);
     }
   }

@@ -20,7 +20,7 @@ interface Props {
 
 function WeekChart({ data, weeks, selected, onSelect, title }: Props) {
   const rows = data.labels.map((label, i) => {
-    const row: Record<string, string | number> = { time: label };
+    const row: Record<string, string | number | null> = { time: label };
     for (const d of data.days) row[d.label] = d.values[i];
     return row;
   });

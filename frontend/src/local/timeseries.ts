@@ -6,7 +6,7 @@
  * and the PDF. ~17,500 points is too many for SVG to redraw smoothly.
  */
 import { dayNum, MONTHS_SHORT, parts } from './dates';
-import type { Frame } from './parser';
+import { dayKwh, isValid, SLOTS, type Frame } from './frame';
 
 export type SeriesMode = 'hh' | 'daily';
 
@@ -33,8 +33,12 @@ export function indexAt(frame: Frame, mode: SeriesMode, fraction: number): numbe
   return row < 0 ? null : row * perDay + (slot % perDay);
 }
 
-export function seriesValues(frame: Frame, mode: SeriesMode): number[] {
-  return mode === 'hh' ? frame.rows.flat() : frame.rows.map((r) => r.reduce((a, b) => a + b, 0));
+/** Readings in date order; null where a half hour has no valid reading. */
+export function seriesValues(frame: Frame, mode: SeriesMode): (number | null)[] {
+  if (mode === 'daily') return frame.rows.map((_, i) => dayKwh(frame, i));
+  const out: (number | null)[] = [];
+  frame.rows.forEach((r, i) => { for (let s = 0; s < SLOTS; s++) out.push(isValid(frame, i, s) ? r[s] : null); });
+  return out;
 }
 
 /**
@@ -49,7 +53,7 @@ export function drawTimeSeries(
   canvas.height = Math.round(height * scale);
   const ctx = canvas.getContext('2d');
   const values = seriesValues(frame, mode);
-  const ticks = niceTicks(Math.max(0, ...values));
+  const ticks = niceTicks(values.reduce<number>((m, v) => (v !== null && v > m ? v : m), 0));
   const yMax = ticks[ticks.length - 1] || 1;
   if (!ctx || !values.length) return yMax;
 
@@ -121,15 +125,16 @@ export function drawTimeSeries(
     ctx.lineWidth = Math.max(0.6, Math.min(1.2, (plotW / values.length) * 6));
     ctx.beginPath();
     values.forEach((v, i) => {
+      if (v === null) return;
       const p = pos(i);
-      // Lift the pen across a missing day rather than drawing through it.
-      const joined = i > 0 && p === pos(i - 1) + 1;
+      // Lift the pen across a missing day or reading rather than drawing through it.
+      const joined = i > 0 && values[i - 1] !== null && p === pos(i - 1) + 1;
       if (joined) ctx.lineTo(x(p + 0.5), y(v)); else ctx.moveTo(x(p + 0.5), y(v));
     });
     ctx.stroke();
   } else {
     const w = Math.max(1, plotW / slots - 0.5);
-    values.forEach((v, i) => ctx.fillRect(x(pos(i)), y(v), w, PAD.top + plotH - y(v)));
+    values.forEach((v, i) => { if (v !== null) ctx.fillRect(x(pos(i)), y(v), w, PAD.top + plotH - y(v)); });
   }
 
   ctx.strokeStyle = '#94a3b8';

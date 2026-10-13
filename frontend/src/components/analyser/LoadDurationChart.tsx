@@ -24,12 +24,12 @@ function LoadDurationChart({ data }: Props) {
   return (
     <Panel
       title="Load duration curve"
-      subtitle="Load in kW against the hours per year the site sits at or above it. The tail on the left is the expensive peak; the flat right-hand end is base load running all year."
+      subtitle="Load in kW against the hours per year the site sits at or above it. The tail on the left is the expensive peak; the flat right-hand end is load running all the time. Half-hour averages."
     >
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <Stat label="Peak" value={`${data.peak_kw.toLocaleString()} kW`} />
+        <Stat label="Peak" value={`${data.peak_kw.toLocaleString()} kW`} hint="highest half-hour average" />
         <Stat label="Average" value={`${data.average_kw.toLocaleString()} kW`} />
-        <Stat label="Base" value={`${data.base_kw.toLocaleString()} kW`} hint="lowest reading" />
+        <Stat label="Lowest half hour" value={`${data.base_kw.toLocaleString()} kW`} hint="the single lowest reading, not the base load reference" />
         <Stat
           label="Load factor"
           value={`${(data.load_factor * 100).toFixed(0)}%`}

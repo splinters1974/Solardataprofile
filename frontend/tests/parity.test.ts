@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseHHFile } from '../src/local/parser';
+import { deriveFrame, emptyReview, FLAG } from '../src/local/frame';
 import {
   availableWeeks, dayNightSplit, dayOfWeekProfile, fullYearScatter, heatmapMatrix,
   loadDurationCurve, monthlyTotals, summaryStats, weekProfile,
@@ -23,9 +24,22 @@ import { holidaysForYear } from '../src/local/holidays';
 const dir = join(import.meta.dirname, 'parity');
 const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'));
 
+/**
+ * The browser engine deliberately differs from the Python backend in three
+ * ways: clock-change days with 48 readings are held back until reviewed,
+ * conflicting duplicate dates are held back until a row is chosen, and text
+ * in a reading cell is missing rather than zero. To compare the maths, the
+ * review choices the backend makes implicitly are applied here: keep the
+ * clock-change days, use the first duplicate row, and read text as zero.
+ */
 function load(name: string) {
   const buf = readFileSync(join(dir, name));
-  return parseHHFile(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), name);
+  const parsed = parseHHFile(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), name);
+  const raw = parsed.raw;
+  raw.frame.flags?.forEach((fl) => { if (fl) for (let s = 0; s < 48; s++) if (fl[s] === FLAG.TEXT) fl[s] = 0; });
+  const unsafe = raw.frame.dates.filter((_, i) => raw.frame.flags?.[i]?.some((f) => f === FLAG.DST_UNSAFE));
+  const review = { ...emptyReview(), dstKeep: unsafe, duplicates: Object.fromEntries(raw.conflicts.map((c) => [c.date, 'first' as const])) };
+  return { frame: deriveFrame(raw, raw.unit, review), format: parsed.format, warnings: parsed.warnings };
 }
 
 /** One unit in the last decimal place the expected value was rounded to. */
@@ -61,9 +75,9 @@ for (const name of ['workbook_a.xlsx', 'semicolon.csv']) {
   const want = expected[name];
 
   test(`${name}: parses to the same days and readings`, () => {
-    const { frame, format, warnings } = load(name);
+    const { frame, format } = load(name);
     assert.equal(format, want.format);
-    assert.deepEqual(warnings, want.warnings);
+    // Data notes are worded differently on purpose (missing, not zero), so not compared.
     assert.deepEqual(frame.dates, want.dates);
     close(frame.rows.map((r) => Math.round(r.reduce((a, b) => a + b, 0) * 1e6) / 1e6), want.row_sums);
   });
