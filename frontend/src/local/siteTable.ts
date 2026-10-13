@@ -20,7 +20,7 @@ export interface TableSite {
 }
 
 export type ColumnKey =
-  | 'rank' | 'site' | 'type' | 'days' | 'coverage' | 'observed' | 'kwh' | 'cost' | 'base' | 'closed' | 'above'
+  | 'rank' | 'site' | 'type' | 'days' | 'observed' | 'kwh' | 'cost' | 'base' | 'closed' | 'above'
   | 'headroom' | 'data' | 'findings';
 
 export interface SiteColumn {
@@ -53,10 +53,6 @@ export const SITE_COLUMNS: SiteColumn[] = [
   {
     key: 'days', label: 'Valid days', short: 'Days', numeric: true,
     sortValue: (s) => s.metrics.coverage.validDays, exportValue: (s) => Math.round(s.metrics.coverage.validDays),
-  },
-  {
-    key: 'coverage', label: 'Coverage', short: 'Cover', numeric: true,
-    sortValue: (s) => s.metrics.coverage.share, exportValue: (s) => `${(s.metrics.coverage.share * 100).toFixed(0)}%`,
   },
   {
     key: 'observed', label: 'Observed kWh', short: 'Observed kWh', numeric: true,

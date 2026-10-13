@@ -886,9 +886,21 @@ export function parseHHFile(bytes: ArrayBuffer, filename: string, opts: ParseOpt
       layout: format === 'A' ? 'day-rows' : 'day-columns',
       meterId, unit: unitInfo.unit, unitEvidence: unitInfo.evidence,
       convention: conv.convention, conventionEvidence: conv.evidence,
-      clockNote: [...notes].filter((n) => /clock/i.test(n)).join(' ') || 'No clock-change days needed mapping.',
+      clockNote: clockSummary(days, notes),
     },
   };
+}
+
+/** One line on how clock-change days were treated, for the review screen. */
+function clockSummary(days: DayRow[], notes: Set<string>): string {
+  const unsafe = days.filter((d) => d.flags.some((f) => f === FLAG.DST_UNSAFE)).map((d) => d.date);
+  const mapped = [...notes].filter((n) => /clock-change days (hold|are already)/i.test(n));
+  const parts = [...mapped];
+  if (unsafe.length) {
+    parts.push(`${unsafe.length} clock-change day${unsafe.length > 1 ? 's' : ''} (${unsafe.join(', ')}) had 48 readings, so the missing or `
+      + 'repeated hour cannot be placed. Held back until reviewed below.');
+  }
+  return parts.join(' ') || 'No clock-change days needed mapping.';
 }
 
 /** Re-read a timestamped file's readings with a different start/end convention. */

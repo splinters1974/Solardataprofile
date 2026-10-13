@@ -3,7 +3,6 @@ import { fmtDayMonYear } from '../local/dates';
 import { newAction, type Action } from '../local/actions';
 import type { SiteSummary } from '../local/localClient';
 import FindingCard from './FindingCard';
-import { VerdictChip } from './QualityPanel';
 import { Card, Kind, Note, Tile } from './ui';
 import { gbp, kw, kwh, num, pct } from './format';
 
@@ -36,7 +35,7 @@ export default function OverviewTab({ site, locked, showNotes, onAction, goTo }:
         <Tile label="Use in closed hours" tag="measured" value={m.hasClosed ? pct(m.closed.share) : '24-7'}
           hint={m.excess ? `${gbp(m.excess.annual?.cost ?? m.excess.observed.cost)} ${m.excess.annual ? 'a year' : 'in period'} above the reference (associated cost)` : 'No closed hours in the calendar'} />
         <Tile label="Coverage" tag="measured" value={pct(c.share, 1)}
-          hint={<span className="inline-flex items-center gap-1.5">{num(c.validReadings)} of {num(c.expectedReadings)} readings · <VerdictChip verdict={site.quality.verdict} /></span>} />
+          hint={`${num(c.validReadings)} of ${num(c.expectedReadings)} readings valid`} />
       </div>
       {m.annualisation.warning && <Note tone="warn">{m.annualisation.warning}</Note>}
       {m.rate.problems.length > 0 && <Note tone="bad">Time-band rates not used: {m.rate.problems.join(' ')} Costs use the flat rate until the bands cover every half hour exactly once.</Note>}

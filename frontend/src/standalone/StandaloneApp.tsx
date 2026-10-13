@@ -370,7 +370,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
-                          {SITE_COLUMNS.map((c) => {
+                          {SITE_COLUMNS.filter((c) => c.key !== 'type').map((c) => {
                             const active = sort?.key === c.key || (!sort && c.key === 'rank');
                             const arrow = !active ? '' : !sort ? ' ▲' : sort.dir === 'asc' ? ' ▲' : ' ▼';
                             const right = c.numeric && c.key !== 'findings';
@@ -395,16 +395,16 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                           return (
                             <tr key={s.id} onClick={() => openSite(s.id)} className="border-b border-slate-100 last:border-0 hover:bg-blue-50/50 cursor-pointer">
                               <td className="pl-5 pr-1 py-3 text-right tabular-nums text-slate-400">{s.rank ?? '-'}</td>
-                              <td className="px-1.5 py-3">
+                              <td className="px-1.5 py-3 min-w-44">
                                 <p className="font-semibold text-slate-800">{s.settings.name}</p>
                                 <p className="text-xs text-slate-400">
-                                  {s.settings.meterId || ''}{s.settings.role === 'sub' ? ' · submeter' : ''}{s.settings.group ? ` · ${s.settings.group}` : ''}
-                                  {!s.settings.calendar.confirmed && ' · hours unconfirmed'}
+                                  {[SITE_TYPES[s.settings.type].label, s.settings.meterId, s.settings.role === 'sub' ? 'submeter' : '',
+                                    s.settings.group, s.settings.calendar.confirmed ? '' : 'hours unconfirmed'].filter(Boolean).join(' · ')}
                                 </p>
                               </td>
-                              <td className="px-1.5 py-3 text-slate-600">{SITE_TYPES[s.settings.type].label}</td>
-                              <td className="px-1.5 py-3 text-right tabular-nums" title={`${m.coverage.from} to ${m.coverage.to}`}>{num(m.coverage.validDays)}</td>
-                              <td className="px-1.5 py-3 text-right tabular-nums">{(m.coverage.share * 100).toFixed(0)}%</td>
+                              <td className="px-1.5 py-3 text-right tabular-nums" title={`${m.coverage.from} to ${m.coverage.to}, ${(m.coverage.share * 100).toFixed(0)}% coverage`}>
+                                {num(m.coverage.validDays)}<p className="text-[10px] text-slate-400">{(m.coverage.share * 100).toFixed(0)}% cover</p>
+                              </td>
                               <td className="px-1.5 py-3 text-right tabular-nums">{num(m.observed.kwh)}</td>
                               <td className="px-1.5 py-3 text-right tabular-nums">{m.annual ? num(m.annual.kwh) : <span className="text-slate-300" title="Under 180 valid days">-</span>}</td>
                               <td className="px-1.5 py-3 text-right tabular-nums">{m.annual ? gbp(m.annual.cost) : <span className="text-slate-300">-</span>}</td>

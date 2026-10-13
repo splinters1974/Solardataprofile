@@ -43,6 +43,8 @@ function findingBlock(r: Report, f: Finding, status?: string) {
   const d = r.doc;
   const style = LEVEL_STYLE[f.level];
   const textW = r.width - 8;
+  // Measure at the size the text is drawn in.
+  d.setFont('helvetica', 'normal').setFontSize(7.8);
   const lines = [
     ...(d.splitTextToSize(f.detail, textW) as string[]),
     ...(d.splitTextToSize(`Check: ${f.investigation}`, textW) as string[]),
