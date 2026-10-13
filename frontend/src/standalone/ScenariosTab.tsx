@@ -152,7 +152,7 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
                 <th className="py-1 font-medium">Scenario</th><th className="text-right font-medium">Half hours changed</th>
                 <th className="text-right font-medium">kWh removed (period)</th><th className="text-right font-medium">kWh shifted</th>
                 <th className="text-right font-medium">Cost reduction (period)</th><th className="text-right font-medium">A year (projection)</th>
-                <th className="text-right font-medium">tCO2e</th>
+                <th className="text-right font-medium pl-4">tCO2e</th>
               </tr></thead>
               <tbody>
                 {list.filter((s) => s.enabled).map((s) => {
@@ -165,8 +165,8 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
                       <td className="text-right tabular-nums">{kwh(r.kwhRemoved)}</td>
                       <td className="text-right tabular-nums">{r.kwhShifted ? kwh(r.kwhShifted) : '-'}</td>
                       <td className="text-right tabular-nums">{gbp(r.costReduction)}</td>
-                      <td className="text-right tabular-nums">{r.annualCost === null ? 'not annualised' : `${gbp(r.annualCost)} (${kwh(r.annualKwh!)})`}</td>
-                      <td className="text-right tabular-nums">{r.tco2e === null ? '-' : r.tco2e.toFixed(2)}</td>
+                      <td className="text-right tabular-nums pl-3">{r.annualCost === null ? 'not annualised' : <>{gbp(r.annualCost)}<p className="text-xs text-slate-400 whitespace-nowrap">{kwh(r.annualKwh!)}</p></>}</td>
+                      <td className="text-right tabular-nums pl-4">{r.tco2e === null ? '-' : r.tco2e.toFixed(2)}</td>
                     </tr>
                   );
                 })}
@@ -175,7 +175,7 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
                   <td className="text-right tabular-nums">{kwh(run.total.kwh)}</td><td />
                   <td className="text-right tabular-nums">{gbp(run.total.cost)}</td>
                   <td className="text-right tabular-nums">{run.total.annualCost === null ? 'not annualised' : gbp(run.total.annualCost)}</td>
-                  <td className="text-right tabular-nums">{run.total.tco2e === null ? '-' : run.total.tco2e.toFixed(2)}</td>
+                  <td className="text-right tabular-nums pl-4">{run.total.tco2e === null ? '-' : run.total.tco2e.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>

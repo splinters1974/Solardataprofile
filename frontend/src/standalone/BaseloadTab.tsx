@@ -93,7 +93,7 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
             <BarChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} angle={-35} textAnchor="end" height={44} />
-              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `${v} kW`} width={52} />
               <Tooltip content={({ active, payload }) => {
                 const p = payload?.[0]?.payload as (typeof trend)[number] | undefined;
                 if (!active || !p) return null;
