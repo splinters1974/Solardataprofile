@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import HHAnalyser, { type ReportFilters } from '../components/analyser/HHAnalyser';
 import {
   downloadAnalyserChartsZip, downloadExcel, downloadSiteSummary, scenarioRunFor, updateAction, updateScenarios,
@@ -41,6 +41,12 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
     if (d) setDate(d);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+  // Keep the tab bar in view when switching from far down a long tab.
+  const tabsAt = useRef<HTMLDivElement>(null);
+  const scrollToTabs = () => {
+    const el = tabsAt.current;
+    if (el && window.scrollY > el.offsetTop) window.scrollTo({ top: el.offsetTop });
+  };
   const onSettings = (s: SiteSettings) => { updateSiteSettings(site.id, s); refresh(); };
   const onAction = (key: string, patch: Partial<Action>) => { updateAction(site.id, key, patch); refresh(); };
   const onScenarios = (s: Scenario[]) => { updateScenarios(site.id, s); refresh(); };
@@ -58,11 +64,11 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
   const tabs: { key: SiteTab; label: string; badge?: string | number }[] = [
     { key: 'overview', label: 'Overview', badge: m.findings.filter((f) => f.level === 'high').length || '' },
     { key: 'review', label: 'Data review', badge: site.quality.verdict === 'good' ? '' : site.quality.verdict },
-    { key: 'calendar', label: 'Calendar', badge: site.settings.calendar.confirmed ? '' : 'unconfirmed' },
-    { key: 'baseload', label: 'Base load and closed hours' },
-    { key: 'heatmap', label: 'Heatmap and days' },
+    { key: 'calendar', label: 'Calendar', badge: site.settings.calendar.confirmed ? '' : 'confirm' },
+    { key: 'baseload', label: 'Base load' },
+    { key: 'heatmap', label: 'Heatmap' },
     { key: 'anomalies', label: 'Unusual days', badge: m.anomalies.events.length + m.anomalies.changes.length },
-    { key: 'scenarios', label: 'Savings scenarios', badge: site.scenarios.filter((s) => s.enabled).length },
+    { key: 'scenarios', label: 'Scenarios', badge: site.scenarios.filter((s) => s.enabled).length },
     { key: 'capacity', label: 'Capacity' },
     { key: 'charts', label: 'Charts' },
     { key: 'settings', label: 'Settings' },
@@ -101,16 +107,17 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
         </Note>
       )}
 
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+      <div ref={tabsAt} aria-hidden />
+      <Tabs tabs={tabs} value={tab} onChange={(t) => { setTab(t); scrollToTabs(); }} sticky label={`${site.settings.name} sections`} />
 
       {tab === 'overview' && <OverviewTab site={site} locked={locked} showNotes={showNotes} onAction={onAction} goTo={goTo} />}
-      {tab === 'review' && <ReviewTab site={site} onChange={onSettings} locked={locked} goTo={goTo} />}
-      {tab === 'calendar' && <SiteSettingsPanel site={site} defaultRate={rate} onChange={onSettings} locked={locked} section="calendar" />}
+      {tab === 'review' && <ReviewTab site={site} onChange={onSettings} locked={false} goTo={goTo} />}
+      {tab === 'calendar' && <SiteSettingsPanel site={site} defaultRate={rate} onChange={onSettings} section="calendar" />}
       {tab === 'baseload' && <BaseloadTab site={site} onChange={onSettings} locked={locked} />}
       {tab === 'heatmap' && <HeatmapTab site={site} date={date} onDate={setDate} />}
       {tab === 'anomalies' && <AnomaliesTab site={site} goTo={goTo} />}
-      {tab === 'scenarios' && scenarioRun && <ScenariosTab site={site} run={scenarioRun} onChange={onScenarios} locked={locked} />}
-      {tab === 'capacity' && <CapacityTab site={site} onChange={onSettings} locked={locked} goTo={goTo} />}
+      {tab === 'scenarios' && scenarioRun && <ScenariosTab site={site} run={scenarioRun} onChange={onScenarios} locked={false} />}
+      {tab === 'capacity' && <CapacityTab site={site} onChange={onSettings} locked={false} goTo={goTo} />}
       {tab === 'charts' && (
         <div className="space-y-4">
           <Note>
@@ -121,7 +128,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
           <HHAnalyser key={`${site.id}-${site.frameKey}`} sessionId={site.id} runWithSession={runForSite} onDownloadSeparate={downloadSeparate} />
         </div>
       )}
-      {tab === 'settings' && <SiteSettingsPanel site={site} defaultRate={rate} onChange={onSettings} locked={locked} section="settings" />}
+      {tab === 'settings' && <SiteSettingsPanel site={site} defaultRate={rate} onChange={onSettings} customer={locked} section="settings" />}
     </div>
   );
 }

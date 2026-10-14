@@ -3,6 +3,7 @@ import { AMERESCO_LOGO } from '../local/brand';
 import { readSealedEdition } from '../local/customerEdition';
 import { openCustomerEdition } from '../local/localClient';
 import StandaloneApp from './StandaloneApp';
+import { ProductMark } from './ui';
 
 /** A customer edition opens here: password first, then the locked dashboard. */
 export default function CustomerGate() {
@@ -38,7 +39,7 @@ export default function CustomerGate() {
         <div className="flex items-center gap-4">
           <img src={AMERESCO_LOGO} alt="Ameresco" className="h-10 w-auto" />
           <span className="h-9 w-px bg-slate-200" aria-hidden />
-          <p className="text-xl font-bold text-[#0065a5]">Data Analyser</p>
+          <ProductMark />
         </div>
         <div>
           <h1 className="text-lg font-semibold text-slate-800">{sealed?.customer ?? 'Customer'} energy dashboard</h1>

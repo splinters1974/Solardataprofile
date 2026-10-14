@@ -3,13 +3,13 @@
  * associated with closed-hours use, with an estate-wide opportunities list,
  * like-for-like comparisons, and the full analysis behind every site.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AMERESCO_LOGO } from '../local/brand';
 import {
   clearAll, countedInTotals, downloadExcel, downloadPortfolioReport, downloadSitesTable, editionShowsNotes, forgetSession,
   friendlyError, getCarbon, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
-  setCarbon, setDefaultRate, setTitle as storeTitle, updateSiteSettings, uploadHHFile, type SiteSummary,
+  setCarbon, setDefaultRate, setTitle as storeTitle, hasUnsavedCustomerChanges, editionEditedAt, resetCustomerEdition, saveCustomerEditionCopy, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/site';
 import type { SiteTab } from '../local/findings';
@@ -25,7 +25,7 @@ import { mergeCalendar } from '../local/calendar';
 import SiteView from './SiteView';
 import OpportunitiesView from './OpportunitiesView';
 import EstateView from './EstateView';
-import { Note, Tabs } from './ui';
+import { Note, ProductMark, Tabs } from './ui';
 import { btn, btnPrimary, btnSecondary, gbp, kwh, num } from './format';
 
 function Uploader({ onFiles, busy }: { onFiles: (f: File[]) => void; busy: string | null }) {
@@ -64,8 +64,10 @@ type View = 'sites' | 'opportunities' | 'estate';
 /**
  * `internal` is the engineers' tool. `customer` is the locked edition a
  * customer unlocks with a password: their sites only, no uploads or
- * removals, settings, scenarios and actions read-only except the flat
- * unit rate, summary exports only.
+ * removals, summary exports only. The customer can change what they know
+ * best (hours, closures, rates, capacity, carbon, exclusions, scenarios) and
+ * save that as a new copy; action tracking and the analysis method stay
+ * as Ameresco set them, and reports then say they include customer changes.
  */
 export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   mode?: 'internal' | 'customer';
@@ -85,6 +87,21 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   const [exporting, setExporting] = useState<string | null>(null);
 
   const refresh = useCallback(() => setSites(listSites()), []);
+  const unsaved = isCustomer && hasUnsavedCustomerChanges();
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved]);
+  function undoCustomerChanges() {
+    if (!window.confirm('Undo every change made since this file was opened?')) return;
+    resetCustomerEdition();
+    setSelected(null);
+    setRate(getDefaultRate());
+    setCarbonState(getCarbon());
+    refresh();
+  }
   const setTitle = (t: string) => { setTitleState(t); storeTitle(t); };
 
   function startAgain() {
@@ -170,12 +187,12 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-4">
             <img src={AMERESCO_LOGO} alt="Ameresco" className="h-10 w-auto" />
             <span className="h-9 w-px bg-slate-200" aria-hidden />
             <div>
-              <p className="text-xl font-bold text-[#0065a5] leading-tight">Data Analyser</p>
+              <ProductMark />
               <p className="text-xs text-slate-500">{isCustomer ? `${customer} energy dashboard` : 'Half-hourly energy data'}</p>
             </div>
             {isCustomer && customerLogo && (
@@ -186,7 +203,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
             )}
           </div>
           <div className="flex-1" />
-          <span className="hidden sm:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">Offline · data stays on this computer</span>
+          <span className="hidden 2xl:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">Offline · data stays on this computer</span>
           {!isCustomer && (
             <>
               <label className={`${btnSecondary} cursor-pointer !py-1.5`} title="Open a saved project file (.adproject)">
@@ -202,7 +219,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
             </>
           )}
           {isCustomer && (
-            <button onClick={() => window.location.reload()} title="Close the dashboard; the password is needed to open it again"
+            <button onClick={() => { if (!unsaved || window.confirm('Lock without saving your changes? They will be lost.')) window.location.reload(); }} title="Close the dashboard; the password is needed to open it again"
               className="text-sm font-medium text-slate-600 border border-slate-300 hover:border-[#0065a5] rounded-lg px-4 py-1.5">Lock</button>
           )}
           {!isCustomer && sites.length > 0 && (
@@ -213,10 +230,28 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         {errors.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 space-y-1">
             {errors.map((e, i) => <p key={i}><strong>{e.file}:</strong> {e.message}</p>)}
+          </div>
+        )}
+        {isCustomer && (
+          <div className={`rounded-xl border px-5 py-3 flex flex-wrap items-center gap-3 ${unsaved ? 'bg-[#fdf6e7] border-[#e8c77a]' : 'bg-white border-slate-200'}`}>
+            <div className="flex-1 min-w-64 text-sm text-slate-700">
+              <p className="font-semibold text-slate-800">
+                {unsaved ? 'You have changed this dashboard' : editionEditedAt() ? 'This copy includes your saved changes' : 'You can adjust this dashboard'}
+              </p>
+              <p className="text-slate-600">
+                Change opening hours and closures, rates and time bands, carbon factor, supply capacity, excluded readings and savings scenarios.
+                Downloads use your figures and say they include your changes. {unsaved ? 'Save them to keep them; closing the page loses them.' : ''}
+              </p>
+            </div>
+            <button disabled={!!exporting || !unsaved} onClick={() => run('Save', async () => { await saveCustomerEditionCopy(); refresh(); })}
+              className={`${btnPrimary} disabled:opacity-40`} title="Download a new copy of this dashboard with your changes, locked with the same password">
+              {exporting === 'Save' ? 'Saving…' : 'Save my changes'}
+            </button>
+            <button disabled={!unsaved} onClick={undoCustomerChanges} className={`${btnSecondary} disabled:opacity-40`}>Undo my changes</button>
           </div>
         )}
         {site && selected ? (
@@ -273,7 +308,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="w-36">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Carbon factor (kgCO2e/kWh)</label>
-                      <input type="number" min={0} step="any" disabled={isCustomer} value={carbon?.kgPerKwh ?? ''} placeholder="Not entered"
+                      <input type="number" min={0} step="any" value={carbon?.kgPerKwh ?? ''} placeholder="Not entered"
                         onChange={(e) => {
                           const v = e.target.value === '' ? null : Number(e.target.value);
                           const c = v && v > 0 ? { kgPerKwh: v, year: carbon?.year ?? '', source: carbon?.source ?? '' } : null;
@@ -283,13 +318,13 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                     </div>
                     <div className="w-28">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Reporting year</label>
-                      <input disabled={isCustomer || !carbon} value={carbon?.year ?? ''} placeholder="e.g. 2025"
+                      <input disabled={!carbon} value={carbon?.year ?? ''} placeholder="e.g. 2025"
                         onChange={(e) => { if (carbon) { setCarbon({ ...carbon, year: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
                     </div>
                     <div className="flex-1 min-w-48">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Source</label>
-                      <input disabled={isCustomer || !carbon} value={carbon?.source ?? ''} placeholder="e.g. UK Government GHG conversion factors"
+                      <input disabled={!carbon} value={carbon?.source ?? ''} placeholder="e.g. UK Government GHG conversion factors"
                         onChange={(e) => { if (carbon) { setCarbon({ ...carbon, source: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
                     </div>
@@ -340,6 +375,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 {warnings.length > 0 && <Note tone="warn">{warnings.map((w, i) => <p key={i}>{w}</p>)}</Note>}
 
                 <Tabs<View>
+                  sticky label="Portfolio views"
                   tabs={[
                     { key: 'sites', label: 'Where to start' },
                     { key: 'opportunities', label: 'Opportunities', badge: sites.reduce((a, s) => a + s.metrics.findings.filter((f) => f.level === 'high').length, 0) },
@@ -442,7 +478,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 )}
                 <p className="text-xs text-slate-400">
                   {isCustomer
-                    ? 'Prepared by Ameresco. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings.'
+                    ? 'Prepared by Ameresco. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings. Figures change with any settings you adjust.'
                     : 'Every site starts as Office / commercial with unconfirmed preset hours. Check each calendar (or set them all at once above) before relying on closed-hours figures.'}
                 </p>
               </>

@@ -2,7 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<title>Ameresco Data Analyser: User Guide</title>
+<title>Ameresco Data Analyser Advanced: User Guide</title>
 <style>
 @font-face { font-family: 'Open Sans'; src: url('fonts/opensans-latin.woff2') format('woff2'); font-weight: 300 800; }
 @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
@@ -78,12 +78,12 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <div class="cover">
   <div class="top"><img src="{{LOGO}}" alt="Ameresco"></div>
   <div class="band">
-    <h1 class="title">Data Analyser</h1>
+    <h1 class="title">Data Analyser <span style="font-size:15pt;font-weight:700;background:#008540;color:#fff;border-radius:2mm;padding:1mm 3mm;vertical-align:middle;letter-spacing:0.08em">ADVANCED</span></h1>
     <p class="sub">User guide for half-hourly energy data analysis</p>
   </div>
   <div class="shot"><img src="img/03-table.png" alt=""></div>
   <div class="meta">
-    <div><strong>Ameresco UK</strong><br>Internal use. Version 2.0, October 2026</div>
+    <div><strong>Ameresco UK</strong><br>Internal use. Advanced version 2.1, October 2026</div>
     <div style="text-align:right">For engineers, project development<br>and sales teams</div>
   </div>
 </div>
@@ -117,7 +117,12 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   </div>
 
   <div class="box">
-    <span class="label">What changed in version 2</span>
+    <span class="label">Standard and Advanced</span>
+    <p>There are two versions of the tool. <strong>Standard</strong> (<code>Ameresco-Data-Analyser-Standard.html</code>, grey badge) is the original: quick screening and reports. <strong>Advanced</strong> (<code>Ameresco-Data-Analyser-Advanced.html</code>, green badge) is the one this guide covers. The badge sits next to the name at the top of the screen, on the customer password page and in every PDF footer, so you can always tell which one produced a report. Figures can differ between the two (see below), so don't mix them in one piece of work.</p>
+  </div>
+
+  <div class="box">
+    <span class="label">What changed in the Advanced version</span>
     <p>Missing readings are no longer counted as zero. Annual figures are only shown with enough data. Calendars have per-day hours, overnight shifts, closures and exceptions. Findings carry separate impact and confidence and can be tracked as opportunities. New tabs for data review, base load, heatmap, unusual days, savings scenarios and capacity. Time-band tariffs, an optional carbon factor, estate comparison, and project files you can save and reopen. Expect some figures to differ from version 1, mainly where files had gaps.</p>
   </div>
 </section>
@@ -126,7 +131,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <section class="chapter">
   <h1>1. Quick start</h1>
   <ol class="steps">
-    <li><strong>Open the app.</strong> Double-click <code>Ameresco-Data-Analyser.html</code>. It opens in Chrome or Edge. Nothing installs and nothing goes online.</li>
+    <li><strong>Open the app.</strong> Double-click <code>Ameresco-Data-Analyser-Advanced.html</code>. It opens in Chrome or Edge. Nothing installs and nothing goes online.</li>
     <li><strong>Load the meter files.</strong> Drag them onto the upload box. One file per meter; each becomes a site. Loading the same file twice is refused.</li>
     <li><strong>Set the calendars.</strong> Every site starts as Office / commercial with preset hours marked <em>unconfirmed</em>. Use <em>Set building type and calendar for all sites at once</em>, then open each site's <strong>Calendar</strong> tab, correct the hours, add closures (school holidays, shutdowns) and tick <em>Hours confirmed with the site</em>.</li>
     <li><strong>Check the data.</strong> On each site's <strong>Data review</strong> tab, read how the file was read, decide on any held-back days (clock changes, duplicate rows) and exclude anything you know is wrong.</li>
@@ -173,7 +178,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <p>Nowhere. Closing the tab clears it; <em>Clear all data</em> does the same without closing. Project files, PDFs, spreadsheets and customer editions you export are ordinary files in Downloads, so look after them in line with the client's data agreement. Project files contain the half-hourly data and your internal notes.</p>
 
   <h2>Browser and versions</h2>
-  <p>Use current <strong>Chrome or Edge</strong>. The app is one file of about 2.3 MB and doesn't update itself; replace your copy when a new version comes out. Project files record their format version, so a later version of the app can tell what it is reading.</p>
+  <p>Use current <strong>Chrome or Edge</strong>. The app is one file of about 2.3 MB and doesn't update itself; replace your copy when a new version comes out. The Standard and Advanced versions are separate files and can sit side by side. Project files record their format version, so a later version of the app can tell what it is reading.</p>
 </section>
 
 <!-- 3 LOADING -->
@@ -299,6 +304,8 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <!-- 8 FINDINGS -->
 <section class="chapter">
   <h1>8. Findings and opportunities</h1>
+  <p>Each site has ten tabs on a bar that stays pinned to the top of the window as you scroll, so you can always jump to another one. The active tab is filled blue; a small badge flags something to look at (high findings, a data check, a calendar to confirm, the number of unusual days or active scenarios).</p>
+  <figure class="tiny"><img src="img/05b-tabs.png" alt=""><figcaption>The site tabs.</figcaption></figure>
   <p>A site's <strong>Overview</strong> tab shows its key figures (each tagged <em>Measured</em> or <em>Estimate</em>), its <strong>top three investigations</strong> and all findings.</p>
   <figure><img src="img/06-findings.png" alt=""><figcaption>Top investigations, with the calculation and the opportunity record open on the first.</figcaption></figure>
 
@@ -426,7 +433,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <!-- 15 EDITIONS -->
 <section class="chapter">
   <h1>15. Customer editions</h1>
-  <p>A single HTML file holding one client's sites, locked with a password. The client explores their data and downloads their reports, read-only.</p>
+  <p>A single HTML file holding one client's sites, locked with a password. The client explores their data, adjusts the things they know better than we do, and downloads their own reports.</p>
   <div class="cols">
     <figure><img src="img/17-edition-dialog.png" alt=""><figcaption>Creating an edition. Internal notes are left out unless you tick the box.</figcaption></figure>
     <figure><img src="img/18-gate.png" alt=""><figcaption>What the client sees first.</figcaption></figure>
@@ -443,10 +450,18 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   </div>
   <table>
     <thead><tr><th>The client can</th><th>The client can't</th></tr></thead>
-    <tr><td>Explore every tab, chart and table, and see statuses and scenarios</td><td>Add or remove sites, change calendars, settings, statuses or scenarios</td></tr>
-    <tr><td>Try a different flat rate</td><td>See owners or internal notes (unless you included them)</td></tr>
-    <tr><td>Download PDFs and a summary spreadsheet</td><td>Export the half-hourly readings</td></tr>
+    <tr><td>Explore every tab, chart and table, and see statuses</td><td>Add or remove sites</td></tr>
+    <tr><td>Change opening hours, closures, holidays and confirm the calendar</td><td>Change opportunity statuses, owners or notes</td></tr>
+    <tr><td>Change rates (flat or time bands), carbon factor, site name, type and floor area</td><td>Change how the file was read, meter grouping or the analysis method</td></tr>
+    <tr><td>Set supply capacity and test loads; exclude readings they know are wrong; build savings scenarios</td><td>See owners or internal notes (unless you included them)</td></tr>
+    <tr><td>Download PDFs and a summary spreadsheet; save their changes as a new copy</td><td>Export the half-hourly readings</td></tr>
   </table>
+  <figure class="tiny"><img src="img/19b-customer-banner.png" alt=""><figcaption>Once the client changes anything, a banner offers to save the changes or undo them.</figcaption></figure>
+  <ul>
+    <li><strong>Save my changes</strong> downloads a new copy of the dashboard with their changes, locked with the same password. Closing the page without saving loses them, and the browser warns first.</li>
+    <li><strong>Undo my changes</strong> goes back to the file as it was opened.</li>
+    <li>Every PDF made after a change carries <em>includes changes made by [customer]</em> in its footer, so a report with their assumptions is never mistaken for ours. Ask for their saved copy if you want to see what they changed.</li>
+  </ul>
   <p class="small muted">Encrypted with AES-256-GCM, key from the password (PBKDF2-SHA-256, 310,000 rounds). An edition is a snapshot: it can't be updated or withdrawn once sent, and a forgotten password can't be recovered.</p>
 </section>
 
@@ -484,7 +499,6 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <ul>
     <li><strong>No fixed or capacity charges</strong> in costs. Time bands cover unit rates only.</li>
     <li><strong>No weather normalisation</strong>, so year-on-year and before-and-after comparisons include weather.</li>
-    <li><strong>Customer editions</strong> let the client try a flat rate only.</li>
     <li><strong>Timestamped files:</strong> after a project is saved and reopened, cells that held text show as blank (still missing, so the figures don't change).</li>
     <li><strong>Large estates</strong> work but slow down; load in batches if the browser struggles.</li>
   </ul>

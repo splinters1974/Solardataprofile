@@ -8,13 +8,16 @@ import { inputCls } from './format';
 /**
  * Everything the engineer tells the analyser about a meter: site details,
  * calendar, rates, how to read the file, and analysis choices. In a
- * customer edition only the flat unit rate can be changed.
+ * customer edition the customer can change the facts they know best (name,
+ * type, floor area, calendar, rates); how the file was read, meter grouping
+ * and the analysis method stay as Ameresco set them.
  */
-export default function SiteSettingsPanel({ site, defaultRate, onChange, locked = false, section = 'all' }: {
+export default function SiteSettingsPanel({ site, defaultRate, onChange, locked = false, customer = false, section = 'all' }: {
   site: SiteSummary;
   defaultRate: number;
   onChange: (s: SiteSettings) => void;
   locked?: boolean;
+  customer?: boolean;
   section?: 'all' | 'calendar' | 'settings';
 }) {
   const settings = site.settings;
@@ -31,9 +34,10 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
 
   return (
     <div className="space-y-4">
-      {locked && (
-        <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-          Site details, calendar and analysis settings were set by Ameresco. You can try a different flat unit rate below.
+      {customer && (
+        <p className="text-sm text-slate-600 bg-[#e6f0f7] border border-[#b9d3ef] rounded-lg px-4 py-2.5">
+          You can change the site name, building type, floor area and rates here, and the hours on the Calendar tab.
+          How the file was read, meter grouping and the analysis method were set by Ameresco and are shown for reference.
         </p>
       )}
       <Card title="Site details">
@@ -53,13 +57,13 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
             </select>
           </Field>
           <Field label="Meter ID / MPAN" hint={site.info.meterId ? 'Found in the file.' : 'Not found in the file.'}>
-            <input className={inputCls} value={settings.meterId} onChange={(e) => set('meterId', e.target.value)} />
+            <input className={inputCls} disabled={customer} value={settings.meterId} onChange={(e) => set('meterId', e.target.value)} />
           </Field>
           <Field label="Physical site" hint="Meters with the same name here belong to one site.">
-            <input className={inputCls} value={settings.group} placeholder="Leave blank for its own site" onChange={(e) => set('group', e.target.value)} />
+            <input className={inputCls} disabled={customer} value={settings.group} placeholder="Leave blank for its own site" onChange={(e) => set('group', e.target.value)} />
           </Field>
           <Field label="Meter role" hint="Submeters are left out of portfolio totals so they are not counted twice.">
-            <select className={inputCls} value={settings.role} onChange={(e) => set('role', e.target.value as SiteSettings['role'])}>
+            <select className={inputCls} disabled={customer} value={settings.role} onChange={(e) => set('role', e.target.value as SiteSettings['role'])}>
               <option value="main">Main or only meter</option>
               <option value="sub">Submeter (part of a main meter)</option>
               <option value="separate">Separate supply at the same site</option>
@@ -88,7 +92,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
       {section === 'all' && calendarCard}
 
       <Card title="Reading the file" subtitle="How the readings were interpreted. Change these if the file says otherwise.">
-        <fieldset disabled={locked} className="grid gap-4 md:grid-cols-3">
+        <fieldset disabled={locked || customer} className="grid gap-4 md:grid-cols-3">
           <Field label="Readings are" hint={site.info.unitEvidence}>
             <select className={inputCls} value={settings.unit} onChange={(e) => set('unit', e.target.value as 'kWh' | 'kW')}>
               <option value="kWh">kWh per half hour (energy)</option>
@@ -103,7 +107,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
             </select>
           </Field>
           <Field label="Timestamps mark" hint={site.info.conventionEvidence}>
-            <select className={inputCls} disabled={!site.hasLong || locked} value={settings.convention ?? site.info.convention}
+            <select className={inputCls} disabled={!site.hasLong || locked || customer} value={settings.convention ?? site.info.convention}
               onChange={(e) => set('convention', e.target.value as 'start' | 'end')}>
               <option value="start">the start of each half hour</option>
               <option value="end">the end of each half hour</option>
@@ -114,7 +118,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
       </Card>
 
       <Card title="Analysis choices">
-        <fieldset disabled={locked} className="grid gap-4 md:grid-cols-3">
+        <fieldset disabled={locked || customer} className="grid gap-4 md:grid-cols-3">
           <Field label="Annual figures" hint={m.annualisation.method}>
             <select className={inputCls} value={settings.annualise} onChange={(e) => set('annualise', e.target.value as SiteSettings['annualise'])}>
               <option value="auto">Automatic (off under 180 valid days)</option>
@@ -135,7 +139,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
         <details className="mt-4">
           <summary className="text-sm text-[#0065a5] cursor-pointer">Advanced: unusual-day and persistent-change thresholds</summary>
           <p className="text-xs text-slate-500 mt-2 mb-2">Screening thresholds, not universal energy standards.</p>
-          <fieldset disabled={locked} className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <fieldset disabled={locked || customer} className="grid gap-3 grid-cols-2 md:grid-cols-4">
             {([
               ['baselineDays', 'Comparable days in baseline', 1, 30, 1],
               ['minDays', 'Fewest valid days to apply', 1, 30, 1],

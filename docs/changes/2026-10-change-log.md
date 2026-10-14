@@ -1,7 +1,28 @@
-# Data Analyser version 2: change log
+# Data Analyser Advanced: change log
 
 Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-analysis.md`.
-Deliverables: `standalone/Ameresco-Data-Analyser.html`, `standalone/Ameresco-Data-Analyser-User-Guide.pdf` (source `docs/user-guide/guide.html`).
+Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
+The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
+
+## 14 October 2026: Advanced 2.1
+
+- **Two named versions.** This build is the **Advanced** version: a green ADVANCED badge sits next to the name in the header and on the customer password page. The file is called `Ameresco-Data-Analyser-Advanced.html`, and every PDF footer reads "Ameresco Data Analyser Advanced". The earlier tool was rebuilt unchanged apart from a grey STANDARD badge, footer and file name (source commit 51d6437 plus the label).
+- **Tabs.** The tabs now sit in a solid bar, with the active tab filled blue and badges in colour. The bar stays pinned to the top of the window while scrolling. Shorter labels keep all ten site tabs on one row at laptop width; before this, Capacity, Charts and Settings dropped off the right-hand edge. The content area is wider.
+- **Customer editions can change more.** The customer can now change:
+  - opening hours, closures and holidays, and confirm the calendar
+  - flat rates and time bands
+  - the carbon factor
+  - site name, building type and floor area
+  - supply capacity and test loads
+  - exclusions and held-back days
+  - savings scenarios
+
+  They still can't add sites, change opportunity statuses, owners or notes, change how the file was read or meter grouping, change the analysis method, or export half-hourly data.
+- **Save my changes / Undo my changes.** Saving creates a new copy of the customer dashboard, locked with the same password. The browser warns before the customer closes the page with unsaved changes.
+- **Reports made after a customer change say so.** Every PDF footer carries "includes changes made by [customer]", including PDFs from a saved copy.
+- **Locked fields look locked** (grey and not clickable).
+
+Note on the brief: section 9 asked for customer exports to be read-only for "site assumptions". This release relaxes that on purpose, at Martyn's request on 14 October. The PDF footer note is the safeguard.
 
 ## What changed
 
@@ -76,7 +97,7 @@ The 18 brief checks are in `frontend/tests/brief-checks.test.ts`, alongside the 
 
 1. **Hosted web app and Python backend not updated.** All changes are in the offline standalone build. The hosted `HHAnalyser` charts still use the old maths. Parity tests confirm the shared core maths matches.
 2. **Fixed and capacity charges** have no input. They're excluded and every cost says so. Capacity-charge savings aren't modelled.
-3. **Customer editions** offer the existing flat-rate what-if only. The client can't edit time bands.
+3. **Customer changes aren't visible to Ameresco** unless the customer sends back their saved copy. There's no list of what they changed.
 4. **Timestamped files:** after a project is saved and reopened, cells that held text show as blank instead of "text". They're still missing, so no figure changes.
 5. **Baseline file on Drive** (`Ameresco HH Analyser Tool.html`) wasn't opened separately. The review used the repo source at the commit delivered on 6 October. Diff it against the Drive copy if anything was changed outside the repo.
 6. **No weather normalisation, equipment diagnosis, live monitoring or verified savings.** These are out of scope by design, and the UI and reports say so.

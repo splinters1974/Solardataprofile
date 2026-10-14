@@ -1,20 +1,14 @@
-# Data Analyser: standalone file
+# Data Analyser: Standard and Advanced
 
-`Ameresco-Data-Analyser.html` is the Ameresco Data Analyser in one file (version 2, October 2026). There's nothing to install, no server and no internet needed. Data never leaves the laptop it runs on.
+Two versions of the tool, each one self-contained HTML file. Nothing to install, no server, no internet. Data never leaves the laptop.
 
-The full guide is `Ameresco-Data-Analyser-User-Guide.pdf`. What changed in version 2, and what's still not done, is in `docs/changes/2026-10-change-log.md`.
+| File | What it is |
+| --- | --- |
+| `Ameresco-Data-Analyser-Advanced.html` | **Advanced** (green badge). Data review, calendars, opportunities tracking, base load, heatmap, unusual days, savings scenarios, capacity, time-band tariffs, carbon, project files, editable customer editions. Guide: `Ameresco-Data-Analyser-Advanced-User-Guide.pdf`. |
+| `Ameresco-Data-Analyser-Standard.html` | **Standard** (grey badge). The original screening tool. Guide: `Ameresco-Data-Analyser-Standard-User-Guide.pdf`. |
 
-## In short
+The badge shows next to the name at the top of the screen, and every PDF footer names the version, so you can tell which one produced a report. Figures can differ between the two (Advanced treats missing readings as missing, not zero, and only annualises with enough data), so don't mix them in one piece of work.
 
-1. Double-click the file to open it in Chrome or Edge.
-2. Drop in meter files, one per meter. Day-per-row, day-per-column and timestamped layouts are read, including 46/50-period clock-change days.
-3. On each site, check the **Data review** tab and confirm the **Calendar** (presets start unconfirmed).
-4. Set rates (flat or time bands) and, optionally, a carbon factor.
-5. Read **Where to start**, **Opportunities** and each site's tabs: Overview, Base load, Heatmap, Unusual days, Savings scenarios and Capacity.
-6. **Save project** keeps everything to reopen later. Export PDFs or Excel, or make a password-protected **customer edition**.
+What changed and what's still not done: `docs/changes/2026-10-change-log.md`.
 
-Costs are associated costs at the rates entered, not savings. Scenarios are what-ifs. Whole-site HH data shows when demand happens, not which equipment causes it.
-
-## Rebuilding
-
-From `frontend/`: `npm run build:standalone`.
+Rebuild the Advanced version from `frontend/` with `npm run build:standalone`. The Standard version is commit 51d6437 with only its name labels changed.

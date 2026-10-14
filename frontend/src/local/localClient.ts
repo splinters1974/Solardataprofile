@@ -29,6 +29,7 @@ import {
 import { buildAnalyserReport, buildAnalyserSectionPdfs, type AnalyserReportInput } from './pdf/analyserReport';
 import { zipSync } from 'fflate';
 import { drawTimeSeries } from './timeseries';
+import { clearCustomerEdits, markCustomerEdits } from './edition';
 import { getCustomerLogo, setCustomerLogo, type CustomerLogo } from './pdf/common';
 import { editionHtml, readSealedEdition, seal, unseal, type EditionData } from './customerEdition';
 import { buildPortfolioReport, buildSiteSummary, rankSites } from './pdf/portfolioReport';
@@ -94,6 +95,18 @@ let portfolioTitle = '';
 /** True once a customer edition has been unlocked: summary-only exports. */
 let customerMode = false;
 let editionIncludesNotes = false;
+/** The edition as Ameresco sealed it, and its password, so a customer can reset or save their changes. */
+let editionOriginal: EditionData | null = null;
+let editionPassword = '';
+
+/** In a customer edition, note that the customer has changed Ameresco's set-up. */
+function customerChanged() {
+  if (customerMode && editionOriginal) { markCustomerEdits(editionOriginal.customer); unsaved = true; }
+}
+let unsaved = false;
+/** The customer has changed something since opening the file. */
+export const hasUnsavedCustomerChanges = () => customerMode && unsaved;
+export const editionEditedAt = () => editionOriginal?.customerEditedAt ?? null;
 
 export const getDefaultRate = () => defaultRateP;
 export const getCarbon = () => carbon;
@@ -102,10 +115,11 @@ export const isCustomerMode = () => customerMode;
 export const editionShowsNotes = () => editionIncludesNotes;
 
 export function setDefaultRate(p: number) {
-  if (Number.isFinite(p) && p > 0) defaultRateP = p;
+  if (Number.isFinite(p) && p > 0 && p !== defaultRateP) { defaultRateP = p; customerChanged(); }
 }
 export function setCarbon(c: CarbonFactor | null) {
   carbon = c && Number.isFinite(c.kgPerKwh) && c.kgPerKwh > 0 ? c : null;
+  customerChanged();
 }
 export function setTitle(t: string) { portfolioTitle = t; }
 
@@ -229,6 +243,7 @@ export function listSites(): SiteSummary[] {
 
 export function updateSiteSettings(id: string, settings: SiteSettings) {
   session(id).settings = settings;
+  customerChanged();
 }
 
 export function updateAction(id: string, key: string, patch: Partial<Action>) {
@@ -239,6 +254,7 @@ export function updateAction(id: string, key: string, patch: Partial<Action>) {
 
 export function updateScenarios(id: string, scenarios: Scenario[]) {
   session(id).scenarios = scenarios;
+  customerChanged();
 }
 
 /** Every finding on every site as an opportunity record, with its action. */
@@ -489,6 +505,7 @@ export function clearAll() {
   carbon = null;
   portfolioTitle = '';
   setCustomerLogo(null);
+  clearCustomerEdits();
 }
 
 /**
@@ -655,5 +672,44 @@ export async function openCustomerEdition(password: string): Promise<EditionData
   setCustomerLogo(data.customerLogo);
   customerMode = true;
   editionIncludesNotes = !!data.includesInternalNotes;
+  editionOriginal = data;
+  editionPassword = password;
+  noteSavedEdits();
   return data;
+}
+
+/** Throw away the customer's changes and go back to the edition as Ameresco sent it. */
+export function resetCustomerEdition() {
+  if (!editionOriginal) return;
+  loadSerialSites(editionOriginal.sites);
+  defaultRateP = editionOriginal.defaultRateP;
+  carbon = editionOriginal.carbon ?? null;
+  unsaved = false;
+  noteSavedEdits();
+}
+
+/** A copy the customer saved with their own changes keeps saying so on its reports. */
+function noteSavedEdits() {
+  clearCustomerEdits();
+  if (editionOriginal?.customerEditedAt) markCustomerEdits(editionOriginal.customer);
+}
+
+/**
+ * Save the customer's changes as a new copy of their dashboard, locked with
+ * the same password. Same rules as the original: no internal notes unless
+ * Ameresco included them, and the customer still cannot add sites.
+ */
+export async function saveCustomerEditionCopy() {
+  if (!customerMode || !editionOriginal) throw new Error('Only a customer edition can be saved this way.');
+  await yieldToUi();
+  const data: EditionData = {
+    ...editionOriginal,
+    defaultRateP,
+    carbon,
+    customerEditedAt: new Date().toISOString().slice(0, 10),
+    sites: [...sessions.values()].map((x) => serialSite(x, false, editionIncludesNotes)),
+  };
+  const html = editionHtml(await seal(data, editionPassword));
+  saveBlob(new TextEncoder().encode(html), `${slug(editionOriginal.customer)}-energy-dashboard-my-changes.html`, 'text/html');
+  unsaved = false;
 }

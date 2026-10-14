@@ -1,6 +1,6 @@
 /** Formatting helpers and shared class names for the offline app's screens. */
-export const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-500';
-export const smallInput = 'border border-slate-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-50';
+export const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed';
+export const smallInput = 'border border-slate-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed';
 export const btn = 'text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
 export const btnPrimary = `${btn} bg-[#0065a5] hover:bg-[#00528a] text-white`;
 export const btnSecondary = `${btn} bg-white border border-slate-300 text-slate-700 hover:border-blue-400`;

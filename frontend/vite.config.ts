@@ -31,7 +31,7 @@ function inlineIcon(): Plugin {
     name: 'inline-icon',
     transformIndexHtml: (html) => html
       .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`)
-      .replace(/<title>[^<]*<\/title>/, '<title>Ameresco Data Analyser</title>'),
+      .replace(/<title>[^<]*<\/title>/, '<title>Ameresco Data Analyser Advanced</title>'),
   }
 }
 

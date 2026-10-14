@@ -31,6 +31,8 @@ export interface EditionData {
   carbon?: CarbonFactor | null;
   /** Owners and notes on actions were included. */
   includesInternalNotes?: boolean;
+  /** Set when the customer saved their own changes into a new copy. */
+  customerEditedAt?: string;
   sites: EditionSite[];
 }
 

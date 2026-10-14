@@ -8,6 +8,7 @@ import type {
   ScatterResponse, WeekResponse,
 } from '../../types';
 import { fmtLong } from '../dates';
+import { pdfFooter } from '../edition';
 import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
 import { RAMP_HEX } from '../carpet';
 import { VERDICT_TEXT } from '../dataQuality';
@@ -79,7 +80,7 @@ interface Section {
 function newReport(i: AnalyserReportInput, what: string) {
   return new Report({
     orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
-    footer: `Ameresco Data Analyser  ·  ${i.siteName}  ·  ${what}`,
+    footer: pdfFooter(i.siteName, what),
     title: `${i.siteName}: ${what}`,
   });
 }

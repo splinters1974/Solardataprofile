@@ -2,6 +2,7 @@
  * Small shared pieces for the offline app's screens: cards, tiles, tabs,
  * form fields and the impact, confidence and status chips.
  */
+import { PRODUCT, VARIANT } from '../local/edition';
 import type { ReactNode } from 'react';
 import type { Confidence, Level } from '../local/findings';
 import { STATUS_LABEL, type ActionStatus } from '../local/actions';
@@ -43,30 +44,52 @@ export function Tile({ label, value, hint, tone, tag }: {
   );
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: {
-  tabs: { key: T; label: string; badge?: string | number }[]; value: T; onChange: (t: T) => void;
+/**
+ * Tabs that stay visible: a solid bar with the active tab filled in blue.
+ * `sticky` keeps the bar pinned under the top of the window while scrolling
+ * a long tab, so the other tabs are always one click away.
+ */
+export function Tabs<T extends string>({ tabs, value, onChange, sticky = false, label }: {
+  tabs: { key: T; label: string; badge?: string | number }[]; value: T; onChange: (t: T) => void; sticky?: boolean; label?: string;
 }) {
   return (
-    <div className="border-b border-slate-200 overflow-x-auto" role="tablist">
-      <div className="flex gap-1 min-w-max">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={value === t.key}
-            onClick={() => onChange(t.key)}
-            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${
-              value === t.key ? 'border-[#0065a5] text-[#0065a5]' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {t.label}
-            {t.badge !== undefined && t.badge !== '' && t.badge !== 0 && (
-              <span className="ml-1.5 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded-full px-1.5 py-0.5">{t.badge}</span>
-            )}
-          </button>
-        ))}
+    <div className={`${sticky ? 'sticky top-0 z-30 -mx-2 px-2 py-2 bg-slate-50/95 backdrop-blur' : ''}`}>
+      <div className="bg-white border border-slate-300 rounded-xl shadow-sm p-1.5" role="tablist" aria-label={label}>
+        <div className="flex flex-wrap gap-0.5">
+          {tabs.map((t) => {
+            const on = value === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={on}
+                onClick={() => onChange(t.key)}
+                className={`px-2.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
+                  on ? 'bg-[#0065a5] text-white shadow' : 'text-slate-700 hover:bg-[#e6f0f7] hover:text-[#0065a5]'
+                }`}
+              >
+                {t.label}
+                {t.badge !== undefined && t.badge !== '' && t.badge !== 0 && (
+                  <span className={`ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${on ? 'bg-white text-[#0065a5]' : 'bg-[#0065a5] text-white'}`}>{t.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** The product name with the Advanced badge, for the header and the customer gate. */
+export function ProductMark({ size = 'lg' }: { size?: 'lg' | 'md' }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className={`${size === 'lg' ? 'text-xl' : 'text-lg'} font-bold text-[#0065a5] leading-tight`}>{PRODUCT}</span>
+      <span className="text-[11px] font-bold uppercase tracking-wider bg-[#008540] text-white rounded-md px-2 py-0.5" title={`This is the ${VARIANT} version`}>
+        {VARIANT}
+      </span>
+    </span>
   );
 }
 

@@ -5,6 +5,7 @@
  * for one site, followed by its opportunities appendix.
  */
 import { fmtDayMonYear, fmtLong } from '../dates';
+import { pdfFooter } from '../edition';
 import { RAMP_HEX } from '../carpet';
 import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
 import { SITE_TYPES } from '../site';
@@ -80,7 +81,7 @@ export function rankSites<T extends { metrics: SiteMetrics }>(sites: T[]): T[] {
 export function buildPortfolioReport(title: string, sites: PortfolioSite[], opportunities: Opportunity[], opts: { includeNotes: boolean }): ArrayBuffer {
   const r = new Report({
     orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
-    footer: `Ameresco Data Analyser  ·  ${title}  ·  portfolio energy review`,
+    footer: pdfFooter(title, 'portfolio energy review'),
     title: `${title} - Portfolio Energy Review`,
   });
   const counted = sites.filter((p) => p.site.settings.role !== 'sub');
@@ -147,7 +148,7 @@ export function buildSiteSummary(p: PortfolioSite & { includeNotes?: boolean }):
   const s = p.site;
   const r = new Report({
     orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
-    footer: `Ameresco Data Analyser  ·  ${s.settings.name}  ·  site summary`,
+    footer: pdfFooter(s.settings.name, 'site summary'),
     title: `${s.settings.name} - Site Summary`,
   });
   drawSitePage(r, p, `Issued ${fmtLong(new Date())}. Costs are estimated energy cost at the rates shown, associated with a `
