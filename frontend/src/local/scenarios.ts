@@ -52,14 +52,21 @@ export interface ShoulderScenario extends Common {
   floorKw: number;
 }
 
-/** D. Reduce selected peaks by a kW figure: removed, or shifted to other hours. */
+/**
+ * D. Lower peak demand. 'cap' holds every half hour at or below a target kW
+ * (peak lopping, the usual approach); 'top' trims the N highest half hours
+ * and 'above' trims every half hour above a level, each by up to a kW figure.
+ * The reduced energy is removed, or shifted to other hours the same day.
+ */
 export interface PeakScenario extends Common {
   kind: 'peaks';
   kw: number;
-  select: 'top' | 'above';
+  select: 'cap' | 'top' | 'above';
   /** Top N half hours, or every half hour above this kW. */
   count: number;
   aboveKw: number;
+  /** Target maximum demand for 'cap'. 0 means not set yet: no change. */
+  capKw?: number;
   action: 'remove' | 'shift';
   /** Where shifted energy goes, the same day. */
   receive: Window;
@@ -72,7 +79,7 @@ export const SCENARIO_LABEL: Record<Scenario['kind'], string> = {
   'closed-excess': 'A. Reduce closed-hours excess',
   base: 'B. Reduce base load in chosen hours',
   shoulders: 'C. Remove early-start or late-stop demand',
-  peaks: 'D. Reduce selected peaks',
+  peaks: 'D. Lower peak demand',
 };
 
 const ALL = [true, true, true, true, true, true, true];
@@ -86,7 +93,7 @@ export function newScenario(kind: Scenario['kind']): Scenario {
     case 'closed-excess': return { ...base, kind, share: 0, reference: 'all' };
     case 'base': return { ...base, kind, kw: 0, window: { start: 0, end: 0 }, days: ALL.slice(), floorKw: 0 };
     case 'shoulders': return { ...base, kind, share: 0, windows: [{ start: 10, end: 14 }, { start: 38, end: 42 }], days: WEEKDAYS.slice(), floorKw: 0 };
-    case 'peaks': return { ...base, kind, kw: 0, select: 'top', count: 10, aboveKw: 0, action: 'remove', receive: { start: 0, end: 12 }, floorKw: 0 };
+    case 'peaks': return { ...base, kind, kw: 0, select: 'cap', capKw: 0, count: 10, aboveKw: 0, action: 'remove', receive: { start: 0, end: 12 }, floorKw: 0 };
   }
 }
 
@@ -104,6 +111,8 @@ export interface ScenarioResult {
   annualCost: number | null;
   tco2e: number | null;
   peakKwAfter: number | null;
+  /** Days with at least one changed half hour. */
+  days: number;
   assumptions: string[];
 }
 
@@ -113,6 +122,8 @@ export interface ScenarioRun {
   /** Mean kW by half hour across all days, before and after every active scenario. */
   profileBefore: number[];
   profileAfter: number[];
+  /** The same, split into days the site opens and days it stays closed all day (weekends, holidays, closures). */
+  profiles: Record<'all' | 'open' | 'closed', { before: number[]; after: number[]; days: number }>;
   peakBefore: number;
   peakAfter: number;
   /** Changed intervals, for the spreadsheet: before, after, and each scenario's change in kWh. */
@@ -154,6 +165,7 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
     let shifted = 0;
     let cost = 0;
     let touched = 0;
+    const dayHit = new Set<number>();
     const assumptions: string[] = [];
     const take = (i: number, s: number, amount: number) => {
       if (amount <= 0) return;
@@ -161,6 +173,7 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
       removed += amount;
       cost += amount * ctx.prices.rows[i][s];
       touched++;
+      dayHit.add(i);
       note(k, i, s, amount);
     };
 
@@ -203,7 +216,10 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
       const cands: [number, number][] = [];
       for (let i = 0; i < n; i++) for (let s = 0; s < SLOTS; s++) if (valid(i, s)) cands.push([i, s]);
       let picked: [number, number][];
-      if (sc.select === 'top') {
+      const cap = Math.max(0, sc.capKw ?? 0);
+      if (sc.select === 'cap') {
+        picked = cap > 0 ? cands.filter(([i, s]) => cur[i][s] / H > cap) : [];
+      } else if (sc.select === 'top') {
         cands.sort((a, b) => cur[b[0]][b[1]] - cur[a[0]][a[1]]);
         picked = cands.slice(0, Math.max(0, Math.round(sc.count)));
       } else {
@@ -217,7 +233,9 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
       const shiftedByDay = new Map<number, number>();
       let unplaced = 0;
       for (const [i, s] of picked) {
-        const amount = Math.min(kw * H, Math.max(0, cur[i][s] - floor * H));
+        const amount = sc.select === 'cap'
+          ? Math.max(0, cur[i][s] - cap * H)
+          : Math.min(kw * H, Math.max(0, cur[i][s] - floor * H));
         if (amount <= 0) continue;
         if (sc.action === 'remove') { take(i, s, amount); continue; }
         if (sc.receive.start !== sc.receive.end && inSlotWindow(s, sc.receive.start, sc.receive.end)) continue;
@@ -226,6 +244,7 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
         shifted += amount;
         cost += amount * ctx.prices.rows[i][s];
         touched++;
+        dayHit.add(i);
         note(k, i, s, amount);
         shiftedByDay.set(i, (shiftedByDay.get(i) ?? 0) + amount);
       }
@@ -238,9 +257,11 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
           note(k, i, s, -each);
         }
       }
-      assumptions.push(sc.select === 'top'
-        ? `The ${sc.count} highest half hours (after earlier scenarios) reduced by up to ${kw} kW, not below ${floor} kW.`
-        : `Every half hour above ${sc.aboveKw} kW reduced by up to ${kw} kW, not below ${floor} kW.`);
+      assumptions.push(sc.select === 'cap'
+        ? (cap > 0 ? `Demand held at or below ${cap} kW: every half hour above it brought down to ${cap} kW.` : 'No target maximum entered yet.')
+        : sc.select === 'top'
+          ? `The ${sc.count} highest half hours (after earlier scenarios) reduced by up to ${kw} kW, not below ${floor} kW.`
+          : `Every half hour above ${sc.aboveKw} kW reduced by up to ${kw} kW, not below ${floor} kW.`);
       assumptions.push(sc.action === 'remove'
         ? 'Energy removed (not moved elsewhere).'
         : `Energy shifted, not removed: it reappears spread evenly over ${win(sc.receive)} the same day. Only the price difference changes cost.${unplaced ? ` ${unplaced.toFixed(0)} kWh had no receiving half hours that day and was left where it was.` : ''}`);
@@ -260,16 +281,20 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
       annualCost: fct !== null ? cost * fct : null,
       tco2e: carbonOf(removed),
       peakKwAfter: peakAfter,
+      days: dayHit.size,
       assumptions,
     });
   });
 
-  const mean = (rows: number[][]) => {
+  const mean = (rows: number[][], keep: (i: number) => boolean = () => true) => {
     const tot = new Array(SLOTS).fill(0);
     const cnt = new Array(SLOTS).fill(0);
-    rows.forEach((r, i) => { for (let s = 0; s < SLOTS; s++) if (valid(i, s)) { tot[s] += r[s]; cnt[s]++; } });
+    rows.forEach((r, i) => { if (keep(i)) for (let s = 0; s < SLOTS; s++) if (valid(i, s)) { tot[s] += r[s]; cnt[s]++; } });
     return tot.map((t, s) => (cnt[s] ? t / cnt[s] / H : 0));
   };
+  const opens = (i: number) => ctx.plans[i]?.open.some(Boolean) ?? true;
+  const countDays = (keep: (i: number) => boolean) => f.dates.reduce((a, _, i) => a + (keep(i) ? 1 : 0), 0);
+  const split = (keep: (i: number) => boolean) => ({ before: mean(f.rows, keep), after: mean(cur, keep), days: countDays(keep) });
   const peakOf = (rows: number[][]) => {
     let pk = 0;
     rows.forEach((r, i) => { for (let s = 0; s < SLOTS; s++) if (valid(i, s) && r[s] > pk) pk = r[s]; });
@@ -292,6 +317,7 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
     },
     profileBefore: mean(f.rows),
     profileAfter: mean(cur),
+    profiles: { all: split(() => true), open: split(opens), closed: split((i) => !opens(i)) },
     peakBefore: peakOf(f.rows),
     peakAfter: peakOf(cur),
     intervals,
@@ -303,7 +329,11 @@ export function describeScenario(sc: Scenario): string {
     case 'closed-excess': return `${Math.round(sc.share * 100)}% of closed-hours excess (${sc.reference === 'closed' ? 'closed-hours' : 'all-period'} reference)`;
     case 'base': return `${sc.kw} kW ${win(sc.window)}, ${days7(sc.days)}, floor ${sc.floorKw} kW`;
     case 'shoulders': return `${Math.round(sc.share * 100)}% above ${sc.floorKw} kW in ${sc.windows.map(win).join(' and ')}, ${days7(sc.days)}`;
-    case 'peaks': return `${sc.select === 'top' ? `top ${sc.count} half hours` : `half hours above ${sc.aboveKw} kW`} cut by ${sc.kw} kW, ${sc.action === 'remove' ? 'removed' : `shifted to ${win(sc.receive)}`}`;
+    case 'peaks': {
+      const how = sc.action === 'remove' ? 'removed' : `shifted to ${win(sc.receive)}`;
+      if (sc.select === 'cap') return `maximum demand held at ${sc.capKw ?? 0} kW, ${how}`;
+      return `${sc.select === 'top' ? `top ${sc.count} half hours` : `half hours above ${sc.aboveKw} kW`} cut by ${sc.kw} kW, ${how}`;
+    }
   }
 }
 

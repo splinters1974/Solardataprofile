@@ -208,6 +208,19 @@ test('peak shifting keeps the energy and moves it to the receiving hours', () =>
   assert.ok(Math.abs(before - after) < 1e-9, 'energy conserved');
 });
 
+test('holding demand at a cap trims every half hour above it, and an unset cap changes nothing', () => {
+  const f = flat(2, 1); // 2 kW base, two days
+  f.rows[0][34] = 20; // 40 kW
+  f.rows[1][20] = 15; // 30 kW
+  const capped = runScenarios(ctx(f, allClosed), [{ ...newScenario('peaks'), capKw: 25 } as Scenario]);
+  assert.equal(capped.peakAfter, 25);
+  assert.equal(capped.results[0].intervals, 2);
+  assert.equal(capped.results[0].days, 2);
+  assert.ok(Math.abs(capped.results[0].kwhRemoved - ((40 - 25) + (30 - 25)) * 0.5) < 1e-9);
+  const unset = runScenarios(ctx(f, allClosed), [newScenario('peaks')]);
+  assert.equal(unset.results[0].kwhRemoved, 0, 'no change until a target is entered');
+});
+
 test('flat and time-band costs reconcile with interval sums', () => {
   const f = flat(14, 1);
   const bands: Tariff = {

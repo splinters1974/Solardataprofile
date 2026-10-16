@@ -4,6 +4,21 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 16 October 2026: Advanced 2.2 (feedback round)
+
+1. **Carbon year and source can be typed at any time.** They were locked until a factor was entered.
+2. **Suggested carbon factors.** One click fills the UK Government factor, year and source: 2026 is 0.13096 and 2025 is 0.177 kgCO2e/kWh (location-based Scope 2, generation only). It's still not a default. These figures come from secondary sources that agree with each other; the gov.uk spreadsheet couldn't be opened from the build environment, so check it before formal reporting.
+3. **Bulk calendar setting is now a large Step 1 panel** above the totals, with a primary button. It shows how many sites are still unconfirmed.
+4. **Low-activity window explained.** The calendar now says what it's for (24-hour sites only), what it changes (only the second base load reference and scenario A) and what it doesn't. It warns when a site has closed hours and the window isn't used.
+5. **Before and after redesigned** as "Did a change make a difference?". It compares 2 to 12 weeks either side of a date instead of the whole record, which stops the seasons swamping the result. It shows average demand, base load and closed-hours demand, plus a one-line verdict with what the change would be worth over a year if it held.
+6. **Compare periods explained.** It now has quick picks (4 weeks, 3 months, 6 months) and a plain-English sentence for each comparison.
+7. **Scenario chart.**
+   - The chart toggles between all days, days the site opens, and closed days.
+   - It draws the reference as a dashed line.
+   - It explains that scenario A takes closed-hours demand down to the reference, not to zero.
+   - Every scenario has a one-line explanation, and results show how many days each one touches.
+8. **Scenario D is now "Lower peak demand".** The default is "hold demand at or below X kW", with one-click 90%, 80% and 70% of the current peak. Trimming the top N half hours, or every half hour above a level, is still available. Results show the new peak and the number of days affected. The screen says the value of lower peaks lies mostly in capacity charges and headroom, not energy.
+
 ## 14 October 2026: Advanced 2.1
 
 - **Two named versions.** This build is the **Advanced** version: a green ADVANCED badge sits next to the name in the header and on the customer password page. The file is called `Ameresco-Data-Analyser-Advanced.html`, and every PDF footer reads "Ameresco Data Analyser Advanced". The earlier tool was rebuilt unchanged apart from a grey STANDARD badge, footer and file name (source commit 51d6437 plus the label).

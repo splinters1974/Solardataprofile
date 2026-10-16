@@ -150,16 +150,41 @@ function DayInspector({ site, date, onPick }: { site: SiteSummary; date: string;
 
 /** A chosen range against the previous equal period and the same weeks a year earlier, on matched days only. */
 function PeriodCompare({ site }: { site: SiteSummary }) {
+  const first = site.frame.dates[0] ?? '';
   const last = site.frame.dates[site.frame.dates.length - 1] ?? '';
   const [from, setFrom] = useState(last ? addDays(last, -27) : '');
   const [to, setTo] = useState(last);
   const comps = useMemo(() => (from && to && from <= to ? comparePeriods(site.frame, from, to) : []), [site.frame, from, to]);
+  const preset = (days: number) => { setTo(last); setFrom(addDays(last, -(days - 1)) < first ? first : addDays(last, -(days - 1))); };
+  const sentence = (c: (typeof comps)[number]) => {
+    if (c.change === null || !c.matchedDays) return `${c.label}: not enough matching days to compare (${c.note})`;
+    const dir = Math.abs(c.change) < 0.02 ? 'about the same as' : c.change < 0 ? `${pct(Math.abs(c.change), 1)} less than` : `${pct(c.change, 1)} more than`;
+    return `This period used ${dir} the ${c.label.toLowerCase()}, comparing ${c.matchedDays} days that are complete in both.`;
+  };
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-3 text-sm">
+      <div className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-3 space-y-1">
+        <p><strong>Is the site using more or less than before?</strong> Pick a period (the last month, say). The app compares it with the period just before it
+          and with the same weeks a year earlier.</p>
+        <p className="text-xs text-slate-500">Use it to show a customer how a recent month compares, to check that savings from a change are holding, or to spot a site creeping up.
+          The year-earlier line is the fairer test, because it compares the same season. Only days with complete readings in both periods are counted,
+          so gaps don't distort the result. Not weather-normalised.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="text-xs text-slate-500">Quick pick:</span>
+        {([[28, 'Last 4 weeks'], [91, 'Last 3 months'], [182, 'Last 6 months']] as const).map(([d, label]) => (
+          <button key={d} type="button" onClick={() => preset(d)} className="text-xs border border-[#0065a5] text-[#0065a5] rounded-full px-3 py-1 hover:bg-blue-50">{label}</button>
+        ))}
         <label>From <input type="date" className={smallInput} value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label>To <input type="date" className={smallInput} value={to} onChange={(e) => setTo(e.target.value)} /></label>
       </div>
+      {comps.length > 0 && (
+        <ul className="space-y-1">
+          {comps.map((c) => (
+            <li key={c.label} className={`text-sm font-medium rounded-lg px-4 py-2 ${c.change !== null && c.change < -0.02 ? 'bg-[#ebf6ef] text-[#08621a]' : c.change !== null && c.change > 0.02 ? 'bg-[#fdf6e7] text-[#8a4b00]' : 'bg-slate-50 text-slate-700'}`}>{sentence(c)}</li>
+          ))}
+        </ul>
+      )}
       <table className="w-full text-sm">
         <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 font-medium">Compared with</th><th className="font-medium">Period</th><th className="text-right font-medium">Coverage then / now</th><th className="text-right font-medium">Matched days</th><th className="text-right font-medium">kWh now vs then</th><th className="text-right font-medium">Change</th></tr></thead>
         <tbody>
@@ -175,8 +200,6 @@ function PeriodCompare({ site }: { site: SiteSummary }) {
           ))}
         </tbody>
       </table>
-      {comps.map((c) => <p key={c.label} className="text-xs text-slate-500">{c.label}: {c.note}</p>)}
-      <p className="text-xs text-slate-400">Only days with complete readings in both periods are compared. Changes in measured demand; not weather-normalised.</p>
     </div>
   );
 }
@@ -204,7 +227,7 @@ export default function HeatmapTab({ site, date, onDate }: { site: SiteSummary; 
       <Card title="Day inspector" subtitle={`Recorded demand for one day against its reference profile and opening hours. ${DAYS_SHORT.length ? '' : ''}`}>
         {selected ? <DayInspector site={site} date={selected} onPick={onDate} /> : null}
       </Card>
-      <Card title="Compare periods" subtitle="A date range against the previous period of the same length and the same weeks a year earlier.">
+      <Card title="Compare periods" subtitle="A period against the one just before it and the same weeks a year earlier.">
         <PeriodCompare site={site} />
       </Card>
       <p className="text-xs text-slate-400">Peaks shown are half-hour averages (kW = kWh / 0.5 h), not instantaneous maxima. {kw(site.metrics.peak.kw)} was the highest.</p>

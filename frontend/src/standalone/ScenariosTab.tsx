@@ -1,4 +1,5 @@
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useState } from 'react';
+import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { slotTime } from '../local/calendar';
 import {
   describeScenario, newScenario, SCENARIO_LABEL, type Scenario, type ScenarioRun, type Window,
@@ -36,8 +37,18 @@ function DayPicker({ days, onChange, disabled }: { days: boolean[]; onChange: (d
   );
 }
 
-function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef }: {
-  sc: Scenario; onChange: (s: Scenario) => void; onRemove: () => void; locked: boolean; hasClosedRef: boolean;
+/** What each scenario does, in a sentence, shown under its inputs. */
+const SCENARIO_HELP: Record<Scenario['kind'], string> = {
+  'closed-excess': 'Brings demand in closed half hours down towards the reference. The reference itself (the load that never switches off: fridges, servers, '
+    + 'standby, security) stays, so even 100% leaves that level running overnight and at weekends. To test cutting it, add B.',
+  base: 'Takes a fixed kW off every half hour in the window you choose, for example switching off a constant load. Never goes below the retained floor.',
+  shoulders: 'Removes a share of demand in the hours just before opening and after closing, for example plant starting too early or running late.',
+  peaks: 'Lowers maximum demand. This rarely saves much energy; its value is in capacity (kVA) and peak-time network charges, which are not priced here, '
+    + 'and in electrification headroom. Shifting moves the energy to other hours instead of removing it.',
+};
+
+function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef, peakKw, refKw }: {
+  sc: Scenario; onChange: (s: Scenario) => void; onRemove: () => void; locked: boolean; hasClosedRef: boolean; peakKw: number; refKw: number;
 }) {
   const set = (patch: Partial<Scenario>) => onChange({ ...sc, ...patch } as Scenario);
   const pctInput = (v: number, k: 'share') => (
@@ -57,7 +68,7 @@ function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef }: {
           <>
             <span className="flex items-center gap-1.5">Reduce {pctInput(sc.share, 'share')}% of closed-hours demand above the</span>
             <select disabled={locked} className={smallInput} value={sc.reference} onChange={(e) => set({ reference: e.target.value as 'all' | 'closed' })}>
-              <option value="all">all-period reference</option>
+              <option value="all">all-period reference ({kw(refKw)})</option>
               <option value="closed" disabled={!hasClosedRef}>closed-hours reference</option>
             </select>
           </>
@@ -85,15 +96,28 @@ function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef }: {
         )}
         {sc.kind === 'peaks' && (
           <>
-            <span className="flex items-center gap-1.5">Reduce
-              <select disabled={locked} className={smallInput} value={sc.select} onChange={(e) => set({ select: e.target.value as 'top' | 'above' })}>
-                <option value="top">the highest</option><option value="above">every half hour above</option>
+            <span className="flex items-center gap-1.5">
+              <select disabled={locked} className={smallInput} value={sc.select} onChange={(e) => set({ select: e.target.value as 'cap' | 'top' | 'above' })}>
+                <option value="cap">Hold demand at or below</option>
+                <option value="top">Trim the highest</option>
+                <option value="above">Trim every half hour above</option>
               </select>
-              {sc.select === 'top'
-                ? <><NumberInput value={sc.count} min={1} step={1} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ count: Math.max(1, Math.round(v ?? 1)) })} /> half hours</>
-                : <><NumberInput value={sc.aboveKw} min={0} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ aboveKw: Math.max(0, v ?? 0) })} /> kW</>}
+              {sc.select === 'cap' && <><NumberInput value={sc.capKw ?? 0} min={0} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ capKw: Math.max(0, v ?? 0) })} /> kW</>}
+              {sc.select === 'top' && <><NumberInput value={sc.count} min={1} step={1} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ count: Math.max(1, Math.round(v ?? 1)) })} /> half hours</>}
+              {sc.select === 'above' && <><NumberInput value={sc.aboveKw} min={0} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ aboveKw: Math.max(0, v ?? 0) })} /> kW</>}
             </span>
-            <span className="flex items-center gap-1.5">by up to <NumberInput value={sc.kw} min={0} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ kw: Math.max(0, v ?? 0) })} /> kW, not below <NumberInput value={sc.floorKw} min={0} disabled={locked} className={`${smallInput} w-16`} onChange={(v) => set({ floorKw: Math.max(0, v ?? 0) })} /> kW</span>
+            {sc.select === 'cap' && !locked && (
+              <span className="flex items-center gap-1.5 text-xs">
+                Current peak {kw(peakKw)}. Try:
+                {[0.9, 0.8, 0.7].map((f) => (
+                  <button key={f} type="button" onClick={() => set({ capKw: Math.round(peakKw * f * 10) / 10 })}
+                    className="border border-[#0065a5] text-[#0065a5] rounded-full px-2 py-0.5 hover:bg-blue-50">{Math.round(f * 100)}% ({kw(peakKw * f)})</button>
+                ))}
+              </span>
+            )}
+            {sc.select !== 'cap' && (
+              <span className="flex items-center gap-1.5">by up to <NumberInput value={sc.kw} min={0} disabled={locked} className={`${smallInput} w-20`} onChange={(v) => set({ kw: Math.max(0, v ?? 0) })} /> kW, not below <NumberInput value={sc.floorKw} min={0} disabled={locked} className={`${smallInput} w-16`} onChange={(v) => set({ floorKw: Math.max(0, v ?? 0) })} /> kW</span>
+            )}
             <span className="flex items-center gap-1.5">
               <label className="flex items-center gap-1"><input type="radio" disabled={locked} checked={sc.action === 'remove'} onChange={() => set({ action: 'remove' })} /> energy removed</label>
               <label className="flex items-center gap-1"><input type="radio" disabled={locked} checked={sc.action === 'shift'} onChange={() => set({ action: 'shift' })} /> load shifted to</label>
@@ -102,7 +126,8 @@ function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef }: {
           </>
         )}
       </div>
-      <p className="text-xs text-slate-400">{describeScenario(sc)}</p>
+      <p className="text-xs text-slate-500">{SCENARIO_HELP[sc.kind]}</p>
+      <p className="text-xs text-slate-400">Now: {describeScenario(sc)}</p>
     </div>
   );
 }
@@ -113,7 +138,12 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
 }) {
   const m = site.metrics;
   const list = site.scenarios;
-  const profile = run.profileBefore.map((v, s) => ({ t: slotTime(s), before: Math.round(v * 100) / 100, after: Math.round(run.profileAfter[s] * 100) / 100 }));
+  const [dayView, setDayView] = useState<'all' | 'open' | 'closed'>('all');
+  const pv = run.profiles[dayView].days ? run.profiles[dayView] : run.profiles.all;
+  const profile = pv.before.map((v, s) => ({ t: slotTime(s), before: Math.round(v * 100) / 100, after: Math.round(pv.after[s] * 100) / 100 }));
+  const firstA = list.find((x) => x.enabled && x.kind === 'closed-excess');
+  const hasA = !!firstA;
+  const refLine = firstA && firstA.kind === 'closed-excess' && firstA.reference === 'closed' && m.baseClosed ? m.baseClosed.kw : m.baseAll.kw;
   const byId = new Map(run.results.map((r) => [r.id, r]));
   return (
     <div className="space-y-4">
@@ -136,7 +166,7 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
         {list.length ? (
           <div className="space-y-2">
             {list.map((sc, k) => (
-              <ScenarioEditor key={sc.id} sc={sc} locked={locked} hasClosedRef={!!m.baseClosed}
+              <ScenarioEditor key={sc.id} sc={sc} locked={locked} hasClosedRef={!!m.baseClosed} peakKw={m.peak.kw} refKw={m.baseAll.kw}
                 onChange={(n) => onChange(list.map((x, j) => (j === k ? n : x)))}
                 onRemove={() => onChange(list.filter((_, j) => j !== k))} />
             ))}
@@ -160,8 +190,9 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
                   if (!r) return null;
                   return (
                     <tr key={s.id} className="border-t border-slate-100 align-top">
-                      <td className="py-1.5 pr-2">{s.label}<p className="text-xs text-slate-400">{r.assumptions.join(' ')}</p></td>
-                      <td className="text-right tabular-nums">{r.intervals.toLocaleString('en-GB')}</td>
+                      <td className="py-1.5 pr-2">{s.label}<p className="text-xs text-slate-400">{r.assumptions.join(' ')}</p>
+                        {r.peakKwAfter !== null && <p className="text-xs text-slate-600">Peak {kw(run.peakBefore)} to {kw(r.peakKwAfter)} after this scenario.</p>}</td>
+                      <td className="text-right tabular-nums">{r.intervals.toLocaleString('en-GB')}<p className="text-xs text-slate-400">on {r.days} day{r.days === 1 ? '' : 's'}</p></td>
                       <td className="text-right tabular-nums">{kwh(r.kwhRemoved)}</td>
                       <td className="text-right tabular-nums">{r.kwhShifted ? kwh(r.kwhShifted) : '-'}</td>
                       <td className="text-right tabular-nums">{gbp(r.costReduction)}</td>
@@ -184,7 +215,16 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
             Measured consumption in the period: {kwh(m.observed.kwh)}. Highest half hour {kw(run.peakBefore)} before, {kw(run.peakAfter)} after.
             {m.annualisation.factor === null && ' This site is not annualised, so no annual projection is shown.'}
           </p>
-          <div style={{ height: 260 }} className="mt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
+            <p className="text-sm font-semibold text-slate-700">Average day before and after</p>
+            <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-medium">
+              {([['all', 'All days'], ['open', `Days the site opens (${run.profiles.open.days})`], ['closed', `Closed days (${run.profiles.closed.days})`]] as const).map(([k, label]) => (
+                <button key={k} type="button" disabled={!run.profiles[k].days} onClick={() => setDayView(k)}
+                  className={`px-3 py-1.5 disabled:opacity-40 ${dayView === k ? 'bg-[#0065a5] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ height: 260 }} className="mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={profile} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                 <CartesianGrid vertical={false} stroke="#f1f5f9" />
@@ -192,11 +232,17 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit=" kW" width={56} />
                 <Tooltip formatter={(v, n) => [`${Number(v).toFixed(1)} kW`, n]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} iconSize={10} />
+                <ReferenceLine y={refLine} stroke="#334155" strokeDasharray="4 3" label={{ value: `reference ${kw(refLine)}`, position: 'insideBottomRight', fontSize: 10, fill: '#334155' }} />
                 <Line dataKey="before" name="Average day, measured" stroke="#94a3b8" dot={false} isAnimationActive={false} />
                 <Line dataKey="after" name="Average day, with active scenarios" stroke="#7c3aed" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Each line is the average kW in each half hour across the days chosen above.
+            {dayView === 'all' && ' "All days" mixes working days and closed days, so daytime still shows working-day use even when closed-hours demand is cut.'}
+            {hasA && ` Scenario A takes closed-hours demand down towards the dashed reference line (${kw(refLine)}), not to zero: that is the load that never switches off. Look at "Closed days" to see it clearly; add B to test cutting the reference itself.`}
+          </p>
         </Card>
       )}
     </div>

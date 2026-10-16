@@ -133,7 +133,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <ol class="steps">
     <li><strong>Open the app.</strong> Double-click <code>Ameresco-Data-Analyser-Advanced.html</code>. It opens in Chrome or Edge. Nothing installs and nothing goes online.</li>
     <li><strong>Load the meter files.</strong> Drag them onto the upload box. One file per meter; each becomes a site. Loading the same file twice is refused.</li>
-    <li><strong>Set the calendars.</strong> Every site starts as Office / commercial with preset hours marked <em>unconfirmed</em>. Use <em>Set building type and calendar for all sites at once</em>, then open each site's <strong>Calendar</strong> tab, correct the hours, add closures (school holidays, shutdowns) and tick <em>Hours confirmed with the site</em>.</li>
+    <li><strong>Set the calendars.</strong> Every site starts as Office / commercial with preset hours marked <em>unconfirmed</em>. Use the blue <em>Set building type and hours for all sites</em> button above the totals (it shows how many sites are still unconfirmed), then open each site's <strong>Calendar</strong> tab, correct the hours, add closures (school holidays, shutdowns) and tick <em>Hours confirmed with the site</em>.</li>
     <li><strong>Check the data.</strong> On each site's <strong>Data review</strong> tab, read how the file was read, decide on any held-back days (clock changes, duplicate rows) and exclude anything you know is wrong.</li>
     <li><strong>Set the rate.</strong> A flat default rate applies everywhere (25p/kWh). Override it on a site, or enter time bands. Enter a carbon factor if you want carbon figures; there is no default.</li>
     <li><strong>Read the results.</strong> <em>Where to start</em> ranks the sites. <em>Opportunities</em> lists every finding across the estate. Click a site for its tabs.</li>
@@ -250,7 +250,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
     <li><strong>Bank holidays.</strong> Choose England and Wales, Scotland or Northern Ireland, then closed, Sunday hours or normal hours. Untick a date to treat it as a normal day, or add a local holiday.</li>
     <li><strong>Dated closures.</strong> School holidays, Christmas shutdowns: the site is closed all day. School term dates are never assumed from the building type; enter them here or paste several at once (one per line, e.g. <code>24/12/2025 - 02/01/2026 Christmas</code>).</li>
     <li><strong>Exceptional periods.</strong> Dates with different hours: events, extended opening, works.</li>
-    <li><strong>Low-activity window.</strong> For 24-7 sites, which have no closed hours: a quiet window used as the reference instead. It isn't treated as closed.</li>
+    <li><strong>Low-activity window (24-hour sites only).</strong> A hospital or data centre never closes, so there is no "demand when shut" to measure. Enter its quietest hours (say 01:00 to 05:00) and the app works out a night-time reference from them, shown as the second reference on the Base load tab and usable in Savings scenario A. It doesn't mark those hours as closed or create closed-hours findings. Leave it off for sites that close.</li>
     <li><strong>Hours confirmed.</strong> Building-type presets are a starting point. Until you tick this, calendar-dependent findings are capped at Medium confidence and the site shows <em>unconfirmed</em>.</li>
   </ul>
   <p>The bulk setting on the main page replaces every site's weekly hours and holiday rules, and adds any closures entered there to each site's own.</p>
@@ -264,7 +264,10 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <figure class="short"><img src="img/14b-bands.png" alt=""><figcaption>Time bands with the validation message.</figcaption></figure>
 
   <h2>Carbon</h2>
-  <p>Enter a factor in kgCO2e/kWh, the reporting year and the source on the main page. There's no default, so no carbon is shown until you enter one. It's kWh × one factor: it doesn't show any benefit from moving load in time.</p>
+  <p>Enter a factor in kgCO2e/kWh, the reporting year and the source on the main page, or click one of the suggested UK Government factors to fill all three:
+    <strong>2026: 0.13096</strong> and <strong>2025: 0.177</strong> kgCO2e/kWh (location-based Scope 2, generation only; transmission and distribution losses are a separate Scope 3 factor).
+    Use the factor for the year you are reporting, and check it against gov.uk before formal reporting. Nothing is applied by default, so no carbon is shown until a factor is entered.
+    It's kWh × one annual factor: it doesn't show any benefit from moving load in time.</p>
 
   <h2>Site details</h2>
   <ul>
@@ -349,8 +352,9 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <p>Closed-hours excess for each valid closed half hour is <code>max(0, kWh − reference kW × 0.5 h)</code>, priced at that half hour's rate, summed, then scaled to a year if the site is annualised.</p>
   <figure class="short"><img src="img/09-openclosed.png" alt=""><figcaption>Open and closed use by day class (weekdays, weekends, bank holidays, closures, exceptions), with excess against both references.</figcaption></figure>
   <figure class="short"><img src="img/09b-monthly.png" alt=""><figcaption>Base load by month, with the number of valid half hours and excluded readings behind each bar.</figcaption></figure>
-  <h2>Before and after</h2>
-  <p>Pick a date (a controls change, say) to compare measured base load before and after, with the sample on each side. It describes a change in demand; it doesn't prove the cause.</p>
+  <h2>Did a change make a difference? (before and after)</h2>
+  <p>Use it when you know something changed on site on a date: a new BMS or time-clock schedule, plant switched off, an LED or controls upgrade. Enter the date and a window (2 to 12 weeks, 8 by default). The app compares the weeks before with the same number of weeks after: average demand, base load and average demand when closed. It then says in one line what moved and what it would be worth over a year at the site's average rate if it held.</p>
+  <p>Keep the window short so the seasons don't swamp the answer: a change made in November will look like a rise just because winter started. It shows what changed in the meter data, not why.</p>
 </section>
 
 <!-- 10 HEATMAP -->
@@ -359,7 +363,9 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <figure><img src="img/10-heatmap.png" alt=""><figcaption>The whole period. Hatched cells have no valid reading, pink cells are excluded or held back, orange marks show opening and closing times.</figcaption></figure>
   <p>The fastest way to read a site. Look for dark bands outside the orange marks, weekends that look like weekdays, holidays that don't show, step changes and gaps. Hover for the reading; click a day to inspect it.</p>
   <figure class="short"><img src="img/10c-day.png" alt=""><figcaption>The day inspector: the day against its reference profile, with opening hours shaded.</figcaption></figure>
-  <p>The <strong>reference profile</strong> is the median kW in each half hour across the previous 8 comparable days (same weekday and calendar class, complete, no unresolved data question). The number of days and their range are shown. Below it, the <strong>week view</strong> shows seven days as a grid, and <strong>Compare periods</strong> sets a date range against the previous equal period and the same weeks a year earlier, using only days complete in both, with coverage shown for each.</p>
+  <p>The <strong>reference profile</strong> is the median kW in each half hour across the previous 8 comparable days (same weekday and calendar class, complete, no unresolved data question). The number of days and their range are shown. Below it, the <strong>week view</strong> shows seven days as a grid.</p>
+  <h2>Compare periods</h2>
+  <p>Answers "is the site using more or less than before?". Pick a period (quick picks: last 4 weeks, 3 months, 6 months) and the app compares it with the period just before it and with the same weeks a year earlier, in one sentence each. Use it to show a customer how a recent month compares, to check that savings are holding, or to spot a site creeping up. The year-earlier comparison is the fairer one because it is the same season. Only days complete in both periods are counted; if too few match, it says so rather than guess.</p>
   <p class="small muted">The Charts tab keeps the earlier analyser charts (day-of-week profile, load duration curve, day and night by month, week comparison, every reading). Its date filter affects those charts only; findings always use the full record.</p>
 </section>
 
@@ -381,12 +387,13 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <p>What-if estimates applied to <strong>one copy</strong> of the half-hourly data, in the order listed. Each scenario works on what earlier ones left, so nothing is counted twice, and no half hour goes below its retained floor or below zero. Every input starts at zero.</p>
   <table>
     <thead><tr><th style="width:32%">Scenario</th><th>What it does</th></tr></thead>
-    <tr><td>A. Reduce closed-hours excess</td><td>Removes a share of demand above the reference in every closed half hour.</td></tr>
+    <tr><td>A. Reduce closed-hours excess</td><td>Removes a share of demand above the reference in every closed half hour. The reference (the load that never switches off) stays, so even 100% leaves that level running overnight and at weekends. Add B to test cutting it.</td></tr>
     <tr><td>B. Reduce base load in chosen hours</td><td>Removes a fixed kW in a time window on chosen days, never below the floor.</td></tr>
     <tr><td>C. Remove early-start or late-stop demand</td><td>Removes a share of demand above a floor in windows around opening and closing.</td></tr>
-    <tr><td>D. Reduce selected peaks</td><td>Cuts the N highest half hours (or all above a kW level) by up to a kW figure. <em>Remove</em> takes the energy away; <em>shift</em> moves it to a chosen window the same day, so only the price difference changes the cost.</td></tr>
+    <tr><td>D. Lower peak demand</td><td>Usually <em>Hold demand at or below</em> a target kW: every half hour above it is brought down to it. One click sets the target to 90%, 80% or 70% of the current peak, and the result shows how many half hours on how many days that touches. You can also trim the N highest half hours or every half hour above a level. <em>Remove</em> takes the energy away; <em>shift</em> moves it to a chosen window the same day. Expect a small energy saving: the value of lower peaks is in capacity and peak-time network charges (not priced here) and electrification headroom.</td></tr>
   </table>
   <figure><img src="img/12b-results.png" alt=""><figcaption>Results for scenarios A and B together: removed kWh and cost in the observed period, an annual projection, carbon if a factor is entered, and the average day before and after.</figcaption></figure>
+  <p>The chart shows the average day before and after. Switch between <strong>all days</strong>, <strong>days the site opens</strong> and <strong>closed days</strong> (weekends, holidays, closures). "All days" mixes the two, so daytime still shows working-day use even when closed-hours demand is cut; "closed days" shows scenario A clearly, with demand brought down to the dashed reference line.</p>
   <div class="box">
     <span class="label">Check figure</span>
     <p>10 kW removed for 12 hours a day on 100 days is 12,000 kWh. At 25p/kWh that's £3,000. The app is tested against this.</p>

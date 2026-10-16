@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { beforeAfter, type ExcessResult } from '../local/findings';
+import { beforeAfter, type BeforeAfterSide, type ExcessResult } from '../local/findings';
 import { planDays } from '../local/calendar';
 import { fmtDayMonYear } from '../local/dates';
 import type { SiteSettings } from '../local/site';
@@ -21,6 +21,58 @@ function ExcessRow({ e, chosen }: { e: ExcessResult | null; chosen: boolean }) {
   );
 }
 
+type BA = ReturnType<typeof beforeAfter>;
+
+/** The before/after table plus a plain-English verdict and what the change is worth if it holds. */
+function BeforeAfterResult({ ba, rateGbp, hasClosed }: { ba: BA; rateGbp: number; hasClosed: boolean }) {
+  const { before: b, after: a } = ba;
+  const enough = (x: BeforeAfterSide) => x.completeDays >= 7;
+  if (!enough(b) || !enough(a)) {
+    return <Note tone="warn">Not enough complete days on both sides ({b.completeDays} before, {a.completeDays} after; at least 7 each). Pick a date further from the start or end of the data, or a longer window.</Note>;
+  }
+  const rows: [string, number | null, number | null, string][] = [
+    ['Average demand', b.avgKw, a.avgKw, 'all valid half hours'],
+    ['Base load (load that never switches off)', b.baseKw, a.baseKw, 'reference percentile'],
+    ...(hasClosed ? [['Average demand when closed', b.closedAvgKw, a.closedAvgKw, 'closed half hours under the calendar'] as [string, number | null, number | null, string]] : []),
+  ];
+  const yearly = (dKw: number) => ({ kwh: dKw * 8766, gbp: dKw * 8766 * rateGbp });
+  const avgD = b.avgKw !== null && a.avgKw !== null ? a.avgKw - b.avgKw : null;
+  const baseD = b.baseKw !== null && a.baseKw !== null ? a.baseKw - b.baseKw : null;
+  const verdict = (() => {
+    if (avgD === null || b.avgKw === null) return null;
+    const rel = avgD / b.avgKw;
+    if (Math.abs(rel) < 0.03) return `Average demand barely moved (${rel >= 0 ? '+' : ''}${pct(rel, 1)}). No clear change shows in the meter data.`;
+    const y = yearly(Math.abs(avgD));
+    return `Average demand ${avgD < 0 ? 'fell' : 'rose'} by ${Math.abs(avgD).toFixed(1)} kW (${pct(Math.abs(rel), 0)}). If that held all year it would be about `
+      + `${kwh(y.kwh)} and ${gbp(y.gbp)} a year ${avgD < 0 ? 'less' : 'more'} at this site's average rate.`
+      + (baseD !== null && Math.abs(baseD) >= 0.1 ? ` Base load ${baseD < 0 ? 'fell' : 'rose'} by ${Math.abs(baseD).toFixed(1)} kW, so part of the change is in load that runs all the time.` : '');
+  })();
+  return (
+    <div className="mt-3 space-y-2">
+      {verdict && <p className={`text-sm font-medium rounded-lg px-4 py-2.5 ${avgD !== null && avgD < 0 ? 'bg-[#ebf6ef] text-[#08621a]' : 'bg-slate-50 text-slate-700'}`}>{verdict}</p>}
+      <table className="w-full text-sm">
+        <thead><tr className="text-left text-xs text-slate-500">
+          <th className="py-1 font-medium" />
+          <th className="text-right font-medium">Before: {fmtDayMonYear(b.from)} to {fmtDayMonYear(b.to)}</th>
+          <th className="text-right font-medium">After: {fmtDayMonYear(a.from)} to {fmtDayMonYear(a.to)}</th>
+          <th className="text-right font-medium">Change</th>
+        </tr></thead>
+        <tbody>
+          {rows.map(([label, x, y, note]) => (
+            <tr key={label} className="border-t border-slate-100">
+              <td className="py-1.5">{label}<span className="block text-xs text-slate-400">{note}</span></td>
+              <td className="text-right tabular-nums">{x === null ? 'n/a' : `${x.toFixed(1)} kW`}</td>
+              <td className="text-right tabular-nums">{y === null ? 'n/a' : `${y.toFixed(1)} kW`}</td>
+              <td className="text-right tabular-nums font-semibold">{x !== null && y !== null && x > 0 ? `${y >= x ? '+' : ''}${pct(y / x - 1, 1)}` : 'n/a'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-xs text-slate-400">Based on {b.completeDays} complete days before and {a.completeDays} after ({num(b.samples)} and {num(a.samples)} valid half hours). Measured demand, not weather-normalised.</p>
+    </div>
+  );
+}
+
 /** Base load references, closed-hours use by day class, the monthly trend and a before/after comparison. */
 export default function BaseloadTab({ site, onChange, locked }: { site: SiteSummary; onChange: (s: SiteSettings) => void; locked: boolean }) {
   const m = site.metrics;
@@ -28,7 +80,8 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
   const plans = useMemo(() => planDays(st.calendar, site.frame.dates), [st.calendar, site.frame]);
   const mid = site.frame.dates[Math.floor(site.frame.dates.length / 2)] ?? '';
   const [split, setSplit] = useState(mid);
-  const ba = useMemo(() => (split ? beforeAfter(site.frame, plans, split, st.basePercentile) : null), [site.frame, plans, split, st.basePercentile]);
+  const [weeks, setWeeks] = useState(8);
+  const ba = useMemo(() => (split ? beforeAfter(site.frame, plans, split, st.basePercentile, weeks) : null), [site.frame, plans, split, st.basePercentile, weeks]);
   const trend = m.monthlyBase.map((x) => ({ ...x, label: x.month }));
 
   return (
@@ -115,25 +168,21 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
         <p className="text-xs text-slate-400">Dashed line: the all-period reference ({kw(m.baseAll.kw)}).</p>
       </Card>
 
-      <Card title="Before and after" subtitle="Compare measured base load before and after a date you choose, such as a controls change. Describes the change in demand; it does not establish the cause.">
-        <label className="text-sm text-slate-600">Split at <input type="date" className={smallInput} value={split} min={site.frame.dates[0]} max={site.frame.dates[site.frame.dates.length - 1]} onChange={(e) => setSplit(e.target.value)} /></label>
-        {ba && (
-          <table className="w-full text-sm mt-3">
-            <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 font-medium" /><th className="text-right font-medium">Before {fmtDayMonYear(split)}</th><th className="text-right font-medium">From {fmtDayMonYear(split)}</th><th className="text-right font-medium">Change</th></tr></thead>
-            <tbody>
-              {([['All-period reference', ba.before.allKw, ba.after.allKw, ba.before.allSamples, ba.after.allSamples],
-                ['Closed-hours reference', ba.before.closedKw, ba.after.closedKw, ba.before.closedSamples, ba.after.closedSamples]] as const).map(([label, a, b, na, nb]) => (
-                <tr key={label} className="border-t border-slate-100">
-                  <td className="py-1.5">{label}</td>
-                  <td className="text-right tabular-nums">{a === null ? 'n/a' : kw(a)} <span className="text-xs text-slate-400">({num(na)})</span></td>
-                  <td className="text-right tabular-nums">{b === null ? 'n/a' : kw(b)} <span className="text-xs text-slate-400">({num(nb)})</span></td>
-                  <td className="text-right tabular-nums">{a !== null && b !== null && a > 0 ? `${b >= a ? '+' : ''}${pct(b / a - 1, 1)}` : 'n/a'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <p className="text-xs text-slate-400 mt-2">Numbers in brackets are valid half hours behind each figure. Seasons differ either side of most dates, so compare like periods where you can.</p>
+      <Card title="Did a change make a difference?" subtitle="Before and after: pick the date something changed on site and compare measured demand in the weeks either side.">
+        <div className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-3 mb-3 space-y-1">
+          <p><strong>Use it to check whether a known change showed up in the meter data</strong>: a new BMS or time-clock schedule, plant switched off,
+            an LED or controls upgrade, a change in occupancy. Enter the date it happened. The app compares the weeks before with the same number of weeks after.</p>
+          <p className="text-xs text-slate-500">Keep the window short (4 to 8 weeks) so the seasons don't swamp the result. It shows what changed in the meter
+            data, not why: weather, occupancy and other works can all move it.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+          <label>Change made on <input type="date" className={smallInput} value={split} min={site.frame.dates[0]} max={site.frame.dates[site.frame.dates.length - 1]} onChange={(e) => setSplit(e.target.value)} /></label>
+          <label>Compare
+            <select className={`${smallInput} ml-1`} value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+              {[2, 4, 8, 12].map((w) => <option key={w} value={w}>{w} weeks</option>)}
+            </select> either side</label>
+        </div>
+        {ba && <BeforeAfterResult ba={ba} rateGbp={m.observed.kwh > 0 ? m.observed.cost / m.observed.kwh : 0} hasClosed={m.hasClosed} />}
       </Card>
     </div>
   );

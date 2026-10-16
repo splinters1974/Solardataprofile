@@ -8,8 +8,9 @@ import CalendarEditor from './CalendarEditor';
  * opening each site in turn. Weekly hours and holiday rules are replaced;
  * dated closures and exceptions entered here are added to each site's own.
  */
-export default function BulkSettingsPanel({ siteCount, onApply, dataFrom, dataTo }: {
+export default function BulkSettingsPanel({ siteCount, unconfirmed, onApply, dataFrom, dataTo }: {
   siteCount: number;
+  unconfirmed: number;
   onApply: (change: { type: SiteType; calendar: Calendar }) => void;
   dataFrom: string;
   dataTo: string;
@@ -20,10 +21,24 @@ export default function BulkSettingsPanel({ siteCount, onApply, dataFrom, dataTo
   const [applied, setApplied] = useState<string | null>(null);
 
   if (!open) {
+    const todo = unconfirmed > 0;
     return (
-      <button onClick={() => setOpen(true)} className="text-sm font-medium text-[#0065a5] hover:text-[#00528a] underline">
-        Set building type and calendar for all {siteCount} sites at once…
-      </button>
+      <div className={`rounded-xl border-2 px-5 py-4 flex flex-wrap items-center gap-4 ${todo ? 'border-[#0065a5] bg-[#e6f0f7]' : 'border-slate-200 bg-white'}`}>
+        <div className="flex-1 min-w-64">
+          <p className="text-base font-bold text-slate-800">
+            {todo ? `Step 1: set building type and opening hours (${unconfirmed} of ${siteCount} site${siteCount === 1 ? '' : 's'} not yet confirmed)` : `All ${siteCount} calendars confirmed`}
+          </p>
+          <p className="text-sm text-slate-600">
+            {todo
+              ? 'Every site starts as an office open 07:00 to 19:00 on weekdays. Closed-hours figures depend on the hours, so set them for all sites at once here, then adjust any single site on its Calendar tab.'
+              : 'You can still change every site at once, for example to add a closure that applies to them all.'}
+          </p>
+        </div>
+        <button onClick={() => setOpen(true)}
+          className={`text-base font-semibold rounded-lg px-6 py-3 shadow-sm ${todo ? 'bg-[#0065a5] hover:bg-[#00528a] text-white' : 'bg-white border border-[#0065a5] text-[#0065a5] hover:bg-blue-50'}`}>
+          Set building type and hours for all sites
+        </button>
+      </div>
     );
   }
 

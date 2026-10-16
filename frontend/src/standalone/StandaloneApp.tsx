@@ -8,8 +8,8 @@ import { useDropzone } from 'react-dropzone';
 import { AMERESCO_LOGO } from '../local/brand';
 import {
   clearAll, countedInTotals, downloadExcel, downloadPortfolioReport, downloadSitesTable, editionShowsNotes, forgetSession,
-  friendlyError, getCarbon, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
-  setCarbon, setDefaultRate, setTitle as storeTitle, hasUnsavedCustomerChanges, editionEditedAt, resetCustomerEdition, saveCustomerEditionCopy, updateSiteSettings, uploadHHFile, type SiteSummary,
+  friendlyError, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
+  setDefaultRate, setTitle as storeTitle, hasUnsavedCustomerChanges, editionEditedAt, resetCustomerEdition, saveCustomerEditionCopy, updateSiteSettings, uploadHHFile, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES } from '../local/site';
 import type { SiteTab } from '../local/findings';
@@ -20,6 +20,7 @@ import { overlapWarnings } from '../local/estate';
 import { LEVEL_UI } from './levelUi';
 import { VerdictChip } from './QualityPanel';
 import EditionDialog from './EditionDialog';
+import CarbonFields from './CarbonFields';
 import BulkSettingsPanel from './BulkSettingsPanel';
 import { mergeCalendar } from '../local/calendar';
 import SiteView from './SiteView';
@@ -82,7 +83,8 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   const [errors, setErrors] = useState<{ file: string; message: string }[]>([]);
   const [rate, setRate] = useState(getDefaultRate());
   const [title, setTitleState] = useState(isCustomer ? customer : getTitle());
-  const [carbon, setCarbonState] = useState(getCarbon());
+  // Bumped when the carbon factor changes from outside the fields (project opened, undo, clear).
+  const [carbonKey, setCarbonKey] = useState(0);
   const [customerLogo, setCustomerLogo] = useState<string | null>(() => getCustomerLogo()?.dataUrl ?? null);
   const [exporting, setExporting] = useState<string | null>(null);
 
@@ -99,7 +101,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
     resetCustomerEdition();
     setSelected(null);
     setRate(getDefaultRate());
-    setCarbonState(getCarbon());
+    setCarbonKey((k) => k + 1);
     refresh();
   }
   const setTitle = (t: string) => { setTitleState(t); storeTitle(t); };
@@ -113,7 +115,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
     setErrors([]);
     setTitleState('');
     setCustomerLogo(null);
-    setCarbonState(null);
+    setCarbonKey((k) => k + 1);
     setRate(getDefaultRate());
   }
 
@@ -139,7 +141,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
       const p = await openProject(file);
       setTitleState(p.title);
       setRate(getDefaultRate());
-      setCarbonState(getCarbon());
+      setCarbonKey((k) => k + 1);
       setCustomerLogo(getCustomerLogo()?.dataUrl ?? null);
       setSelected(null);
       setErrors([]);
@@ -305,34 +307,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div className="w-36">
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Carbon factor (kgCO2e/kWh)</label>
-                      <input type="number" min={0} step="any" value={carbon?.kgPerKwh ?? ''} placeholder="Not entered"
-                        onChange={(e) => {
-                          const v = e.target.value === '' ? null : Number(e.target.value);
-                          const c = v && v > 0 ? { kgPerKwh: v, year: carbon?.year ?? '', source: carbon?.source ?? '' } : null;
-                          setCarbon(c); setCarbonState(getCarbon()); refresh();
-                        }}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
-                    </div>
-                    <div className="w-28">
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Reporting year</label>
-                      <input disabled={!carbon} value={carbon?.year ?? ''} placeholder="e.g. 2025"
-                        onChange={(e) => { if (carbon) { setCarbon({ ...carbon, year: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
-                    </div>
-                    <div className="flex-1 min-w-48">
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Source</label>
-                      <input disabled={!carbon} value={carbon?.source ?? ''} placeholder="e.g. UK Government GHG conversion factors"
-                        onChange={(e) => { if (carbon) { setCarbon({ ...carbon, source: e.target.value }); setCarbonState(getCarbon()); refresh(); } }}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-slate-50" />
-                    </div>
-                    <p className="text-xs text-slate-400 basis-full">
-                      No default factor: carbon is shown only when you enter one, as kWh x factor. It is an estimate from one entered factor, not
-                      time-resolved grid carbon, and does not show any benefit from moving load in time.
-                    </p>
-                  </div>
+                  <CarbonFields key={carbonKey} onChange={refresh} />
                   <div className="flex flex-wrap gap-2">
                     <button disabled={!!exporting} onClick={() => run('Portfolio PDF', () => downloadPortfolioReport(title))} className={btnPrimary}>
                       {exporting === 'Portfolio PDF' ? 'Building PDF…' : 'Portfolio report (PDF)'}
@@ -351,6 +326,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 {!isCustomer && (
                   <BulkSettingsPanel
                     siteCount={ranked.length} dataFrom={allFrom} dataTo={allTo}
+                    unconfirmed={sites.filter((x) => !x.settings.calendar.confirmed).length}
                     onApply={({ type, calendar }) => {
                       for (const x of sites) updateSiteSettings(x.id, { ...x.settings, type, calendar: mergeCalendar(x.settings.calendar, calendar) });
                       refresh();

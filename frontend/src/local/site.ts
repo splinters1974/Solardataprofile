@@ -136,3 +136,13 @@ export function normaliseSettings(s: Partial<SiteSettings> & { hours?: LegacyHou
 }
 
 export const slotLabel = slotTime;
+
+/**
+ * Published UK Government electricity factors (location-based, Scope 2,
+ * generation only), offered as one-click suggestions, never applied by default.
+ * 2026 set published by DESNZ on 11 June 2026; 2025 set June 2025.
+ */
+export const CARBON_PRESETS = [
+  { year: '2026', kgPerKwh: 0.13096, source: 'UK Government GHG conversion factors 2026 (DESNZ), UK electricity, Scope 2', note: 'For reporting periods in 2026 onwards.' },
+  { year: '2025', kgPerKwh: 0.177, source: 'UK Government GHG conversion factors 2025 (DESNZ), UK electricity, Scope 2', note: 'For reporting periods in 2025.' },
+] as const;

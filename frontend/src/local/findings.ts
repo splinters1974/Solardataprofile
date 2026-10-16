@@ -12,7 +12,7 @@
  * Whole-site half-hourly data cannot show which equipment is responsible
  * for anything, so findings describe demand and suggest what to check.
  */
-import { dayNum, dayOfWeek, fmtDayMonYear, monthsBetween, MONTHS_SHORT } from './dates';
+import { addDays, dayNum, dayOfWeek, fmtDayMonYear, monthsBetween, MONTHS_SHORT } from './dates';
 import {
   coverage, dayKwh, dayValid, FLAG, flagAt, INTERVAL_HOURS, isCompleteDay, isValid, SLOTS,
   type Coverage, type Frame,
@@ -438,27 +438,57 @@ export function comparePeriods(f: Frame, from: string, to: string): Comparison[]
 
 // --- Before and after -------------------------------------------------------------
 
-export function beforeAfter(f: Frame, plans: DayPlan[], split: string, p: number) {
-  const part = (pred: (d: string) => boolean) => {
+export interface BeforeAfterSide {
+  from: string;
+  to: string;
+  /** Days with at least 90% of readings valid. */
+  completeDays: number;
+  /** Base load at the percentile, all valid half hours. */
+  baseKw: number | null;
+  samples: number;
+  /** Average demand across all valid half hours. */
+  avgKw: number | null;
+  /** Average demand in closed half hours (needs 96+). */
+  closedAvgKw: number | null;
+  closedSamples: number;
+}
+
+/**
+ * Measured demand in the weeks either side of a date: did something change
+ * when a known change was made (a BMS schedule, a plant switch-off, an LED
+ * retrofit)? Using a few weeks either side, not the whole record, keeps the
+ * seasons from swamping the answer. Describes a change; does not prove the cause.
+ */
+export function beforeAfter(f: Frame, plans: DayPlan[], split: string, p: number, weeks = 8) {
+  const side = (from: string, to: string): BeforeAfterSide => {
     const all: number[] = [];
-    const closed: number[] = [];
+    let closedSum = 0;
+    let closedN = 0;
+    let complete = 0;
     f.dates.forEach((d, i) => {
-      if (!pred(d)) return;
+      if (d < from || d > to) return;
+      if (isCompleteDay(f, i)) complete++;
       for (let s = 0; s < SLOTS; s++) {
         if (!isValid(f, i, s)) continue;
         const kw = f.rows[i][s] / INTERVAL_HOURS;
         all.push(kw);
-        if (!plans[i].open[s]) closed.push(kw);
+        if (!plans[i].open[s]) { closedSum += kw; closedN++; }
       }
     });
+    const avg = all.length ? all.reduce((a, b) => a + b, 0) / all.length : null;
     all.sort((a, b) => a - b);
-    closed.sort((a, b) => a - b);
     return {
-      allKw: all.length ? percentile(all, p / 100) : null, allSamples: all.length,
-      closedKw: closed.length >= 96 ? percentile(closed, p / 100) : null, closedSamples: closed.length,
+      from, to, completeDays: complete,
+      baseKw: all.length >= 96 ? percentile(all, p / 100) : null, samples: all.length,
+      avgKw: all.length >= 96 ? avg : null,
+      closedAvgKw: closedN >= 96 ? closedSum / closedN : null, closedSamples: closedN,
     };
   };
-  return { split, before: part((d) => d < split), after: part((d) => d >= split) };
+  return {
+    split, weeks,
+    before: side(addDays(split, -7 * weeks), addDays(split, -1)),
+    after: side(split, addDays(split, 7 * weeks - 1)),
+  };
 }
 
 // --- The analysis -----------------------------------------------------------------

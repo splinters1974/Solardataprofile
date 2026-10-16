@@ -74,6 +74,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
   const [newHoliday, setNewHoliday] = useState('');
   const official = useMemo(() => (dataFrom ? [...holidaysBetween(dataFrom, dataTo, cal.nation)].sort() : []), [dataFrom, dataTo, cal.nation]);
   const holidays = [...new Set([...official, ...cal.holidaysAdded])].sort();
+  const alwaysOpen = cal.week.every((d) => d.some((p) => p.open === 0 && p.close >= 48));
 
   return (
     <div className="space-y-5">
@@ -142,8 +143,15 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-slate-700 mb-1">Low-activity window <span className="font-normal text-slate-400">(24-7 sites)</span></p>
-          <p className="text-xs text-slate-500 mb-2">A site open all the time has no closed hours. This window stands in for them when working out a closed-hours style reference. It is not treated as a closure.</p>
+          <p className="text-sm font-semibold text-slate-700 mb-1">Low-activity window <span className="font-normal text-slate-400">(only for sites open 24 hours)</span></p>
+          <div className="text-xs text-slate-500 mb-2 space-y-1">
+            <p><strong className="text-slate-600">What it's for:</strong> a hospital, care home or data centre never closes, so the app can't measure
+              "demand when the building should be shut". Tell it the quietest hours instead (for example 01:00 to 05:00) and it works out a
+              night-time reference from them: the level the site drops to when least is happening.</p>
+            <p><strong className="text-slate-600">What it changes:</strong> only the second base load reference on the Base load tab, which you can then
+              use in Savings scenario A. It doesn't mark those hours as closed and doesn't create closed-hours findings.</p>
+            {!alwaysOpen && <p className="text-[#8a6100]">This site has closed hours, so the window isn't used. Leave it off.</p>}
+          </div>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-1.5 text-sm text-slate-600">
               <input type="checkbox" disabled={locked} checked={!!cal.lowActivity} onChange={(e) => set({ lowActivity: e.target.checked ? { open: 2, close: 10 } : null })} />
