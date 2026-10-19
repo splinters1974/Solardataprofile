@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { CATEGORICAL } from '../../local/chartColours';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -6,9 +7,7 @@ import {
 import type { WeekResponse, WeekOption } from '../../types';
 import Panel from './Panel';
 
-const DAY_COLOURS = [
-  '#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#f59e0b', '#ef4444',
-];
+const DAY_COLOURS = CATEGORICAL;
 
 interface Props {
   data: WeekResponse;

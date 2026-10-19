@@ -126,6 +126,8 @@ export interface ScenarioRun {
   profiles: Record<'all' | 'open' | 'closed', { before: number[]; after: number[]; days: number }>;
   peakBefore: number;
   peakAfter: number;
+  /** Every reading (kWh) after all active scenarios, same shape as the frame. */
+  after: number[][];
   /** Changed intervals, for the spreadsheet: before, after, and each scenario's change in kWh. */
   intervals: { date: string; slot: number; before: number; after: number; price: number; changes: number[] }[];
 }
@@ -320,6 +322,7 @@ export function runScenarios(ctx: ScenarioContext, scenarios: Scenario[]): Scena
     profiles: { all: split(() => true), open: split(opens), closed: split((i) => !opens(i)) },
     peakBefore: peakOf(f.rows),
     peakAfter: peakOf(cur),
+    after: cur,
     intervals,
   };
 }

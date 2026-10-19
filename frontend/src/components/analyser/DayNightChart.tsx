@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { CHART } from '../../local/chartColours';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -68,8 +69,8 @@ function DayNightChart({ data, nightEndSlot, onNightEndChange }: Props) {
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar isAnimationActive={false} dataKey="day_kwh" name="Day" stackId="a" fill="#f59e0b" />
-          <Bar isAnimationActive={false} dataKey="night_kwh" name="Night" stackId="a" fill="#1e293b" radius={[3, 3, 0, 0]} />
+          <Bar isAnimationActive={false} dataKey="day_kwh" name="Day" stackId="a" fill={CHART.blue} />
+          <Bar isAnimationActive={false} dataKey="night_kwh" name="Night" stackId="a" fill={CHART.ink} radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
 

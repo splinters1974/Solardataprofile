@@ -5,7 +5,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const target = resolve(here, '../../standalone/Ameresco-Data-Analyser-Advanced.html');
+const standard = process.argv[2] === 'standard';
+const target = resolve(here, `../../standalone/Ameresco-Data-Analyser-${standard ? 'Standard' : 'Advanced'}.html`);
 mkdirSync(dirname(target), { recursive: true });
-copyFileSync(resolve(here, '../dist-standalone/index.html'), target);
+copyFileSync(resolve(here, `../${standard ? 'dist-standard' : 'dist-standalone'}/index.html`), target);
 console.log(`Standalone app written to ${target}`);

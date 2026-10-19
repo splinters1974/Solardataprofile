@@ -21,6 +21,7 @@ import { LEVEL_UI } from './levelUi';
 import { VerdictChip } from './QualityPanel';
 import EditionDialog from './EditionDialog';
 import CarbonFields from './CarbonFields';
+import { IS_STANDARD } from '../local/edition';
 import BulkSettingsPanel from './BulkSettingsPanel';
 import { mergeCalendar } from '../local/calendar';
 import SiteView from './SiteView';
@@ -206,7 +207,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
           </div>
           <div className="flex-1" />
           <span className="hidden 2xl:inline text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">Offline · data stays on this computer</span>
-          {!isCustomer && (
+          {!isCustomer && !IS_STANDARD && (
             <>
               <label className={`${btnSecondary} cursor-pointer !py-1.5`} title="Open a saved project file (.adproject)">
                 Open project
@@ -350,7 +351,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 </div>
                 {warnings.length > 0 && <Note tone="warn">{warnings.map((w, i) => <p key={i}>{w}</p>)}</Note>}
 
-                <Tabs<View>
+                {!IS_STANDARD && <Tabs<View>
                   sticky label="Portfolio views"
                   tabs={[
                     { key: 'sites', label: 'Where to start' },
@@ -358,7 +359,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                     { key: 'estate', label: 'Estate comparison' },
                   ]}
                   value={view} onChange={setView}
-                />
+                />}
 
                 {view === 'opportunities' && (
                   <OpportunitiesView sites={sites} locked={isCustomer} showNotes={!isCustomer || editionShowsNotes()} refresh={refresh} openSite={openSite} />

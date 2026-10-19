@@ -184,6 +184,12 @@ function headroomFor(frame: Frame, st: SiteSettings): HeadroomResult | null {
 
 const scenarioCache = new WeakMap<Scenario[], { key: string; run: ScenarioRun }>();
 
+/** £/kWh for every half hour of a site, at its flat rate or time bands. */
+export function pricesForSite(id: string): ArrayLike<number>[] {
+  const s = session(id);
+  return pricesFor(derived(s).frame, s.settings, defaultRateP).rows;
+}
+
 export function scenarioRunFor(id: string): ScenarioRun {
   const s = session(id);
   const d = derived(s);

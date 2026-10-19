@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IS_STANDARD } from '../local/edition';
 import type { Finding, SiteTab } from '../local/findings';
 import { newAction, STATUS_LABEL, STATUS_ORDER, type Action, type ActionStatus } from '../local/actions';
 import { fmtDayMonYear } from '../local/dates';
@@ -101,7 +102,7 @@ export default function FindingCard({ f, action, onAction, locked, showNotes, go
                 ))}
               </div>
             )}
-            {onAction && <ActionEditor action={a} onChange={onAction} locked={locked} showNotes={showNotes} />}
+            {onAction && !IS_STANDARD && <ActionEditor action={a} onChange={onAction} locked={locked} showNotes={showNotes} />}
           </div>
         )}
       </div>

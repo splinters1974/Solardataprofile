@@ -4,6 +4,7 @@ import type { SiteSettings } from '../local/site';
 import type { SiteTab } from '../local/findings';
 import type { SiteSummary } from '../local/localClient';
 import HeadroomPanel from './HeadroomPanel';
+import CapacityWeek from './CapacityWeek';
 import { Card, Field, NumberInput } from './ui';
 import { kw, num, pct } from './format';
 
@@ -27,6 +28,12 @@ export default function CapacityTab({ site, onChange, locked, goTo }: {
           </div>
         </Card>
       )}
+      <CapacityWeek frame={site.frame} siteName={st.name} powerFactor={st.powerFactor} capacityKva={st.capacityKva}
+        marginPct={st.headroomMarginPct} peakDate={m.peak.date}
+        capKw={(() => {
+          const d = site.scenarios.find((x) => x.enabled && x.kind === 'peaks' && x.select === 'cap' && (x.capKw ?? 0) > 0);
+          return d && d.kind === 'peaks' ? d.capKw ?? null : null;
+        })()} />
       <HeadroomPanel settings={st} headroom={site.headroom} locked={locked} onChange={onChange} />
       <Card title="Ten highest half hours" subtitle="One per day: measured kW (half-hour average) and kVA at the assumed power factor.">
         <table className="w-full text-sm">

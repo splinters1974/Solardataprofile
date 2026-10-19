@@ -5,6 +5,13 @@ import type { SiteSummary } from '../local/localClient';
 import FindingCard from './FindingCard';
 import { Card, Kind, Note, Tile } from './ui';
 import { gbp, kw, kwh, num, pct } from './format';
+import { useMemo } from 'react';
+import { planDays } from '../local/calendar';
+import { energySplit } from '../local/chartData';
+import { getCarbon, scenarioRunFor } from '../local/localClient';
+import { IS_STANDARD } from '../local/edition';
+import EnergySplitDonut from './EnergySplitDonut';
+import CarbonPanel from './CarbonPanel';
 
 /** Headline figures (observed and estimated side by side), the top three investigations, then every finding. */
 export default function OverviewTab({ site, locked, showNotes, onAction, goTo }: {
@@ -18,6 +25,12 @@ export default function OverviewTab({ site, locked, showNotes, onAction, goTo }:
   const c = m.coverage;
   const top = topInvestigations(m);
   const rest = m.findings.filter((f) => !top.includes(f));
+  const split = useMemo(() => energySplit(site.frame, planDays(site.settings.calendar, site.frame.dates), m.baseAll.kw),
+    [site.frame, site.settings.calendar, m.baseAll.kw]);
+  const carbon = getCarbon();
+  const run = useMemo(() => (!IS_STANDARD && carbon && site.scenarios.some((x) => x.enabled) ? scenarioRunFor(site.id) : null),
+    [site, carbon]);
+  const costPerKwh = m.observed.kwh > 0 ? m.observed.cost / m.observed.kwh : 0;
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -36,6 +49,10 @@ export default function OverviewTab({ site, locked, showNotes, onAction, goTo }:
           hint={m.excess ? `${gbp(m.excess.annual?.cost ?? m.excess.observed.cost)} ${m.excess.annual ? 'a year' : 'in period'} above the reference (associated cost)` : 'No closed hours in the calendar'} />
         <Tile label="Coverage" tag="measured" value={pct(c.share, 1)}
           hint={`${num(c.validReadings)} of ${num(c.expectedReadings)} readings valid`} />
+      </div>
+      <div className={`grid gap-4 ${carbon && !IS_STANDARD ? 'lg:grid-cols-2' : ''}`}>
+        <EnergySplitDonut split={split} refKw={m.baseAll.kw} siteName={site.settings.name} costPerKwh={costPerKwh} />
+        {carbon && !IS_STANDARD && <CarbonPanel metrics={m} carbon={carbon} run={run} siteName={site.settings.name} />}
       </div>
       {m.annualisation.warning && <Note tone="warn">{m.annualisation.warning}</Note>}
       {m.rate.problems.length > 0 && <Note tone="bad">Time-band rates not used: {m.rate.problems.join(' ')} Costs use the flat rate until the bands cover every half hour exactly once.</Note>}

@@ -1,11 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { DAY_TYPE_COLOURS } from '../../local/chartColours';
 import type { ScatterResponse, ScatterPoint } from '../../types';
 import Panel from './Panel';
 
 const GROUPS = [
-  { type: 'Weekday', colour: '#0f766e' },
-  { type: 'Weekend', colour: '#f59e0b' },
-  { type: 'Bank holiday', colour: '#db2777' },
+  { type: 'Weekday', colour: DAY_TYPE_COLOURS.Weekday },
+  { type: 'Weekend', colour: DAY_TYPE_COLOURS.Weekend },
+  { type: 'Bank holiday', colour: DAY_TYPE_COLOURS['Bank holiday'] },
 ];
 
 const HEIGHT = 360;

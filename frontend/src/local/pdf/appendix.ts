@@ -16,7 +16,10 @@ import { STATUS_LABEL, newAction, type ActionStore } from '../actions';
 import { VERDICT_TEXT } from '../dataQuality';
 import { addDays } from '../dates';
 import type { SiteSummary } from '../localClient';
-import { fmt, hex, INK, LEVEL_STYLE, MUTED, type Report } from './common';
+import { donutChart, fmt, hex, INK, LEVEL_STYLE, MUTED, type Report } from './common';
+import { energySplit } from '../chartData';
+import { CHART } from '../chartColours';
+import { planDays } from '../calendar';
 
 const IMPACT = { high: 'High', medium: 'Medium', low: 'Low', info: 'Note' } as const;
 const CONF = { high: 'High', medium: 'Medium', low: 'Low' } as const;
@@ -89,6 +92,22 @@ export function opportunitiesAppendix(r: Report, a: AppendixInput) {
   r.small('Measured values come from valid half-hourly readings. Annual figures are estimates. £ figures are energy cost at the '
     + 'rates entered associated with a pattern, not savings, and related findings overlap. Whole-site data cannot show which '
     + 'equipment is responsible; checks are suggestions.');
+
+  const split = energySplit(s.frame, planDays(s.settings.calendar, s.frame.dates), m.baseAll.kw);
+  const rate = m.observed.kwh > 0 ? m.observed.cost / m.observed.kwh : 0;
+  const seg = (label: string, v: number, color: string, note: string) => ({
+    label, value: v, color: hex(color), detail: `${kwhFmt(v)}, ${money(v * rate)}: ${note}`,
+  });
+  donutChart(r, {
+    title: 'Where the energy goes (observed period)',
+    centre: kwhFmt(split.total), centreSub: 'observed',
+    segments: [
+      seg('Base load', split.base, CHART.green, `up to the ${kwFmt(m.baseAll.kw)} reference, never switches off`),
+      seg('Open hours', split.openAbove, CHART.blue, 'above base load while the site is open'),
+      seg('Closed-hours excess', split.closedAbove, CHART.orange, 'above base load while the site should be shut'),
+    ],
+    note: 'The three parts add up to observed consumption. Costs at the rates entered; associated costs, not savings.',
+  });
 
   r.h2('1. Observed and annual figures', 30);
   observedVsAnnual(r, m);

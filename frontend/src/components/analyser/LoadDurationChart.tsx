@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { CHART } from '../../local/chartColours';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
@@ -41,8 +42,8 @@ function LoadDurationChart({ data }: Props) {
         <AreaChart data={data.curve} margin={{ top: 4, right: 12, left: 0, bottom: 16 }}>
           <defs>
             <linearGradient id="ldc" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0f766e" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#0f766e" stopOpacity={0.02} />
+              <stop offset="0%" stopColor={CHART.blue} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={CHART.blue} stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -73,15 +74,15 @@ function LoadDurationChart({ data }: Props) {
           />
           <ReferenceLine
             y={data.average_kw}
-            stroke="#f59e0b"
+            stroke={CHART.orange}
             strokeDasharray="4 3"
             label={{
               value: `Average ${data.average_kw.toLocaleString()} kW`,
-              position: 'right', fill: '#b45309', fontSize: 11,
+              position: 'right', fill: CHART.orange, fontSize: 11,
             }}
           />
           <Area isAnimationActive={false}
-            type="monotone" dataKey="kw" stroke="#0f766e"
+            type="monotone" dataKey="kw" stroke={CHART.blue}
             strokeWidth={2} fill="url(#ldc)"
           />
         </AreaChart>

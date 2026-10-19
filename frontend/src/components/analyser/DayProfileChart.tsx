@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { CATEGORICAL, CHART, DAY_TYPE_COLOURS } from '../../local/chartColours';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -9,11 +10,11 @@ import Panel from './Panel';
 // Weekdays share a warm ramp so the working week reads as one family;
 // weekend and summary lines sit outside it deliberately.
 const COLOURS: Record<string, string> = {
-  Monday: '#0f766e', Tuesday: '#0d9488', Wednesday: '#14b8a6',
-  Thursday: '#2dd4bf', Friday: '#5eead4',
-  Saturday: '#f59e0b', Sunday: '#ef4444',
-  Weekday: '#1e293b', Weekend: '#7c3aed', 'Bank holiday': '#db2777',
-  Total: '#64748b',
+  Monday: CATEGORICAL[0], Tuesday: CATEGORICAL[1], Wednesday: CATEGORICAL[2],
+  Thursday: CATEGORICAL[3], Friday: CATEGORICAL[4],
+  Saturday: CATEGORICAL[5], Sunday: CATEGORICAL[6],
+  ...DAY_TYPE_COLOURS,
+  Total: CHART.ink,
 };
 
 const DEFAULT_ON = ['Weekday', 'Weekend'];

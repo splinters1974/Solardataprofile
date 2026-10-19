@@ -4,7 +4,12 @@
  * appears in the header, the customer gate, file names and every PDF footer.
  */
 export const PRODUCT = 'Data Analyser';
-export const VARIANT = 'Advanced';
+/**
+ * Built twice from one codebase: `npm run build:standalone` makes Advanced,
+ * `npm run build:standard` makes Standard (same engine and charts, fewer tabs).
+ */
+export const IS_STANDARD = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_VARIANT === 'standard';
+export const VARIANT = IS_STANDARD ? 'Standard' : 'Advanced';
 export const PRODUCT_FULL = `${PRODUCT} ${VARIANT}`;
 
 /**

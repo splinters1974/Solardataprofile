@@ -623,3 +623,58 @@ export function imageBlock(r: Report, opts: { title?: string; canvas: HTMLCanvas
   d.addImage(opts.canvas.toDataURL('image/png'), 'PNG', r.left, r.y, r.width, opts.height, undefined, 'FAST');
   r.y += opts.height + 3;
 }
+
+/** A donut with a legend to its right: each segment's label, share, value and note. */
+export function donutChart(r: Report, opts: {
+  title: string; centre: string; centreSub: string;
+  segments: { label: string; value: number; color: RGB; detail: string }[];
+  note?: string;
+}) {
+  const height = 52;
+  r.need(height + 8);
+  chartTitle(r, opts.title);
+  const d = r.doc;
+  const cx = r.left + 24; const cy = r.y + 8 + 22;
+  const R = 21; const ri = 14;
+  const total = opts.segments.reduce((a, s) => a + s.value, 0);
+  let a = -Math.PI / 2;
+  for (const s of opts.segments) {
+    const share = total > 0 ? s.value / total : 0;
+    if (share <= 0) continue;
+    const a1 = a + share * Math.PI * 2;
+    // Fill the ring segment as a polygon: outer arc out, inner arc back.
+    const steps = Math.max(2, Math.ceil(share * 90));
+    const pts: [number, number][] = [];
+    for (let k = 0; k <= steps; k++) { const t = a + ((a1 - a) * k) / steps; pts.push([cx + R * Math.cos(t), cy + R * Math.sin(t)]); }
+    for (let k = steps; k >= 0; k--) { const t = a + ((a1 - a) * k) / steps; pts.push([cx + ri * Math.cos(t), cy + ri * Math.sin(t)]); }
+    const deltas = pts.slice(1).map((p, k) => [p[0] - pts[k][0], p[1] - pts[k][1]]);
+    d.setFillColor(...s.color);
+    d.setDrawColor(255, 255, 255);
+    d.setLineWidth(0.4);
+    d.lines(deltas, pts[0][0], pts[0][1], [1, 1], 'FD', true);
+    a = a1;
+  }
+  d.setTextColor(...INK);
+  d.setFont('helvetica', 'bold').setFontSize(9);
+  d.text(opts.centre, cx, cy + 1, { align: 'center' });
+  d.setFont('helvetica', 'normal').setFontSize(6.5);
+  d.setTextColor(...MUTED);
+  d.text(opts.centreSub, cx, cy + 5, { align: 'center' });
+  // Legend.
+  let ly = r.y + 14;
+  const lx = r.left + 56;
+  for (const s of opts.segments) {
+    const share = total > 0 ? s.value / total : 0;
+    d.setFillColor(...s.color);
+    d.rect(lx, ly - 3, 3.5, 3.5, 'F');
+    d.setTextColor(...INK);
+    d.setFont('helvetica', 'bold').setFontSize(8.5);
+    d.text(`${s.label}  ${(share * 100).toFixed(0)}%`, lx + 6, ly);
+    d.setFont('helvetica', 'normal').setFontSize(7.5);
+    d.setTextColor(...MUTED);
+    d.text(s.detail, lx + 6, ly + 4);
+    ly += 11;
+  }
+  r.y += height;
+  if (opts.note) r.small(opts.note);
+}

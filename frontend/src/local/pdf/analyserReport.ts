@@ -8,6 +8,7 @@ import type {
   ScatterResponse, WeekResponse,
 } from '../../types';
 import { fmtLong } from '../dates';
+import { CATEGORICAL, CHART, DAY_TYPE_COLOURS } from '../chartColours';
 import { pdfFooter } from '../edition';
 import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
 import { RAMP_HEX } from '../carpet';
@@ -25,12 +26,12 @@ import {
 const BRAND = hex(BRAND_BLUE);
 
 const SERIES_COLOURS: Record<string, RGB> = {
-  Monday: hex('#0f766e'), Tuesday: hex('#0d9488'), Wednesday: hex('#14b8a6'),
-  Thursday: hex('#2dd4bf'), Friday: hex('#5eead4'), Saturday: hex('#f59e0b'),
-  Sunday: hex('#ef4444'), Weekday: hex('#1e293b'), Weekend: hex('#7c3aed'),
-  'Bank holiday': hex('#db2777'), Total: hex('#64748b'),
+  Monday: hex(CATEGORICAL[0]), Tuesday: hex(CATEGORICAL[1]), Wednesday: hex(CATEGORICAL[2]),
+  Thursday: hex(CATEGORICAL[3]), Friday: hex(CATEGORICAL[4]), Saturday: hex(CATEGORICAL[5]),
+  Sunday: hex(CATEGORICAL[6]), Weekday: hex(DAY_TYPE_COLOURS.Weekday), Weekend: hex(DAY_TYPE_COLOURS.Weekend),
+  'Bank holiday': hex(DAY_TYPE_COLOURS['Bank holiday']), Total: hex(CHART.ink),
 };
-const DAY_COLOURS = ['#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#f59e0b', '#ef4444'].map(hex);
+const DAY_COLOURS = CATEGORICAL.map(hex);
 
 const DISCLAIMER = 'Produced from the half-hourly consumption data supplied. Demand is in kW: interval kWh divided '
   + 'by the 0.5-hour interval, so a peak is the highest half-hour average, not an instantaneous maximum. Missing and '
@@ -286,8 +287,8 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
         height: 62,
         categories: i.dayNight.months.map((m) => m.month),
         series: [
-          { name: 'Day', color: hex('#f59e0b'), values: i.dayNight.months.map((m) => m.day_kwh) },
-          { name: `Night (${i.dayNight.night_window})`, color: hex('#1e293b'), values: i.dayNight.months.map((m) => m.night_kwh) },
+          { name: 'Day', color: hex(CHART.blue), values: i.dayNight.months.map((m) => m.day_kwh) },
+          { name: `Night (${i.dayNight.night_window})`, color: hex(CHART.ink), values: i.dayNight.months.map((m) => m.night_kwh) },
         ],
       });
       const dnRows = i.dayNight.months.map((m) => {
@@ -328,7 +329,7 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       r.paragraph('Load against time of day for the whole period. The spread around the averages '
         + 'is what a line chart hides: a tight band means a predictable site, a wide one means the '
         + 'average alone is not much use for sizing.');
-      const groups = ([['Weekday', '#0f766e'], ['Weekend', '#f59e0b'], ['Bank holiday', '#db2777']] as const)
+      const groups = ([['Weekday', DAY_TYPE_COLOURS.Weekday], ['Weekend', DAY_TYPE_COLOURS.Weekend], ['Bank holiday', DAY_TYPE_COLOURS['Bank holiday']]] as const)
         .map(([name, colour]) => ({
           name, color: hex(colour),
           points: i.scatter.points.filter((p) => p.type === name).map((p) => [p.hour, p.kw] as [number, number]),

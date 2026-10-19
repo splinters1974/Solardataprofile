@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import HHAnalyser, { type ReportFilters } from '../components/analyser/HHAnalyser';
 import {
-  downloadAnalyserChartsZip, downloadExcel, downloadSiteSummary, scenarioRunFor, updateAction, updateScenarios,
+  downloadAnalyserChartsZip, downloadExcel, downloadSiteSummary, pricesForSite, scenarioRunFor, updateAction, updateScenarios,
   updateSiteSettings, type SiteSummary,
 } from '../local/localClient';
 import { SITE_TYPES, type SiteSettings } from '../local/site';
@@ -10,6 +10,12 @@ import type { Action } from '../local/actions';
 import type { Scenario } from '../local/scenarios';
 import { fmtDayMonYear } from '../local/dates';
 import FullPeriodChart from './FullPeriodChart';
+import DailyProfileOverlay from './DailyProfileOverlay';
+import WeeklyExplorer from './WeeklyExplorer';
+import { IS_STANDARD } from '../local/edition';
+
+/** The Standard version shows the core tabs only; the engine and numbers are the same. */
+const STANDARD_TABS: SiteTab[] = ['overview', 'review', 'calendar', 'heatmap', 'capacity', 'charts', 'settings'];
 import OverviewTab from './OverviewTab';
 import ReviewTab from './ReviewTab';
 import SiteSettingsPanel from './SiteSettingsPanel';
@@ -52,6 +58,9 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
   const onScenarios = (s: Scenario[]) => { updateScenarios(site.id, s); refresh(); };
   const scenarioRun = useMemo(() => (tab === 'scenarios' ? scenarioRunFor(site.id) : null),
     [tab, site]);
+  // The charts show "with scenarios" only when at least one is active (Advanced only).
+  const scenarioAfter = useMemo(() => (!IS_STANDARD && (tab === 'charts' || tab === 'heatmap') && site.scenarios.some((x) => x.enabled)
+    ? scenarioRunFor(site.id).after : null), [tab, site]);
   // Stable identities, so the explorer does not reload on every keystroke elsewhere.
   const downloadSeparate = useCallback((opts: ReportFilters) => downloadAnalyserChartsZip(site.id, opts), [site.id]);
   const runForSite = useCallback(<T,>(job: (id: string) => Promise<T>) => job(site.id), [site.id]);
@@ -61,7 +70,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
     run(label, async () => { try { await job(); } finally { setExporting(null); } });
   };
 
-  const tabs: { key: SiteTab; label: string; badge?: string | number }[] = [
+  const allTabs: { key: SiteTab; label: string; badge?: string | number }[] = [
     { key: 'overview', label: 'Overview', badge: m.findings.filter((f) => f.level === 'high').length || '' },
     { key: 'review', label: 'Data review', badge: site.quality.verdict === 'good' ? '' : site.quality.verdict },
     { key: 'calendar', label: 'Calendar', badge: site.settings.calendar.confirmed ? '' : 'confirm' },
@@ -73,6 +82,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
     { key: 'charts', label: 'Charts' },
     { key: 'settings', label: 'Settings' },
   ];
+  const tabs = IS_STANDARD ? allTabs.filter((t) => STANDARD_TABS.includes(t.key)) : allTabs;
 
   return (
     <div className="space-y-4">
@@ -115,6 +125,9 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
       {tab === 'calendar' && <SiteSettingsPanel site={site} defaultRate={rate} onChange={onSettings} section="calendar" />}
       {tab === 'baseload' && <BaseloadTab site={site} onChange={onSettings} locked={locked} />}
       {tab === 'heatmap' && <HeatmapTab site={site} date={date} onDate={setDate} />}
+      {tab === 'heatmap' && !IS_STANDARD && (
+        <WeeklyExplorer frame={site.frame} calendar={site.settings.calendar} siteName={site.settings.name} after={scenarioAfter} prices={pricesForSite(site.id)} />
+      )}
       {tab === 'anomalies' && <AnomaliesTab site={site} goTo={goTo} />}
       {tab === 'scenarios' && scenarioRun && <ScenariosTab site={site} run={scenarioRun} onChange={onScenarios} locked={false} />}
       {tab === 'capacity' && <CapacityTab site={site} onChange={onSettings} locked={false} goTo={goTo} />}
@@ -124,6 +137,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
             These charts have their own date filter, for exploring. Findings, costs, scenarios and headroom always use the full record,
             so they do not change when you filter here. The PDF from this section says which dates it covers.
           </Note>
+          <DailyProfileOverlay frame={site.frame} calendar={site.settings.calendar} siteName={site.settings.name} after={scenarioAfter} />
           <FullPeriodChart frame={site.frame} />
           <HHAnalyser key={`${site.id}-${site.frameKey}`} sessionId={site.id} runWithSession={runForSite} onDownloadSeparate={downloadSeparate} />
         </div>

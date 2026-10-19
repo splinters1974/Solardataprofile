@@ -118,7 +118,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 
   <div class="box">
     <span class="label">Standard and Advanced</span>
-    <p>There are two versions of the tool. <strong>Standard</strong> (<code>Ameresco-Data-Analyser-Standard.html</code>, grey badge) is the original: quick screening and reports. <strong>Advanced</strong> (<code>Ameresco-Data-Analyser-Advanced.html</code>, green badge) is the one this guide covers. The badge sits next to the name at the top of the screen, on the customer password page and in every PDF footer, so you can always tell which one produced a report. Figures can differ between the two (see below), so don't mix them in one piece of work.</p>
+    <p>There are two versions, built from the same engine, so the same file gives the same numbers in both. <strong>Standard</strong> (<code>Ameresco-Data-Analyser-Standard.html</code>, grey badge) is for quick screening: Overview, Data review, Calendar, Heatmap, Capacity, Charts and Settings, with findings and reports. <strong>Advanced</strong> (<code>Ameresco-Data-Analyser-Advanced.html</code>, green badge) adds Base load, Unusual days, Savings scenarios, the Opportunities and Estate comparison views, opportunity tracking, project files, the week-by-week explorer and the carbon panel. This guide covers Advanced; everything in Standard works the same way. The badge shows next to the name, on the customer password page and in every PDF footer.</p>
   </div>
 
   <div class="box">
@@ -309,6 +309,8 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <h1>8. Findings and opportunities</h1>
   <p>Each site has ten tabs on a bar that stays pinned to the top of the window as you scroll, so you can always jump to another one. The active tab is filled blue; a small badge flags something to look at (high findings, a data check, a calendar to confirm, the number of unusual days or active scenarios).</p>
   <figure class="tiny"><img src="img/05b-tabs.png" alt=""><figcaption>The site tabs.</figcaption></figure>
+  <figure class="short"><img src="img/20-donut-carbon.png" alt=""><figcaption>Top of the Overview: where the energy goes, and the carbon panel (Advanced, once a factor is entered).</figcaption></figure>
+  <p><strong>Where the energy goes</strong> splits observed consumption three ways, which add up to the total: <span style="color:#008540;font-weight:700">base load</span> (up to the reference in every half hour: what never switches off), <span style="color:#0065a5;font-weight:700">open hours</span> above it, and the <span style="color:#c2410c;font-weight:700">closed-hours excess</span> above it, which is the ranking figure. It also appears in the PDF appendix. The <strong>carbon panel</strong> shows tCO2e at the entered factor, the share from closed-hours excess and what the active savings scenarios would remove. Every chart has a download button (green arrow) that saves it as a picture for proposals.</p>
   <p>A site's <strong>Overview</strong> tab shows its key figures (each tagged <em>Measured</em> or <em>Estimate</em>), its <strong>top three investigations</strong> and all findings.</p>
   <figure><img src="img/06-findings.png" alt=""><figcaption>Top investigations, with the calculation and the opportunity record open on the first.</figcaption></figure>
 
@@ -366,6 +368,13 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
   <p>The <strong>reference profile</strong> is the median kW in each half hour across the previous 8 comparable days (same weekday and calendar class, complete, no unresolved data question). The number of days and their range are shown. Below it, the <strong>week view</strong> shows seven days as a grid.</p>
   <h2>Compare periods</h2>
   <p>Answers "is the site using more or less than before?". Pick a period (quick picks: last 4 weeks, 3 months, 6 months) and the app compares it with the period just before it and with the same weeks a year earlier, in one sentence each. Use it to show a customer how a recent month compares, to check that savings are holding, or to spot a site creeping up. The year-earlier comparison is the fairer one because it is the same season. Only days complete in both periods are counted; if too few match, it says so rather than guess.</p>
+  <h2>Week by week (Advanced)</h2>
+  <figure class="short"><img src="img/22-weeks.png" alt=""><figcaption>Weekly totals; click a week to open it. Pale bars have under 90% of the week's readings.</figcaption></figure>
+  <figure class="short"><img src="img/23-week.png" alt=""><figcaption>One week, half hour by half hour, with closed hours shaded and the active scenarios as a green line.</figcaption></figure>
+  <p>Below the heatmap, a bar per week (kWh or £). Click any bar to see that week half hour by half hour, with closed hours shaded, the result of active savings scenarios, and, when time bands are set, the unit rate in each half hour underneath. It opens on the highest week.</p>
+  <h2>Daily load profile (Charts tab)</h2>
+  <figure class="short"><img src="img/21-daily-profile.png" alt=""><figcaption>Every day as a faint line, the average in dark blue, the highest in each half hour in orange.</figcaption></figure>
+  <p>The quickest way to see how consistent a site is: where the lines bunch, the site behaves the same every day; a second band means a different kind of day (here, weekends); stray lines are one-offs. Filter by days (all, open, closed, weekdays, weekends) and month. In Advanced, switch to <em>With scenarios</em> to see the effect of the active savings scenarios against the measured average.</p>
   <p class="small muted">The Charts tab keeps the earlier analyser charts (day-of-week profile, load duration curve, day and night by month, week comparison, every reading). Its date filter affects those charts only; findings always use the full record.</p>
 </section>
 
@@ -405,7 +414,9 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <section class="chapter">
   <h1>13. Capacity</h1>
   <p>Enter the agreed supply capacity (kVA), power factor and safety margin on the <strong>Capacity</strong> tab.</p>
-  <figure class="short"><img src="img/13b-peaks.png" alt=""><figcaption>The ten highest half hours, one per day, in kW and kVA.</figcaption></figure>
+  <figure class="short"><img src="img/24-capacity-week.png" alt=""><figcaption>Peak demand against capacity: one week in kVA, with the agreed and usable capacity (and a peak target from scenario D). Orange bars are over the line.</figcaption></figure>
+  <p>The chart opens on the week of the highest half hour; step through weeks with the arrows. Then the ten highest half hours, one per day:</p>
+  <figure class="tiny"><img src="img/13b-peaks.png" alt=""><figcaption>The ten highest half hours, one per day, in kW and kVA.</figcaption></figure>
   <ul>
     <li><strong>kW vs kVA.</strong> Half-hourly data gives kW (a half-hour average, not an instantaneous maximum). kVA = kW ÷ power factor, which is an assumption you enter (0.95 if unknown).</li>
     <li><strong>Recurrence.</strong> How many half hours, on how many days, came within 10% of the peak. One-off peaks are easier to manage than recurring ones.</li>

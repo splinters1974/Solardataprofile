@@ -2,7 +2,7 @@
  * Small shared pieces for the offline app's screens: cards, tiles, tabs,
  * form fields and the impact, confidence and status chips.
  */
-import { PRODUCT, VARIANT } from '../local/edition';
+import { IS_STANDARD, PRODUCT, VARIANT } from '../local/edition';
 import type { ReactNode } from 'react';
 import type { Confidence, Level } from '../local/findings';
 import { STATUS_LABEL, type ActionStatus } from '../local/actions';
@@ -86,7 +86,7 @@ export function ProductMark({ size = 'lg' }: { size?: 'lg' | 'md' }) {
   return (
     <span className="flex items-center gap-2">
       <span className={`${size === 'lg' ? 'text-xl' : 'text-lg'} font-bold text-[#0065a5] leading-tight`}>{PRODUCT}</span>
-      <span className="text-[11px] font-bold uppercase tracking-wider bg-[#008540] text-white rounded-md px-2 py-0.5" title={`This is the ${VARIANT} version`}>
+      <span className={`text-[11px] font-bold uppercase tracking-wider text-white rounded-md px-2 py-0.5 ${IS_STANDARD ? 'bg-slate-600' : 'bg-[#008540]'}`} title={`This is the ${VARIANT} version`}>
         {VARIANT}
       </span>
     </span>

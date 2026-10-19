@@ -4,6 +4,28 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 19 October 2026: charts borrowed from Orkestra, Standard rebuilt (2.3)
+
+- **Standard is rebuilt on the Advanced engine.** One codebase is built twice (`npm run build:standard` and `npm run build:standalone`).
+  - Standard shows Overview, Data review, Calendar, Heatmap, Capacity, Charts and Settings, and has no opportunity tracking or project files. It now gets the same numbers and charts as Advanced.
+  - Standard's figures change where files have gaps: missing readings are no longer counted as zero, and annual figures need at least 180 valid days.
+  - The old Standard guide is retired. One guide covers both versions.
+- **Ameresco chart palette.** Charts use Ameresco blue and green, extended to a seven-colour set checked for colour-blind separation and contrast. Day types are blue, green and purple. Closed-hours excess is burnt orange. "Before" and closed hours are grey. The old teal, pink and amber colours are gone from the screens and the PDFs.
+- **New charts (ideas borrowed from Push Power / Orkestra):**
+  - **Daily load profile** (Charts tab, both versions):
+    - every day as a faint line, plus the average and the highest value in each half hour
+    - usually-closed hours shaded
+    - filters by day type and month
+    - in Advanced, a measured / with-scenarios switch
+  - **Where the energy goes** donut (Overview, both versions, and the PDF appendix). Base load, open hours and closed-hours excess, which add up to the total.
+  - **Week by week** (Heatmap tab, Advanced):
+    - weekly kWh or £ bars
+    - click a week to see its half hours, with closed hours shaded, scenarios as a line and the unit rate underneath
+  - **Peak demand against capacity** (Capacity tab, both versions). A week of half-hour kVA bars with agreed capacity, usable capacity and the scenario D peak target. Bars over the line are orange.
+  - **Carbon panel** (Overview, Advanced, once a factor is entered). tCO2e a year, the share from closed-hours excess, and the scenario reduction with a before/after bar.
+- **Download button on every new chart.** It saves the chart as a PNG at twice screen resolution.
+- **Not borrowed:** the energy flow diagram, battery state of charge, battery degradation, backup duration, solar self-consumption and cashflow/NPV charts. They need the asset register and the solar/battery modelling, a later phase. The "barrels of oil" and "trees" carbon equivalents are also left out, because they need a cited source for each conversion.
+
 ## 16 October 2026: Advanced 2.2 (feedback round)
 
 1. **Carbon year and source can be typed at any time.** They were locked until a factor was entered.

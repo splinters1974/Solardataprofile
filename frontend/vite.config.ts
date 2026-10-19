@@ -31,7 +31,7 @@ function inlineIcon(): Plugin {
     name: 'inline-icon',
     transformIndexHtml: (html) => html
       .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`)
-      .replace(/<title>[^<]*<\/title>/, '<title>Ameresco Data Analyser Advanced</title>'),
+      .replace(/<title>[^<]*<\/title>/, `<title>Ameresco Data Analyser ${process.env.VITE_VARIANT === 'standard' ? 'Standard' : 'Advanced'}</title>`),
   }
 }
 
@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
     return {
       base: './',
       plugins: [localApi(), inlineIcon(), react(), tailwindcss(), viteSingleFile()],
-      build: { outDir: 'dist-standalone', chunkSizeWarningLimit: 5000 },
+      build: { outDir: process.env.VITE_VARIANT === 'standard' ? 'dist-standard' : 'dist-standalone', chunkSizeWarningLimit: 5000 },
     }
   }
 
