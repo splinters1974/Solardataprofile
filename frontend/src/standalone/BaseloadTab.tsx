@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { beforeAfter, type BeforeAfterSide, type ExcessResult } from '../local/findings';
 import { planDays } from '../local/calendar';
+import { CHART } from '../local/chartColours';
 import { fmtDayMonYear } from '../local/dates';
 import type { SiteSettings } from '../local/site';
 import type { SiteSummary } from '../local/localClient';
@@ -77,12 +78,15 @@ function BeforeAfterResult({ ba, rateGbp, hasClosed }: { ba: BA; rateGbp: number
 export default function BaseloadTab({ site, onChange, locked }: { site: SiteSummary; onChange: (s: SiteSettings) => void; locked: boolean }) {
   const m = site.metrics;
   const st = site.settings;
-  const plans = useMemo(() => planDays(st.calendar, site.frame.dates), [st.calendar, site.frame]);
-  const mid = site.frame.dates[Math.floor(site.frame.dates.length / 2)] ?? '';
+  // Before and after uses the whole file, so a change can be checked against any date in it.
+  const h = site.history;
+  const plans = useMemo(() => planDays(st.calendar, h.dates), [st.calendar, h]);
+  const mid = h.dates[Math.floor(h.dates.length / 2)] ?? '';
   const [split, setSplit] = useState(mid);
   const [weeks, setWeeks] = useState(8);
-  const ba = useMemo(() => (split ? beforeAfter(site.frame, plans, split, st.basePercentile, weeks) : null), [site.frame, plans, split, st.basePercentile, weeks]);
-  const trend = m.monthlyBase.map((x) => ({ ...x, label: x.month }));
+  const ba = useMemo(() => (split ? beforeAfter(h, plans, split, st.basePercentile, weeks) : null), [h, plans, split, st.basePercentile, weeks]);
+  const inPeriod = new Set(site.frame.dates.map((d) => d.slice(0, 7)));
+  const trend = m.monthlyBase.map((x) => ({ ...x, label: x.month, inPeriod: inPeriod.has(x.key) }));
 
   return (
     <div className="space-y-4">
@@ -140,7 +144,7 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
         ) : <Note>No confirmed closed hours: the calendar has this site open all the time, so there is no closed-hours split. {m.baseClosedNote}</Note>}
       </Card>
 
-      <Card title="Base load by month" subtitle={`${st.basePercentile}th percentile of each month's valid half hours. Paler bars have under 20 days of readings. Describes measured demand; it does not say why it changed.`}>
+      <Card title="Base load by month" subtitle={`${st.basePercentile}th percentile of each month's valid half hours${site.period.trimmed ? ', over the whole file (not just the analysis period)' : ''}. Paler bars have under 20 days of readings. Describes measured demand; it does not say why it changed.`}>
         <div style={{ height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
@@ -160,12 +164,12 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
               }} />
               <ReferenceLine y={m.baseAll.kw} stroke="#334155" strokeDasharray="4 3" />
               <Bar dataKey="kw" isAnimationActive={false} radius={[3, 3, 0, 0]}>
-                {trend.map((x) => <Cell key={x.key} fill={x.thin ? '#b9d3ef' : '#2a78d6'} />)}
+                {trend.map((x) => <Cell key={x.key} fill={x.inPeriod ? CHART.blue : CHART.grey} fillOpacity={x.thin ? 0.4 : 1} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-xs text-slate-400">Dashed line: the all-period reference ({kw(m.baseAll.kw)}).</p>
+        <p className="text-xs text-slate-400">Dashed line: the all-period reference for the analysis period ({kw(m.baseAll.kw)}).{site.period.trimmed ? ' Blue months are in the analysis period; grey months are earlier in the file.' : ''}</p>
       </Card>
 
       <Card title="Did a change make a difference?" subtitle="Before and after: pick the date something changed on site and compare measured demand in the weeks either side.">
@@ -176,7 +180,7 @@ export default function BaseloadTab({ site, onChange, locked }: { site: SiteSumm
             data, not why: weather, occupancy and other works can all move it.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-          <label>Change made on <input type="date" className={smallInput} value={split} min={site.frame.dates[0]} max={site.frame.dates[site.frame.dates.length - 1]} onChange={(e) => setSplit(e.target.value)} /></label>
+          <label>Change made on <input type="date" className={smallInput} value={split} min={h.dates[0]} max={h.dates[h.dates.length - 1]} onChange={(e) => setSplit(e.target.value)} /></label>
           <label>Compare
             <select className={`${smallInput} ml-1`} value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
               {[2, 4, 8, 12].map((w) => <option key={w} value={w}>{w} weeks</option>)}

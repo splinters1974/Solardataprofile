@@ -495,6 +495,8 @@ export function beforeAfter(f: Frame, plans: DayPlan[], split: string, p: number
 
 export interface AnalysisInput {
   frame: Frame;
+  /** The whole file, when the analysis period is shorter: used for the monthly base load trend and year-on-year change. */
+  history?: Frame;
   settings: SiteSettings;
   defaultRateP: number;
   quality: QualityReport;
@@ -623,17 +625,19 @@ export function analyseSite(input: AnalysisInput): SiteMetrics {
   const excess = settings.excessReference === 'closed' && excessClosed ? excessClosed : excessAll;
   const byClass = [...split.values()].filter((c) => c.closedHours > 0);
 
-  // Monthly base load with sample counts.
-  const monthlyBase: MonthlyBase[] = n ? monthsBetween(f.dates[0], f.dates[n - 1]).flatMap((m) => {
+  // Monthly base load with sample counts, over the whole file so a trend shows across years.
+  const hf = input.history && input.history.dates.length ? input.history : f;
+  const hn = hf.dates.length;
+  const monthlyBase: MonthlyBase[] = hn ? monthsBetween(hf.dates[0], hf.dates[hn - 1]).flatMap((m) => {
     const vals: number[] = [];
     let excluded = 0;
     let any = false;
-    f.dates.forEach((d, i) => {
+    hf.dates.forEach((d, i) => {
       if (d.slice(0, 7) !== m.key) return;
       any = true;
       for (let s = 0; s < SLOTS; s++) {
-        if (isValid(f, i, s)) vals.push(f.rows[i][s] / INTERVAL_HOURS);
-        else if (flagAt(f, i, s) !== FLAG.DST_GAP) excluded++;
+        if (isValid(hf, i, s)) vals.push(hf.rows[i][s] / INTERVAL_HOURS);
+        else if (flagAt(hf, i, s) !== FLAG.DST_GAP) excluded++;
       }
     });
     if (!any) return [];
@@ -902,10 +906,13 @@ function buildFindings(f: Frame, plans: DayPlan[], st: SiteSettings, m: Base, qu
   // 7. Base load change, same months a year apart.
   {
     const byMonth = new Map(m.monthlyBase.filter((x) => !x.thin).map((x) => [x.key, x.kw]));
+    // The later month of each pair must fall in the analysis period: this period against the year before it.
+    const periodMonths = new Set(f.dates.map((d) => d.slice(0, 7)));
     const pairs = m.monthlyBase.flatMap((x) => {
       if (x.thin) return [];
       const [y, mo] = x.key.split('-');
-      const later = byMonth.get(`${Number(y) + 1}-${mo}`);
+      const laterKey = `${Number(y) + 1}-${mo}`;
+      const later = periodMonths.has(laterKey) ? byMonth.get(laterKey) : undefined;
       return later !== undefined ? [[x.kw, later, x.key] as const] : [];
     });
     if (pairs.length >= 2) {

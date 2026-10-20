@@ -21,6 +21,7 @@ import { LEVEL_UI } from './levelUi';
 import { VerdictChip } from './QualityPanel';
 import EditionDialog from './EditionDialog';
 import CarbonFields from './CarbonFields';
+import { isMultiYear } from '../local/period';
 import { IS_STANDARD } from '../local/edition';
 import BulkSettingsPanel from './BulkSettingsPanel';
 import { mergeCalendar } from '../local/calendar';
@@ -184,6 +185,8 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   const annualised = counted.filter((s) => s.metrics.annual);
   const sum = (list: SiteSummary[], f: (s: SiteSummary) => number) => list.reduce((a, s) => a + f(s), 0);
   const warnings = useMemo(() => overlapWarnings(sites), [sites]);
+  const multiYear = sites.filter((x) => isMultiYear(x.period.fileFrom, x.period.fileTo));
+  const allLast12 = multiYear.every((x) => (x.settings.period?.mode ?? 'last12') === 'last12');
   const allFrom = sites.map((s) => s.frame.dates[0]).filter(Boolean).sort()[0] ?? '';
   const allTo = sites.map((s) => s.frame.dates[s.frame.dates.length - 1]).filter(Boolean).sort().reverse()[0] ?? '';
 
@@ -350,6 +353,21 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                   ))}
                 </div>
                 {warnings.length > 0 && <Note tone="warn">{warnings.map((w, i) => <p key={i}>{w}</p>)}</Note>}
+                {multiYear.length > 0 && (
+                  <div className="rounded-xl border border-[#b9d3ef] bg-[#e6f0f7] px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                    <p className="flex-1 min-w-64">
+                      <strong>{multiYear.length} file{multiYear.length > 1 ? 's hold' : ' holds'} more than a year of data.</strong>{' '}
+                      Each site is analysed over its own chosen period ({allLast12 ? 'the last 12 months of its file' : 'periods differ'}); change one site at the top of its page.
+                      Trends over time still use the whole file.
+                    </p>
+                    {!isCustomer && (
+                      <span className="flex gap-2">
+                        <button type="button" className={btnSecondary} onClick={() => { for (const x of sites) updateSiteSettings(x.id, { ...x.settings, period: { mode: 'last12' } }); refresh(); }}>Last 12 months for all</button>
+                        <button type="button" className={btnSecondary} onClick={() => { for (const x of sites) updateSiteSettings(x.id, { ...x.settings, period: { mode: 'all' } }); refresh(); }}>Whole files for all</button>
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {!IS_STANDARD && <Tabs<View>
                   sticky label="Portfolio views"

@@ -69,7 +69,7 @@ export function buildWorkbook(sites: ExportSite[], opts: WorkbookOptions): Array
     [carbonNote],
     [],
     [
-      'Site', 'Meter ID', 'File', 'Role', 'Physical site', 'Building type', 'Hours confirmed', 'From', 'To', 'Span (days)',
+      'Site', 'Meter ID', 'File', 'Role', 'Physical site', 'Building type', 'Hours confirmed', 'Analysis period', 'File from', 'File to', 'From', 'To', 'Span (days)',
       'Valid days', 'Coverage', 'Annualisation', 'Annualisation method', 'Rates', 'Observed kWh', 'Observed cost (£)',
       'Annual kWh (estimate)', 'Annual cost (£, estimate)', 'Observed tCO2e', 'Annual tCO2e (estimate)',
       'Highest half-hour average (kW)', 'When', 'Lowest half hour (kW)', 'Average kW', 'Load factor',
@@ -85,7 +85,7 @@ export function buildWorkbook(sites: ExportSite[], opts: WorkbookOptions): Array
     const h = s.headroom;
     summary.push([
       s.settings.name, s.settings.meterId, s.filename, s.settings.role, s.settings.group, SITE_TYPES[s.settings.type].label,
-      s.settings.calendar.confirmed ? 'Yes' : 'No', m.coverage.from, m.coverage.to, m.coverage.spanDays,
+      s.settings.calendar.confirmed ? 'Yes' : 'No', s.period.label, s.period.fileFrom, s.period.fileTo, m.coverage.from, m.coverage.to, m.coverage.spanDays,
       r1(m.coverage.validDays), `${(m.coverage.share * 100).toFixed(1)}%`, m.annualisation.mode, m.annualisation.method,
       m.rate.description + (m.rate.problems.length ? ` (bands not applied: ${m.rate.problems.join(' ')})` : ''),
       r0(m.observed.kwh), r0(m.observed.cost), r0(m.annual?.kwh), r0(m.annual?.cost), r2(m.observed.tco2e), r2(m.annual?.tco2e),

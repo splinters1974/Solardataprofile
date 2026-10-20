@@ -58,8 +58,24 @@ export const DEFAULT_DETECTION: DetectionSettings = {
 export type MeterType = 'import' | 'export' | 'net';
 export type MeterRole = 'main' | 'sub' | 'separate';
 
+/**
+ * Which part of the file the headline figures, findings and reports cover.
+ * Files often hold two or three years; the default is the last 12 months, so
+ * a site is judged on how it runs now. Trend features (base load by month and
+ * year-on-year change, compare periods, before and after) still use the whole file.
+ */
+export interface AnalysisPeriod {
+  mode: 'last12' | 'year' | 'all' | 'custom';
+  /** For 'year': 0 = last 12 months, 1 = the 12 months before, and so on. */
+  yearsBack?: number;
+  from?: string;
+  to?: string;
+}
+
 export interface SiteSettings {
   name: string;
+  /** Part of the file analysed. Defaults to the last 12 months. */
+  period: AnalysisPeriod;
   type: SiteType;
   calendar: Calendar;
   /** p/kWh fully delivered. Null means use the portfolio default. */
@@ -97,6 +113,7 @@ export interface SiteSettings {
 export function defaultSettings(name: string): SiteSettings {
   return {
     name,
+    period: { mode: 'last12' },
     type: 'office',
     calendar: presetCalendar('office'),
     rateP: null,
@@ -131,6 +148,7 @@ export function normaliseSettings(s: Partial<SiteSettings> & { hours?: LegacyHou
   const out: SiteSettings = { ...base, ...s, calendar } as SiteSettings;
   out.review = { ...emptyReview(), ...(s.review ?? {}) };
   out.detection = { ...DEFAULT_DETECTION, ...(s.detection ?? {}) };
+  out.period = s.period ?? { mode: 'last12' };
   delete (out as { hours?: unknown }).hours;
   return out;
 }

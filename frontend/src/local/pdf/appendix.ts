@@ -110,6 +110,10 @@ export function opportunitiesAppendix(r: Report, a: AppendixInput) {
   });
 
   r.h2('1. Observed and annual figures', 30);
+  if (s.period.trimmed) {
+    r.small(`Analysis period: ${s.period.label.toLowerCase()}, ${fmtDayMonYear(s.period.from)} to ${fmtDayMonYear(s.period.to)}, from a file covering `
+      + `${fmtDayMonYear(s.period.fileFrom)} to ${fmtDayMonYear(s.period.fileTo)}. Base load by month and its year-on-year change use the whole file.`);
+  }
   observedVsAnnual(r, m);
 
   r.h2('2. Investigations', 30);

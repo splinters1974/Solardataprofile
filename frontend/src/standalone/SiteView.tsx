@@ -10,6 +10,7 @@ import type { Action } from '../local/actions';
 import type { Scenario } from '../local/scenarios';
 import { fmtDayMonYear } from '../local/dates';
 import FullPeriodChart from './FullPeriodChart';
+import PeriodPicker from './PeriodPicker';
 import DailyProfileOverlay from './DailyProfileOverlay';
 import WeeklyExplorer from './WeeklyExplorer';
 import { IS_STANDARD } from '../local/edition';
@@ -110,6 +111,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
           </button>
         </div>
       </div>
+      <PeriodPicker site={site} onChange={onSettings} />
       {site.warnings.length > 0 && tab !== 'review' && (
         <Note tone="warn">
           This file has {site.warnings.length} data note{site.warnings.length > 1 ? 's' : ''}.{' '}

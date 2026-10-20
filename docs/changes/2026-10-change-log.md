@@ -4,6 +4,19 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 20 October 2026: files with more than a year (2.4)
+
+- **Analysis period per site, defaulting to the last 12 calendar months** of the file (for example 1 Oct 2024 to 30 Sep 2025). The picker at the top of each site page also offers each earlier 12-month block, the whole file and custom dates. It shows prominently when a file holds more than a year.
+- **On the main page:** a banner shows when any file holds more than a year, with "Last 12 months for all" and "Whole files for all" buttons.
+- **The analysis period drives** headline figures, findings, ranking, scenarios, heatmap, charts, data quality, PDFs and Excel.
+- **The whole file drives the trends:**
+  - base load by month (months outside the period shown in grey)
+  - the year-on-year base load change finding, which now compares the analysis period against the year before it rather than pairing every year in the file
+  - compare periods, and before-and-after
+- **Outputs.** PDFs state the analysis period and the file's dates. The Excel summary adds analysis period, file-from and file-to columns. Projects and customer editions keep the choice.
+- **Tests:** period maths (calendar months, leap years, earlier blocks, custom dates) and the period/history split.
+- **Week by week stays within the analysis period.** Switch to whole file to browse every week.
+
 ## 19 October 2026: charts borrowed from Orkestra, Standard rebuilt (2.3)
 
 - **Standard is rebuilt on the Advanced engine.** One codebase is built twice (`npm run build:standard` and `npm run build:standalone`).

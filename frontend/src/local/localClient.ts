@@ -20,7 +20,8 @@ import type {
   ScatterResponse,
 } from '../types';
 import { parseHHFile, regridLong, type LongSeries, type ParseInfo } from './parser';
-import { calendarDays, deriveFrame, type Frame, type RawData } from './frame';
+import { calendarDays, deriveFrame, sliceFrame, type Frame, type RawData } from './frame';
+import { periodRange, type PeriodRange } from './period';
 import {
   availableWeeks, dailySeries, dayNightSplit, dayOfWeekProfile, fullYearScatter,
   heatmapMatrix, hhSeries, loadDurationCurve, monthlyTotals, round, slice,
@@ -125,7 +126,15 @@ export function setTitle(t: string) { portfolioTitle = t; }
 
 // --- The analysis pipeline ------------------------------------------------------------
 
-interface Derived { key: string; frame: Frame; quality: QualityReport }
+interface Derived {
+  key: string;
+  /** The analysis period: what headline figures, findings and reports use. */
+  frame: Frame;
+  /** The whole file, for trends over time. */
+  history: Frame;
+  range: PeriodRange;
+  quality: QualityReport;
+}
 const derivedCache = new WeakMap<Session, Derived>();
 const regridCache = new WeakMap<Session, { convention: string; raw: RawData }>();
 
@@ -143,12 +152,14 @@ function rawFor(s: Session): RawData {
 
 function derived(s: Session): Derived {
   const st = s.settings;
-  const key = JSON.stringify([st.unit, st.review, st.convention, st.meterType]);
+  const key = JSON.stringify([st.unit, st.review, st.convention, st.meterType, st.period]);
   const hit = derivedCache.get(s);
   if (hit && hit.key === key) return hit;
-  const frame = deriveFrame(rawFor(s), st.unit, st.review);
+  const history = deriveFrame(rawFor(s), st.unit, st.review);
+  const range = periodRange(history.dates, st.period ?? { mode: 'last12' });
+  const frame = range.trimmed ? sliceFrame(history, range.from, range.to) : history;
   const quality = checkQuality(frame, { meterType: st.meterType, reviewedOk: st.review.reviewedOk });
-  const d = { key, frame, quality };
+  const d = { key, frame, history, range, quality };
   derivedCache.set(s, d);
   return d;
 }
@@ -163,7 +174,7 @@ function metricsFor(s: Session): SiteMetrics {
   const key = `${d.key}|${defaultRateP}|${JSON.stringify(carbon)}`;
   const hit = metricsCache.get(s.settings);
   if (hit && hit.key === key) return hit.metrics;
-  const metrics = analyseSite({ frame: d.frame, settings: s.settings, defaultRateP, quality: d.quality, carbon });
+  const metrics = analyseSite({ frame: d.frame, history: d.history, settings: s.settings, defaultRateP, quality: d.quality, carbon });
   metricsCache.set(s.settings, { key, metrics });
   return metrics;
 }
@@ -215,8 +226,12 @@ export interface SiteSummary {
   warnings: string[];
   info: ParseInfo;
   settings: SiteSettings;
-  /** The analysis frame (review applied). */
+  /** The analysis frame (review applied), trimmed to the analysis period. */
   frame: Frame;
+  /** The whole file (review applied), for trends over time. */
+  history: Frame;
+  /** The analysis period and the file's own dates. */
+  period: PeriodRange;
   /** Changes whenever the analysis frame is derived again. */
   frameKey: string;
   metrics: SiteMetrics;
@@ -235,7 +250,7 @@ export function listSites(): SiteSummary[] {
     const d = derived(s);
     return {
       id, filename: s.filename, warnings: s.warnings, info: s.info, settings: s.settings,
-      frame: d.frame, frameKey: d.key,
+      frame: d.frame, history: d.history, period: d.range, frameKey: d.key,
       metrics: metricsFor(s),
       quality: d.quality,
       headroom: headroomFor(d.frame, s.settings),

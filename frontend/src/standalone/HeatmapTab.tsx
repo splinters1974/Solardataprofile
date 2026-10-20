@@ -150,11 +150,12 @@ function DayInspector({ site, date, onPick }: { site: SiteSummary; date: string;
 
 /** A chosen range against the previous equal period and the same weeks a year earlier, on matched days only. */
 function PeriodCompare({ site }: { site: SiteSummary }) {
-  const first = site.frame.dates[0] ?? '';
-  const last = site.frame.dates[site.frame.dates.length - 1] ?? '';
+  // Comparisons over time use the whole file, not just the analysis period.
+  const first = site.history.dates[0] ?? '';
+  const last = site.history.dates[site.history.dates.length - 1] ?? '';
   const [from, setFrom] = useState(last ? addDays(last, -27) : '');
   const [to, setTo] = useState(last);
-  const comps = useMemo(() => (from && to && from <= to ? comparePeriods(site.frame, from, to) : []), [site.frame, from, to]);
+  const comps = useMemo(() => (from && to && from <= to ? comparePeriods(site.history, from, to) : []), [site.history, from, to]);
   const preset = (days: number) => { setTo(last); setFrom(addDays(last, -(days - 1)) < first ? first : addDays(last, -(days - 1))); };
   const sentence = (c: (typeof comps)[number]) => {
     if (c.change === null || !c.matchedDays) return `${c.label}: not enough matching days to compare (${c.note})`;
