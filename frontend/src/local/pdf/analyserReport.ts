@@ -19,7 +19,7 @@ import type { ScenarioRun } from '../scenarios';
 import type { SiteSummary } from '../localClient';
 import { opportunitiesAppendix, topThree } from './appendix';
 import {
-  barChart, carpetImage, fmt, imageBlock, qualityBlock, hex, hourAxis, lineChart, Report, scatterChart,
+  barChart, carpetImage, fmt, imageBlock, qualityBlock, hex, hourAxis, lineChart, paginate, Report, scatterChart,
   type RGB,
 } from './common';
 
@@ -78,9 +78,9 @@ interface Section {
   draw: (r: Report) => void;
 }
 
-function newReport(i: AnalyserReportInput, what: string) {
+function newReport(i: AnalyserReportInput, what: string, breaks?: Set<number>) {
   return new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
     footer: pdfFooter(i.siteName, what),
     title: `${i.siteName}: ${what}`,
   });
@@ -147,9 +147,9 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       barChart(r, {
         title: 'Peak demand by month (kVA)', height: 44,
         categories: h.monthly.map((x) => x.month),
-        series: [{ name: 'Monthly peak', color: hex('#2a78d6'), values: h.monthly.map((x) => x.peakKva) }],
+        series: [{ name: 'Monthly peak', color: hex(CHART.blue), values: h.monthly.map((x) => x.peakKva) }],
         refLines: [
-          { value: h.capacityKva, label: 'Capacity', color: hex('#334155') },
+          { value: h.capacityKva, label: 'Capacity', color: hex(CHART.ink) },
           { value: h.usableKva, label: 'Usable', color: hex('#d03b3b') },
         ],
       });
@@ -158,10 +158,10 @@ function sectionsFor(i: AnalyserReportInput): Section[] {
       lineChart(r, {
         title: 'Highest demand at each time of day (kVA)', height: 48, xa: hourAxis,
         series: [
-          { name: 'Worst case, whole year', color: hex('#94a3b8'), width: 0.4, points: h.worstByTime.map((p) => [p.slot / 2, p.kva]) },
-          { name: 'Worst case, Dec to Feb', color: hex('#2a78d6'), width: 0.6, points: h.worstWinterByTime.map((p) => [p.slot / 2, p.kva]) },
+          { name: 'Worst case, whole year', color: hex(CHART.grey), width: 0.4, points: h.worstByTime.map((p) => [p.slot / 2, p.kva]) },
+          { name: 'Worst case, Dec to Feb', color: hex(CHART.blue), width: 0.6, points: h.worstWinterByTime.map((p) => [p.slot / 2, p.kva]) },
           ...(addKw ? [{
-            name: 'With the new load', color: hex('#e07b1a'), width: 0.6,
+            name: 'With the new load', color: hex(CHART.orange), width: 0.6,
             points: h.worstByTime.map((p, k): [number, number] => [p.slot / 2,
               (t!.months === 'heating' ? h.worstWinterByTime[k].kva : p.kva)
               + (inWindow(p.slot, t!.start, t!.end) ? addKw : 0)]),
@@ -357,39 +357,47 @@ const basis = (r: Report, i: AnalyserReportInput) => {
 
 /** The whole analysis as one document. */
 export function buildAnalyserReport(i: AnalyserReportInput): ArrayBuffer {
-  const r = newReport(i, 'half hourly data analysis');
-  drawCover(r, i);
-  for (const section of sectionsFor(i)) {
-    r.newPage();
-    section.draw(r);
-  }
-  if (i.site) {
-    r.newPage();
-    opportunitiesAppendix(r, { site: i.site.summary, scenarioRun: i.site.scenarioRun, carbon: i.site.carbon });
-  }
-  basis(r, i);
-  return r.finish();
+  return paginate((breaks) => {
+    const r = newReport(i, 'half hourly data analysis', breaks);
+    drawCover(r, i);
+    for (const section of sectionsFor(i)) {
+      r.newPage();
+      section.draw(r);
+    }
+    if (i.site) {
+      r.newPage();
+      opportunitiesAppendix(r, { site: i.site.summary, scenarioRun: i.site.scenarioRun, carbon: i.site.carbon });
+    }
+    basis(r, i);
+    return r;
+  });
 }
 
 /** The same analysis, one PDF per section, for dropping into proposals. */
 export function buildAnalyserSectionPdfs(i: AnalyserReportInput): { key: string; title: string; pdf: ArrayBuffer }[] {
-  const cover = newReport(i, 'summary');
-  drawCover(cover, i);
-  basis(cover, i);
-  const out = [{ key: 'summary', title: 'Summary', pdf: cover.finish() }];
+  const out = [{ key: 'summary', title: 'Summary', pdf: paginate((breaks) => {
+    const cover = newReport(i, 'summary', breaks);
+    drawCover(cover, i);
+    basis(cover, i);
+    return cover;
+  }) }];
   if (i.site) {
     const site = i.site;
-    const r = newReport(i, 'opportunities appendix');
-    opportunitiesAppendix(r, { site: site.summary, scenarioRun: site.scenarioRun, carbon: site.carbon });
-    basis(r, i);
-    out.push({ key: 'opportunities', title: 'Opportunities appendix', pdf: r.finish() });
+    out.push({ key: 'opportunities', title: 'Opportunities appendix', pdf: paginate((breaks) => {
+      const r = newReport(i, 'opportunities appendix', breaks);
+      opportunitiesAppendix(r, { site: site.summary, scenarioRun: site.scenarioRun, carbon: site.carbon });
+      basis(r, i);
+      return r;
+    }) });
   }
   for (const section of sectionsFor(i)) {
-    const r = newReport(i, section.title.toLowerCase());
-    r.subhead(`${i.siteName}  ·  ${i.dateFrom} to ${i.dateTo}  ·  issued ${fmtLong(new Date())}`);
-    section.draw(r);
-    basis(r, i);
-    out.push({ key: section.key, title: section.title, pdf: r.finish() });
+    out.push({ key: section.key, title: section.title, pdf: paginate((breaks) => {
+      const r = newReport(i, section.title.toLowerCase(), breaks);
+      r.subhead(`${i.siteName}  ·  ${i.dateFrom} to ${i.dateTo}  ·  issued ${fmtLong(new Date())}`);
+      section.draw(r);
+      basis(r, i);
+      return r;
+    }) });
   }
   return out;
 }

@@ -16,7 +16,7 @@ import type { ScenarioRun } from '../scenarios';
 import type { Opportunity } from '../actions';
 import { STATUS_LABEL } from '../actions';
 import type { SiteSummary } from '../localClient';
-import { carpetImage, fmt, hex, Report } from './common';
+import { carpetImage, fmt, hex, paginate, Report } from './common';
 import { estateOpportunities, opportunitiesAppendix, topThree } from './appendix';
 
 const BRAND = hex(BRAND_BLUE);
@@ -79,8 +79,13 @@ export function rankSites<T extends { metrics: SiteMetrics }>(sites: T[]): T[] {
 }
 
 export function buildPortfolioReport(title: string, sites: PortfolioSite[], opportunities: Opportunity[], opts: { includeNotes: boolean }): ArrayBuffer {
+  void opts;
+  return paginate((breaks) => portfolioReport(title, sites, opportunities, breaks));
+}
+
+function portfolioReport(title: string, sites: PortfolioSite[], opportunities: Opportunity[], breaks: Set<number>): Report {
   const r = new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
     footer: pdfFooter(title, 'portfolio energy review'),
     title: `${title} - Portfolio Energy Review`,
   });
@@ -136,8 +141,7 @@ export function buildPortfolioReport(title: string, sites: PortfolioSite[], oppo
 
   r.newPage();
   estateOpportunities(r, opportunities.map((o) => ({ siteName: o.siteName, finding: o.finding, status: STATUS_LABEL[o.action.status] })));
-  void opts;
-  return r.finish();
+  return r;
 }
 
 /**
@@ -145,9 +149,13 @@ export function buildPortfolioReport(title: string, sites: PortfolioSite[], oppo
  * annual figures, every investigation, scenarios, method, calendar, evidence.
  */
 export function buildSiteSummary(p: PortfolioSite & { includeNotes?: boolean }): ArrayBuffer {
+  return paginate((breaks) => siteSummary(p, breaks));
+}
+
+function siteSummary(p: PortfolioSite & { includeNotes?: boolean }, breaks: Set<number>): Report {
   const s = p.site;
   const r = new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
     footer: pdfFooter(s.settings.name, 'site summary'),
     title: `${s.settings.name} - Site Summary`,
   });
@@ -155,5 +163,5 @@ export function buildSiteSummary(p: PortfolioSite & { includeNotes?: boolean }):
     + 'pattern of use, not a guaranteed saving. Base load is the 5th percentile of valid half-hourly demand.');
   r.newPage();
   opportunitiesAppendix(r, { site: s, scenarioRun: p.scenarioRun, carbon: p.carbon, includeNotes: p.includeNotes });
-  return r.finish();
+  return r;
 }

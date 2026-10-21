@@ -4,6 +4,22 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 21 October 2026: new look everywhere, UK logo, no split sections (2.6)
+
+- **Advanced and the user guide now have the 2.5 look.** Both apps are rebuilt. The guide is restyled to match (Schibsted Grotesk, ink headings, mist panels, new cover) and every screenshot is retaken.
+- **Ameresco UK logo.** "UK" sits to the right of the Ameresco mark, in Ameresco blue and Schibsted Grotesk, sized to the wordmark. It is one image (`frontend/src/local/brand.ts` and `docs/user-guide/logo.txt`), so it carries through:
+  - both apps
+  - customer editions
+  - every PDF
+  - the hosted app's header, which used a placeholder icon before
+  - the guide
+- **Downloadable reports no longer split a section across pages.** A section is a heading and everything up to the next one. Each report is laid out, any section that ran over a page and would fit on one is moved to start a new page, and the layout repeats until nothing moves. Paragraphs and table rows never split either.
+  - A section longer than a whole page still has to run over, breaking between blocks; table headers repeat.
+  - This applies to the site summary, portfolio report, full analysis and each separate chart PDF.
+  - The guide does the same for each sub-section.
+  - Expect more white space at page ends, and sometimes an extra page.
+- Headroom charts in the PDF now use the brand chart colours.
+
 ## 21 October 2026: new look, Standard first (2.5)
 
 Matched to the UK Solar Calculator website design: white ground, ink-navy type, one blue action colour, green for money, mist bands, hairline rules, Schibsted Grotesk.

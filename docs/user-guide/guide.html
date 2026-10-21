@@ -4,17 +4,21 @@
 <meta charset="utf-8">
 <title>Ameresco Data Analyser Advanced: User Guide</title>
 <style>
-@font-face { font-family: 'Open Sans'; src: url('fonts/opensans-latin.woff2') format('woff2'); font-weight: 300 800; }
+@font-face { font-family: 'Schibsted Grotesk'; src: url('fonts/schibsted-grotesk-latin-400-normal.woff2') format('woff2'); font-weight: 300 400; }
+@font-face { font-family: 'Schibsted Grotesk'; src: url('fonts/schibsted-grotesk-latin-600-normal.woff2') format('woff2'); font-weight: 500 600; }
+@font-face { font-family: 'Schibsted Grotesk'; src: url('fonts/schibsted-grotesk-latin-700-normal.woff2') format('woff2'); font-weight: 700; }
+@font-face { font-family: 'Schibsted Grotesk'; src: url('fonts/schibsted-grotesk-latin-800-normal.woff2') format('woff2'); font-weight: 800 900; }
 @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
 @page cover { margin: 0; }
-:root { --blue: #0065a5; --green: #008540; --ink: #1f2933; --muted: #5b6774; --line: #d9e1e8; --tint: #eef5fa; --gtint: #ebf6ef; --amber: #b7791f; --red: #b42c2c; }
+:root { --blue: #0065a5; --green: #008540; --ink: #063c55; --ink-deep: #042a3c; --text: #2b3f4a; --muted: #5f6d74; --line: #d3d9dd; --mist: #eff0f1; --tint: #e6f0f7; --gtint: #ebf6ef; --lime: #8fd16a; --amber: #b7791f; --red: #b42c2c; }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { font-family: 'Open Sans', 'Liberation Sans', sans-serif; color: var(--ink); font-size: 9.6pt; line-height: 1.5; margin: 0; }
-h1, h2, h3 { color: var(--blue); line-height: 1.2; font-weight: 700; }
-h1 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 2.5mm; border-bottom: 1.2mm solid var(--green); break-after: avoid; }
-h2 { font-size: 13pt; margin: 6mm 0 2mm; break-after: avoid; }
-h3 { font-size: 10.5pt; color: var(--ink); margin: 4mm 0 1.5mm; break-after: avoid; }
+body { font-family: 'Schibsted Grotesk', 'Liberation Sans', sans-serif; color: var(--text); font-size: 9.6pt; line-height: 1.5; margin: 0; }
+h1, h2, h3 { color: var(--ink); line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; }
+h1 { font-size: 24pt; margin: 0 0 5mm; padding-bottom: 3mm; border-bottom: 0.3mm solid var(--line); position: relative; break-after: avoid; }
+h1::after { content: ''; position: absolute; left: 0; bottom: -0.6mm; width: 18mm; height: 1.2mm; background: var(--blue); }
+h2 { font-size: 13.5pt; margin: 6mm 0 2mm; break-after: avoid; }
+h3 { font-size: 10.5pt; font-weight: 700; margin: 4mm 0 1.5mm; break-after: avoid; }
 p { margin: 0 0 2.5mm; }
 ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; }
 li { margin-bottom: 1mm; }
@@ -22,10 +26,10 @@ strong { font-weight: 700; }
 code, .mono { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.4pt; background: var(--tint); padding: 0.2mm 1mm; border-radius: 1mm; }
 section.chapter { break-before: page; }
 table { width: 100%; border-collapse: collapse; margin: 1mm 0 4mm; font-size: 8.6pt; break-inside: auto; }
-th { background: var(--blue); color: #fff; text-align: left; font-weight: 600; padding: 1.6mm 2mm; }
+th { background: var(--ink); color: #fff; text-align: left; font-weight: 600; padding: 1.6mm 2mm; }
 td { padding: 1.5mm 2mm; border-bottom: 0.25mm solid var(--line); vertical-align: top; }
 tr { break-inside: avoid; }
-tr:nth-child(even) td { background: #f7fafc; }
+tr:nth-child(even) td { background: #f6f7f8; }
 td.n { white-space: nowrap; }
 figure { margin: 2mm 0 5mm; break-inside: avoid; }
 figure img { max-width: 100%; max-height: 78mm; width: auto; border: 0.3mm solid var(--line); border-radius: 1.5mm; display: block; margin: 0 auto; }
@@ -37,11 +41,11 @@ thead tr { break-after: avoid; }
 table { break-before: auto; }
 figure.half img { width: 70%; margin: 0 auto; }
 figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
-.box { border-left: 1.4mm solid var(--blue); background: var(--tint); padding: 3mm 4mm; margin: 3mm 0 4mm; break-inside: avoid; border-radius: 0 1.5mm 1.5mm 0; }
+.box { border-left: 1.4mm solid var(--blue); background: var(--mist); padding: 3mm 4mm; margin: 3mm 0 4mm; break-inside: avoid; border-radius: 0 1.5mm 1.5mm 0; }
 .box.green { border-color: var(--green); background: var(--gtint); }
 .box.warn { border-color: var(--amber); background: #fdf6e7; }
 .box p:last-child, .box ul:last-child, .box ol:last-child { margin-bottom: 0; }
-.box .label { font-weight: 700; color: var(--blue); display: block; margin-bottom: 1mm; }
+.box .label { font-weight: 700; color: var(--ink); display: block; margin-bottom: 1mm; }
 .box.green .label { color: var(--green); }
 .box.warn .label { color: var(--amber); }
 .steps { counter-reset: s; list-style: none; padding: 0; }
@@ -52,23 +56,25 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 .muted { color: var(--muted); }
 .small { font-size: 8.4pt; }
 
-/* Cover */
-.cover { page: cover; height: 297mm; position: relative; overflow: hidden; break-after: page; }
-.cover .top { padding: 24mm 20mm 0; }
-.cover .top img { height: 20mm; }
-.cover .band { position: absolute; left: 0; right: 0; top: 98mm; background: var(--blue); color: #fff; padding: 16mm 20mm 14mm; }
-.cover .band::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4mm; height: 4mm; background: var(--green); }
-.cover h1.title { color: #fff; border: 0; font-size: 34pt; margin: 0 0 3mm; padding: 0; font-weight: 700; }
-.cover .sub { font-size: 14pt; font-weight: 300; margin: 0; }
+/* Cover: white logo strip, ink band with the title, mist ground. */
+.cover { page: cover; height: 297mm; position: relative; overflow: hidden; break-after: page; background: var(--mist); }
+.cover .top { padding: 20mm 20mm 14mm; background: #fff; border-bottom: 0.3mm solid var(--line); }
+.cover .top img { height: 17mm; }
+.cover .band { position: absolute; left: 0; right: 0; top: 62mm; background: var(--ink); color: #fff; padding: 18mm 20mm 16mm; }
+.cover .band::after { content: ''; position: absolute; left: 0; bottom: 0; width: 60mm; height: 2mm; background: var(--blue); }
+.cover .eyebrow { color: var(--lime); font-weight: 600; font-size: 11pt; margin: 0 0 3mm; }
+.cover h1.title { color: #fff; border: 0; font-size: 40pt; margin: 0 0 4mm; padding: 0; font-weight: 800; letter-spacing: -0.02em; }
+.cover h1.title::after { display: none; }
+.cover .sub { font-size: 14pt; font-weight: 400; margin: 0; color: rgba(255,255,255,0.85); }
 .cover .meta { position: absolute; left: 20mm; right: 20mm; bottom: 22mm; font-size: 9.5pt; color: var(--muted); display: flex; justify-content: space-between; align-items: flex-end; }
 .cover .meta strong { color: var(--ink); }
-.cover .shot { position: absolute; left: 20mm; right: 20mm; top: 170mm; }
+.cover .shot { position: absolute; left: 20mm; right: 20mm; top: 150mm; }
 .cover .shot img { width: 100%; border: 0.3mm solid var(--line); border-radius: 2mm; box-shadow: 0 2mm 6mm rgba(0,0,0,0.08); }
 
 /* Contents */
 .toc { list-style: none; padding: 0; margin: 0; columns: 1; }
 .toc li { display: flex; padding: 1.2mm 0; border-bottom: 0.25mm solid var(--line); font-size: 10.5pt; }
-.toc li span.num { color: var(--green); font-weight: 700; width: 9mm; }
+.toc li span.num { color: var(--blue); font-weight: 700; width: 9mm; }
 .toc li span.desc { color: var(--muted); margin-left: auto; font-size: 8.6pt; }
 </style>
 </head>
@@ -78,12 +84,13 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 <div class="cover">
   <div class="top"><img src="{{LOGO}}" alt="Ameresco"></div>
   <div class="band">
-    <h1 class="title">Data Analyser <span style="font-size:15pt;font-weight:700;background:#008540;color:#fff;border-radius:2mm;padding:1mm 3mm;vertical-align:middle;letter-spacing:0.08em">ADVANCED</span></h1>
-    <p class="sub">User guide for half-hourly energy data analysis</p>
+    <p class="eyebrow">User guide · Standard and Advanced</p>
+    <h1 class="title">Data Analyser</h1>
+    <p class="sub">Half-hourly electricity analysis for UK sites</p>
   </div>
   <div class="shot"><img src="img/03-table.png" alt=""></div>
   <div class="meta">
-    <div><strong>Ameresco UK</strong><br>Internal use. Advanced version 2.1, October 2026</div>
+    <div><strong>Ameresco UK</strong><br>Internal use. Version 2.5, October 2026</div>
     <div style="text-align:right">For engineers, project development<br>and sales teams</div>
   </div>
 </div>
@@ -118,7 +125,7 @@ figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
 
   <div class="box">
     <span class="label">Standard and Advanced</span>
-    <p>There are two versions, built from the same engine, so the same file gives the same numbers in both. <strong>Standard</strong> (<code>Ameresco-Data-Analyser-Standard.html</code>, grey badge) is for quick screening: Overview, Data review, Calendar, Heatmap, Capacity, Charts and Settings, with findings and reports. <strong>Advanced</strong> (<code>Ameresco-Data-Analyser-Advanced.html</code>, green badge) adds Base load, Unusual days, Savings scenarios, the Opportunities and Estate comparison views, opportunity tracking, project files, the week-by-week explorer and the carbon panel. This guide covers Advanced; everything in Standard works the same way. The badge shows next to the name, on the customer password page and in every PDF footer.</p>
+    <p>There are two versions, built from the same engine, so the same file gives the same numbers in both. <strong>Standard</strong> (<code>Ameresco-Data-Analyser-Standard.html</code>, blue badge) is for quick screening: Overview, Data review, Calendar, Heatmap, Capacity, Charts and Settings, with findings and reports. <strong>Advanced</strong> (<code>Ameresco-Data-Analyser-Advanced.html</code>, green badge) adds Base load, Unusual days, Savings scenarios, the Opportunities and Estate comparison views, opportunity tracking, project files, the week-by-week explorer and the carbon panel. This guide covers Advanced; everything in Standard works the same way. The badge shows next to the name, on the customer password page and in every PDF footer.</p>
   </div>
 
   <div class="box">

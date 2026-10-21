@@ -49,7 +49,12 @@ interface ReportOptions {
   margin: number;
   /** Logo image (data URL), printed top right of the first page. */
   logo?: string;
+  /** Sections (by order of their heading) to start on a new page; set by paginate(). */
+  breaks?: Set<number>;
 }
+
+/** Where one section (a heading and everything up to the next) started and ended. */
+interface SectionExtent { startPage: number; startY: number; endPage: number; endY: number }
 
 /** A customer's logo, already converted to PNG, with its pixel size for the aspect ratio. */
 export interface CustomerLogo {
@@ -67,6 +72,23 @@ export function setCustomerLogo(logo: CustomerLogo | null) {
 
 export const getCustomerLogo = () => customerLogo;
 
+/**
+ * Lay a report out so no section is split across pages: build it, find the
+ * sections that ran over a page break (and would fit on one page), rebuild
+ * with those starting on a new page, and repeat until nothing more moves.
+ * A section longer than a page still flows, breaking between blocks.
+ */
+export function paginate(build: (breaks: Set<number>) => Report): ArrayBuffer {
+  let breaks = new Set<number>();
+  for (let pass = 0; pass < 10; pass++) {
+    const r = build(breaks);
+    const more = r.splitSections().filter((k) => !breaks.has(k));
+    if (!more.length) return r.finish();
+    breaks = new Set([...breaks, ...more]);
+  }
+  return build(breaks).finish();
+}
+
 /** A page cursor that starts a new page when the next block will not fit. */
 export class Report {
   doc: jsPDF;
@@ -77,6 +99,8 @@ export class Report {
   private readonly bottom: number;
   private readonly top: number;
   private readonly opts: ReportOptions;
+  private readonly sections: SectionExtent[] = [];
+  private sectionOpen = false;
 
   constructor(opts: ReportOptions) {
     this.opts = opts;
@@ -94,14 +118,47 @@ export class Report {
     this.y = this.top;
   }
 
+  /** A deliberate page break: it also ends the current section. */
   newPage() {
+    this.closeSection();
+    this.addPage();
+  }
+
+  private addPage() {
     this.doc.addPage();
     this.y = this.top;
   }
 
+  private page() {
+    return this.doc.getNumberOfPages();
+  }
+
+  /** Close the open section at the current position. */
+  private closeSection() {
+    const open = this.sections[this.sections.length - 1];
+    if (open && this.sectionOpen) { open.endPage = this.page(); open.endY = this.y; }
+    this.sectionOpen = false;
+  }
+
+  /**
+   * Sections that ran over a page break but would fit on one page, so the
+   * next layout pass starts them on a fresh page instead of splitting them.
+   */
+  splitSections(): number[] {
+    this.closeSection();
+    const usable = this.bottom - this.top;
+    const out: number[] = [];
+    this.sections.forEach((x, k) => {
+      if (x.endPage === x.startPage || x.startY <= this.top + 0.5) return;
+      const height = (this.bottom - x.startY) + (x.endPage - x.startPage - 1) * usable + (x.endY - this.top);
+      if (height <= usable) out.push(k);
+    });
+    return out;
+  }
+
   /** Move to a new page unless `height` mm still fits on this one. */
   need(height: number) {
-    if (this.y + height > this.bottom) this.newPage();
+    if (this.y + height > this.bottom) this.addPage();
   }
 
   /** Millimetres left on this page. */
@@ -138,7 +195,12 @@ export class Report {
   }
 
   h2(text: string, keepWith = 30) {
+    // Each heading starts a section; paginate() moves split sections to a new page.
+    this.closeSection();
+    if (this.opts.breaks?.has(this.sections.length) && this.y > this.top + 0.5) this.addPage();
     this.need(10 + keepWith);
+    this.sections.push({ startPage: this.page(), startY: this.y, endPage: this.page(), endY: this.y });
+    this.sectionOpen = true;
     this.y += 4;
     const d = this.doc;
     d.setFont(FONT, 'bold').setFontSize(14);
@@ -156,6 +218,8 @@ export class Report {
     this.setColor(opts.color ?? INK);
     const lines = d.splitTextToSize(text, opts.width ?? this.width) as string[];
     const lineH = size * 0.42 + 1;
+    // Keep a paragraph on one page unless it is longer than a page.
+    if (lines.length * lineH <= this.bottom - this.top) this.need(lines.length * lineH);
     for (const line of lines) {
       this.need(lineH);
       d.text(line, this.left, this.y + size * 0.36);
@@ -230,6 +294,7 @@ export class Report {
       margin: { left: opts.x ?? this.left, right: this.doc.internal.pageSize.getWidth() - (opts.x ?? this.left) - width, top: 14, bottom: 17 },
       tableWidth: width,
       theme: 'plain',
+      rowPageBreak: 'avoid',
       styles: {
         font: FONT, fontSize: opts.fontSize ?? 7.6, textColor: INK,
         cellPadding: { top: (opts.fontSize ?? 7.6) < 8 ? 0.9 : 1.3, bottom: (opts.fontSize ?? 7.6) < 8 ? 0.9 : 1.3, left: 2, right: 2 },
@@ -257,7 +322,7 @@ export class Report {
   private drawLogos(first: boolean) {
     const d = this.doc;
     const pw = d.internal.pageSize.getWidth();
-    const w = first ? 46 : 30;
+    const w = first ? 54 : 35;
     const top = first ? 8 : 6.5;
     const h = w / LOGO_ASPECT;
     const ameLeft = pw - this.left - w;
