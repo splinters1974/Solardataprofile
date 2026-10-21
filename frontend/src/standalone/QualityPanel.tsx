@@ -31,9 +31,9 @@ export default function QualityPanel({ report, actions }: { report: QualityRepor
   const ui = VERDICT_UI[report.verdict];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div className="bg-white rounded-xl border border-slate-300 p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h3 className="text-base font-semibold text-slate-800">Data quality</h3>
+        <h3 className="text-lg font-bold tracking-tight text-slate-900">Data quality</h3>
         <VerdictChip verdict={report.verdict} />
       </div>
       <p className={`text-sm mt-1 ${ui.text}`}>{VERDICT_TEXT[report.verdict].summary}</p>

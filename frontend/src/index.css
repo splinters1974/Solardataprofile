@@ -6,3 +6,57 @@ body {
   background: #f8fafc;
   color: #1e293b;
 }
+
+/*
+ * The offline analyser's look, matched to the Ameresco web tools: white
+ * ground, dark-blue (ink) type, one blue action colour, green for money
+ * saved, mist bands and hairline rules. Scoped to html.amr (set in
+ * main.tsx for the standalone build) so the hosted app is unchanged.
+ * Schibsted Grotesk is embedded, SIL Open Font License (assets/fonts/OFL.txt).
+ */
+@font-face { font-family: 'Schibsted Grotesk'; font-weight: 400; font-display: swap; src: url('./assets/fonts/schibsted-grotesk-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Schibsted Grotesk'; font-weight: 500 600; font-display: swap; src: url('./assets/fonts/schibsted-grotesk-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Schibsted Grotesk'; font-weight: 700; font-display: swap; src: url('./assets/fonts/schibsted-grotesk-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Schibsted Grotesk'; font-weight: 800 900; font-display: swap; src: url('./assets/fonts/schibsted-grotesk-latin-800-normal.woff2') format('woff2'); }
+
+html.amr {
+  /* Neutrals re-pointed at the ink scale, so every slate class follows. */
+  --color-slate-50: #f6f7f8;
+  --color-slate-100: #eff0f1;
+  --color-slate-200: #e3e8eb;
+  --color-slate-300: #d3d9dd;
+  --color-slate-400: #84939b;
+  --color-slate-500: #5f6d74;
+  --color-slate-600: #3e4a51;
+  --color-slate-700: #2b3f4a;
+  --color-slate-800: #063c55;
+  --color-slate-900: #063c55;
+  --color-slate-950: #042a3c;
+  /* Generic blues (used by the shared chart explorer) follow Ameresco blue. */
+  --color-blue-400: #4f8fc0;
+  --color-blue-500: #0065a5;
+  --color-blue-600: #0065a5;
+  --color-blue-700: #00528a;
+  --color-blue-800: #004a7a;
+  --radius-lg: 6px;
+  --radius-xl: 10px;
+  --shadow-sm: 0 1px 2px rgba(6, 60, 85, 0.05);
+  --shadow: 0 2px 6px rgba(6, 60, 85, 0.08);
+  --shadow-md: 0 12px 32px rgba(6, 60, 85, 0.08);
+  --font-sans: 'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+}
+
+html.amr body {
+  font-family: var(--font-sans);
+  background: #ffffff;
+  color: #063c55;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.amr button { font-weight: 600; }
+html.amr input, html.amr select, html.amr textarea { font-family: inherit; }
+html.amr ::placeholder { color: #84939b; }
+html.amr :focus-visible { outline: 2px solid #0065a4; outline-offset: 2px; }
+/* Schibsted's tabular figures space commas wide; proportional figures read better. */
+html.amr .tabular-nums { font-variant-numeric: normal; }

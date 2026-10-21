@@ -16,7 +16,7 @@ import { STATUS_LABEL, newAction, type ActionStore } from '../actions';
 import { VERDICT_TEXT } from '../dataQuality';
 import { addDays } from '../dates';
 import type { SiteSummary } from '../localClient';
-import { donutChart, fmt, hex, INK, LEVEL_STYLE, MUTED, type Report } from './common';
+import { donutChart, fmt, FONT, hex, INK, LEVEL_STYLE, MUTED, type Report } from './common';
 import { energySplit } from '../chartData';
 import { CHART } from '../chartColours';
 import { planDays } from '../calendar';
@@ -47,7 +47,7 @@ function findingBlock(r: Report, f: Finding, status?: string) {
   const style = LEVEL_STYLE[f.level];
   const textW = r.width - 8;
   // Measure at the size the text is drawn in.
-  d.setFont('helvetica', 'normal').setFontSize(7.8);
+  d.setFont(FONT, 'normal').setFontSize(7.8);
   const lines = [
     ...(d.splitTextToSize(f.detail, textW) as string[]),
     ...(d.splitTextToSize(`Check: ${f.investigation}`, textW) as string[]),
@@ -57,10 +57,10 @@ function findingBlock(r: Report, f: Finding, status?: string) {
   const h = 7 + lines.length * 3.5 + 2;
   r.need(h);
   d.setFillColor(...style.color).rect(r.left, r.y, 1.2, h - 2, 'F');
-  d.setFont('helvetica', 'bold').setFontSize(9).setTextColor(...INK);
+  d.setFont(FONT, 'bold').setFontSize(9).setTextColor(...INK);
   const head = `${f.title}`;
   d.text(d.splitTextToSize(head, r.width - 60)[0] as string, r.left + 4, r.y + 4);
-  d.setFont('helvetica', 'normal').setFontSize(7).setTextColor(...style.color);
+  d.setFont(FONT, 'normal').setFontSize(7).setTextColor(...style.color);
   d.text(`IMPACT ${IMPACT[f.level].toUpperCase()}  ·  CONFIDENCE ${CONF[f.confidence].toUpperCase()}${status ? `  ·  ${status.toUpperCase()}` : ''}`,
     r.left + r.width, r.y + 4, { align: 'right' });
   d.setFontSize(7.8).setTextColor(...MUTED);

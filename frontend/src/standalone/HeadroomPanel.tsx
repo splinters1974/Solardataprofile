@@ -39,7 +39,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
 
   const header = (
     <div>
-      <h3 className="text-base font-semibold text-slate-800">Electrification headroom</h3>
+      <h3 className="text-lg font-bold tracking-tight text-slate-900">Electrification headroom</h3>
       <p className="text-sm text-slate-500 mt-0.5">
         How much load (heat pumps, EV charging, new plant) the site can add before it outgrows its supply.
       </p>
@@ -49,7 +49,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
   if (!h && locked) return null; // nothing was set up for this site
   if (!h) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+      <div className="bg-white rounded-xl border border-slate-300 p-6 space-y-3">
         {header}
         <div className="flex flex-wrap items-end gap-3 bg-slate-50 rounded-lg p-4">
           <div className="w-48">
@@ -84,7 +84,7 @@ export default function HeadroomPanel({ settings, headroom: h, onChange, locked 
   const yMax = Math.max(h.capacityKva, ...profile.map((p) => Math.max(p['Worst case, whole year'], p['With the new load'] ?? 0))) * 1.08;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
+    <div className="bg-white rounded-xl border border-slate-300 p-6 space-y-5">
       {header}
 
       <p className="text-xs text-slate-500">

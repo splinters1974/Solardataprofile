@@ -20,10 +20,10 @@ export default function AnomaliesTab({ site, goTo }: { site: SiteSummary; goTo: 
         thresholds, changeable under Settings, not universal standards.
       </Note>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3"><p className="text-xl font-bold">{a.checkedDays}</p><p className="text-xs text-slate-600">complete days checked</p></div>
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3"><p className="text-xl font-bold">{a.events.length}</p><p className="text-xs text-slate-600">unusual days</p></div>
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3"><p className="text-xl font-bold">{a.changes.length}</p><p className="text-xs text-slate-600">persistent changes</p></div>
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3"><p className="text-xl font-bold">{a.notApplicable}</p><p className="text-xs text-slate-600">days the rule could not apply to</p>
+        <div className="bg-white rounded-xl border border-slate-300 px-4 py-3"><p className="text-xl font-bold">{a.checkedDays}</p><p className="text-xs text-slate-600">complete days checked</p></div>
+        <div className="bg-white rounded-xl border border-slate-300 px-4 py-3"><p className="text-xl font-bold">{a.events.length}</p><p className="text-xs text-slate-600">unusual days</p></div>
+        <div className="bg-white rounded-xl border border-slate-300 px-4 py-3"><p className="text-xl font-bold">{a.changes.length}</p><p className="text-xs text-slate-600">persistent changes</p></div>
+        <div className="bg-white rounded-xl border border-slate-300 px-4 py-3"><p className="text-xl font-bold">{a.notApplicable}</p><p className="text-xs text-slate-600">days the rule could not apply to</p>
           <p className="text-xs text-slate-400">{a.notApplicableReasons.insufficient} too few comparable days, {a.notApplicableReasons.noVariation} with no variation</p></div>
       </div>
 

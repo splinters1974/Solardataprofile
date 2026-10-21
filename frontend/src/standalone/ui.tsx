@@ -14,12 +14,12 @@ export function Card({ title, subtitle, action, children, className = '' }: {
   title?: ReactNode; subtitle?: ReactNode; action?: ReactNode; children?: ReactNode; className?: string;
 }) {
   return (
-    <section className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 ${className}`}>
+    <section className={`bg-white rounded-xl border border-slate-300 p-6 ${className}`}>
       {(title || action) && (
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            {title && <h3 className="text-base font-semibold text-slate-800">{title}</h3>}
-            {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+            {title && <h3 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h3>}
+            {subtitle && <p className="text-sm text-slate-600 mt-1">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -33,19 +33,69 @@ export function Tile({ label, value, hint, tone, tag }: {
   label: string; value: ReactNode; hint?: ReactNode; tone?: 'bad' | 'muted'; tag?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+    <div className="bg-white rounded-xl border border-slate-300 border-t-[3px] border-t-slate-800 px-4 pt-3 pb-3.5">
       <div className="flex items-start justify-between gap-2">
-        <p className={`text-xl font-bold tabular-nums ${tone === 'bad' ? 'text-[#b42c2c]' : tone === 'muted' ? 'text-slate-400' : 'text-slate-800'}`}>{value}</p>
+        <p className="text-xs font-semibold text-slate-700">{label}</p>
         {tag && <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 whitespace-nowrap">{tag}</span>}
       </div>
-      <p className="text-xs font-medium text-slate-600 mt-0.5">{label}</p>
-      {hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
+      <p className={`text-2xl font-extrabold tracking-tight tabular-nums mt-1 ${tone === 'bad' ? 'text-[#b42c2c]' : tone === 'muted' ? 'text-slate-400' : 'text-slate-900'}`}>{value}</p>
+      {hint && <p className="text-xs text-slate-500 mt-0.5">{hint}</p>}
     </div>
   );
 }
 
 /**
- * Tabs that stay visible: a solid bar with the active tab filled in blue.
+ * A full-width mist band at the top of a page, as on the Ameresco web tools:
+ * a small eyebrow, a heavy title, a line of detail, actions, and an optional
+ * panel on the right (usually a StatPanel).
+ */
+export function Hero({ eyebrow, title, sub, children, aside }: {
+  eyebrow?: ReactNode; title: ReactNode; sub?: ReactNode; children?: ReactNode; aside?: ReactNode;
+}) {
+  return (
+    <section className="-mt-8 mb-2 py-8 bg-slate-100 shadow-[0_0_0_100vmax_var(--color-slate-100)] [clip-path:inset(0_-100vmax)]">
+      <div className={`grid gap-8 items-start ${aside ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]' : ''}`}>
+        <div className="min-w-0 space-y-3">
+          {eyebrow && <div className="text-sm text-slate-600">{eyebrow}</div>}
+          <h1 className="text-3xl md:text-[2.6rem] leading-[1.08] font-extrabold tracking-tight text-slate-900 break-words">{title}</h1>
+          {sub && <div className="text-base text-slate-600 max-w-3xl">{sub}</div>}
+          {children}
+        </div>
+        {aside}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Headline numbers on an ink panel, like the result box on the web tools:
+ * one lead figure with a green label, then a row of supporting figures.
+ */
+export function StatPanel({ lead, items, note }: {
+  lead: { label: string; value: ReactNode; hint?: ReactNode };
+  items: { label: string; value: ReactNode }[];
+  note?: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-900 text-white p-6 shadow-md">
+      <p className="text-sm font-semibold text-[#8fd16a]">{lead.label}</p>
+      <p className="text-4xl font-extrabold tracking-tight tabular-nums mt-1">{lead.value}</p>
+      {lead.hint && <p className="text-xs text-white/70 mt-1">{lead.hint}</p>}
+      <div className="grid grid-cols-3 gap-3 border-t border-white/20 mt-4 pt-4">
+        {items.map((x) => (
+          <div key={x.label} className="min-w-0">
+            <p className="text-xs text-white/70">{x.label}</p>
+            <p className="text-base font-bold tabular-nums mt-0.5 break-words">{x.value}</p>
+          </div>
+        ))}
+      </div>
+      {note && <p className="text-[11px] text-white/60 mt-4">{note}</p>}
+    </div>
+  );
+}
+
+/**
+ * Tabs that stay visible: a solid bar with the active tab filled in ink.
  * `sticky` keeps the bar pinned under the top of the window while scrolling
  * a long tab, so the other tabs are always one click away.
  */
@@ -53,7 +103,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, sticky = false, 
   tabs: { key: T; label: string; badge?: string | number }[]; value: T; onChange: (t: T) => void; sticky?: boolean; label?: string;
 }) {
   return (
-    <div className={`${sticky ? 'sticky top-0 z-30 -mx-2 px-2 py-2 bg-slate-50/95 backdrop-blur' : ''}`}>
+    <div className={`${sticky ? 'sticky top-[61px] z-30 -mx-2 px-2 py-2 bg-white/95 backdrop-blur' : ''}`}>
       <div className="bg-white border border-slate-300 rounded-xl shadow-sm p-1.5" role="tablist" aria-label={label}>
         <div className="flex flex-wrap gap-0.5">
           {tabs.map((t) => {
@@ -64,13 +114,13 @@ export function Tabs<T extends string>({ tabs, value, onChange, sticky = false, 
                 role="tab"
                 aria-selected={on}
                 onClick={() => onChange(t.key)}
-                className={`px-2.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
-                  on ? 'bg-[#0065a5] text-white shadow' : 'text-slate-700 hover:bg-[#e6f0f7] hover:text-[#0065a5]'
+                className={`px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
+                  on ? 'bg-slate-900 text-white shadow' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {t.label}
                 {t.badge !== undefined && t.badge !== '' && t.badge !== 0 && (
-                  <span className={`ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${on ? 'bg-white text-[#0065a5]' : 'bg-[#0065a5] text-white'}`}>{t.badge}</span>
+                  <span className={`ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${on ? 'bg-white text-slate-900' : 'bg-[#0065a5] text-white'}`}>{t.badge}</span>
                 )}
               </button>
             );
@@ -85,8 +135,8 @@ export function Tabs<T extends string>({ tabs, value, onChange, sticky = false, 
 export function ProductMark({ size = 'lg' }: { size?: 'lg' | 'md' }) {
   return (
     <span className="flex items-center gap-2">
-      <span className={`${size === 'lg' ? 'text-xl' : 'text-lg'} font-bold text-[#0065a5] leading-tight`}>{PRODUCT}</span>
-      <span className={`text-[11px] font-bold uppercase tracking-wider text-white rounded-md px-2 py-0.5 ${IS_STANDARD ? 'bg-slate-600' : 'bg-[#008540]'}`} title={`This is the ${VARIANT} version`}>
+      <span className={`${size === 'lg' ? 'text-xl' : 'text-lg'} font-extrabold tracking-tight text-slate-900 leading-tight`}>{PRODUCT}</span>
+      <span className={`text-[11px] font-bold uppercase tracking-wider text-white rounded px-2 py-0.5 ${IS_STANDARD ? 'bg-[#0065a5]' : 'bg-[#008540]'}`} title={`This is the ${VARIANT} version`}>
         {VARIANT}
       </span>
     </span>
@@ -96,9 +146,9 @@ export function ProductMark({ size = 'lg' }: { size?: 'lg' | 'md' }) {
 export function Field({ label, hint, children, className = '' }: { label: ReactNode; hint?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-slate-800 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
     </div>
   );
 }

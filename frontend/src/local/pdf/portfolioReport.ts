@@ -123,7 +123,7 @@ export function buildPortfolioReport(title: string, sites: PortfolioSite[], oppo
         top ? top.title : 'Nothing significant',
       ];
     }),
-    { widths: [0.03, 0.13, 0.09, 0.05, 0.07, 0.08, 0.05, 0.05, 0.07, 0.06, 0.05, 0.27], fontSize: 6.8, leftCols: [1, 2, 10, 11] },
+    { widths: [0.03, 0.13, 0.09, 0.05, 0.07, 0.08, 0.05, 0.05, 0.07, 0.07, 0.05, 0.26], fontSize: 6.8, leftCols: [1, 2, 10, 11] },
   ) + 3;
   r.small('Annual figures are estimates scaled from each meter\'s valid hours; observed kWh covers each file\'s own period, so '
     + 'periods differ between meters. Base kW is the all-period 5th percentile. Costs are estimated energy cost at the rates '

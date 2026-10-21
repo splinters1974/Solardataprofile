@@ -37,7 +37,7 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 space-y-4">
+      <div className="w-full max-w-lg bg-white rounded-xl shadow-md border border-slate-300 p-6 space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Create customer edition</h2>
           <p className="text-sm text-slate-500 mt-0.5">

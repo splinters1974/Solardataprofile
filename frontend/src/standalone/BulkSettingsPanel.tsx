@@ -43,10 +43,10 @@ export default function BulkSettingsPanel({ siteCount, unconfirmed, onApply, dat
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 space-y-4">
+    <div className="bg-white rounded-xl border border-slate-300 px-5 py-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-800">All sites at once</h3>
+          <h3 className="text-lg font-bold tracking-tight text-slate-900">All sites at once</h3>
           <p className="text-sm text-slate-500">
             Applies to all {siteCount} sites: replaces their weekly hours and bank holiday rules, and adds any closures and exceptional
             periods entered here to each site's own. Change a single site afterwards on its Calendar tab.

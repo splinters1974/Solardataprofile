@@ -4,6 +4,30 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 21 October 2026: new look, Standard first (2.5)
+
+Matched to the UK Solar Calculator website design: white ground, ink-navy type, one blue action colour, green for money, mist bands, hairline rules, Schibsted Grotesk.
+
+- **Built and shipped in Standard only so far.** The code is shared, so Advanced picks it up at its next build. `Ameresco-Data-Analyser-Advanced.html` is left on the 2.4 build until the Standard look is signed off.
+- **Font:** Schibsted Grotesk (SIL Open Font License) is embedded in the app and the PDFs, so it looks the same on every laptop with no internet. It adds about 250 KB to each file.
+- **Pages:**
+  - sticky header
+  - a mist "hero" band on the start page, portfolio and each site, with a heavy title and an ink panel showing the headline figure (closed-hours excess a year) plus cost, peak and base load
+  - ink active tab
+  - figure tiles with an ink top rule
+  - an ink footer
+- **Start page:** now explains the tool in one line, with the file drop on the right.
+- **Customer edition:** a split password page with the customer's name as the title. The "you can adjust this dashboard" bar sits under the header.
+- **PDFs:**
+  - ink top band with a blue accent
+  - headline figures on an ink panel
+  - ink section headings with a blue underline
+  - ink table headers
+  - Schibsted Grotesk throughout
+  - text sizes trimmed slightly so the reports stay about the same length (the site summary can run to one extra page)
+- **Excel is unchanged.** The spreadsheet library in use cannot write cell styles, so exports stay plain data.
+- **The hosted app is unchanged.** The look is scoped to the offline files.
+
 ## 20 October 2026: files with more than a year (2.4)
 
 - **Analysis period per site, defaulting to the last 12 calendar months** of the file (for example 1 Oct 2024 to 30 Sep 2025). The picker at the top of each site page also offers each earlier 12-month block, the whole file and custom dates. It shows prominently when a file holds more than a year.

@@ -26,8 +26,8 @@ import AnomaliesTab from './AnomaliesTab';
 import ScenariosTab from './ScenariosTab';
 import CapacityTab from './CapacityTab';
 import { VerdictChip } from './QualityPanel';
-import { Note, Tabs } from './ui';
-import { btnPrimary, btnSecondary, num } from './format';
+import { Hero, Note, StatPanel, Tabs } from './ui';
+import { btnPrimary, btnSecondary, gbp, kw, num } from './format';
 
 /** One meter: header, report buttons and the tabs of analysis behind it. */
 export default function SiteView({ site, rate, locked, showNotes, refresh, onBack, run, initial }: {
@@ -87,21 +87,35 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="text-sm text-[#0065a5] hover:text-[#00528a] font-medium">← All sites</button>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">{site.settings.name}</h1>
-          <p className="text-sm text-slate-500 flex flex-wrap items-center gap-x-2">
-            <span>{site.filename}</span>
-            {site.settings.meterId && <span>· meter {site.settings.meterId}</span>}
+      <Hero
+        eyebrow={<button onClick={onBack} className="text-[#0065a5] hover:text-[#00528a] font-semibold">← All sites</button>}
+        title={site.settings.name}
+        sub={(
+          <p className="text-sm text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{SITE_TYPES[site.settings.type].label}{site.settings.role === 'sub' ? ', submeter' : ''}</span>
             <span>· {fmtDayMonYear(m.coverage.from)} to {fmtDayMonYear(m.coverage.to)}</span>
             <span>· {num(m.coverage.validDays)} valid days ({(m.coverage.share * 100).toFixed(0)}% coverage)</span>
-            <span>· {SITE_TYPES[site.settings.type].label}</span>
-            {site.settings.role === 'sub' && <span>· submeter</span>}
+            <span>· {site.filename}</span>
+            {site.settings.meterId && <span>· meter {site.settings.meterId}</span>}
             <VerdictChip verdict={site.quality.verdict} />
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+        )}
+        aside={(
+          <StatPanel
+            lead={{
+              label: m.excess?.annual ? 'Closed-hours excess a year' : 'Closed-hours excess in the period',
+              value: m.excess ? gbp(m.excess.annual?.cost ?? m.excess.observed.cost) : 'None',
+              hint: m.excess ? 'Energy cost above the base load while the site is shut. Associated cost, not a guaranteed saving.' : 'No closed hours in the calendar.',
+            }}
+            items={[
+              { label: 'Cost a year', value: m.annual ? gbp(m.annual.cost) : 'n/a' },
+              { label: 'Peak', value: kw(m.peak.kw) },
+              { label: 'Base load', value: kw(m.baseAll.kw) },
+            ]}
+          />
+        )}
+      >
+        <div className="flex flex-wrap gap-2 pt-1">
           <button disabled={!!exporting} onClick={() => doRun('Summary', () => downloadSiteSummary(site.id))}
             title="Page 1: headline figures and top investigations. Then the opportunities appendix." className={btnPrimary}>
             {exporting === 'Summary' ? 'Building PDF…' : 'Site summary (PDF)'}
@@ -110,7 +124,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
             {exporting === 'Excel' ? 'Building…' : locked ? 'Summary to Excel' : 'Export to Excel'}
           </button>
         </div>
-      </div>
+      </Hero>
       <PeriodPicker site={site} onChange={onSettings} />
       {site.warnings.length > 0 && tab !== 'review' && (
         <Note tone="warn">

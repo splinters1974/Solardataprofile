@@ -10,6 +10,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable, type RowInput } from 'jspdf-autotable';
 import { MONTHS_SHORT } from '../dates';
 import { LOGO_ASPECT } from '../brand';
+import { SCHIBSTED_BOLD, SCHIBSTED_REGULAR } from './fonts';
 
 export type RGB = [number, number, number];
 
@@ -17,12 +18,25 @@ export const hex = (h: string): RGB => [
   parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16),
 ];
 
-export const INK = hex('#1e293b');
-export const MUTED = hex('#64748b');
-export const RULE = hex('#e2e8f0');
-export const PANEL = hex('#f8fafc');
-export const GRID = hex('#eef2f6');
+/** The web tools' palette: ink type, mist panels, hairline rules. */
+export const INK = hex('#063c55');
+export const INK_DEEP = hex('#042a3c');
+export const MUTED = hex('#5f6d74');
+export const RULE = hex('#d3d9dd');
+export const PANEL = hex('#eff0f1');
+export const GRID = hex('#e3e8eb');
+export const LIME = hex('#8fd16a');
 export const WHITE: RGB = [255, 255, 255];
+
+/** Schibsted Grotesk, embedded in every report (see fonts.ts). */
+export const FONT = 'schibsted';
+
+function addFonts(doc: jsPDF) {
+  doc.addFileToVFS('SchibstedGrotesk-Regular.ttf', SCHIBSTED_REGULAR);
+  doc.addFont('SchibstedGrotesk-Regular.ttf', FONT, 'normal');
+  doc.addFileToVFS('SchibstedGrotesk-Bold.ttf', SCHIBSTED_BOLD);
+  doc.addFont('SchibstedGrotesk-Bold.ttf', FONT, 'bold');
+}
 
 export const fmt = (v: number, dp = 0) =>
   v.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
@@ -67,13 +81,15 @@ export class Report {
   constructor(opts: ReportOptions) {
     this.opts = opts;
     this.doc = new jsPDF({ orientation: opts.orientation, unit: 'mm', format: 'a4' });
-    this.doc.setProperties({ title: opts.title, creator: 'Energy Usage Analyser' });
+    this.doc.setProperties({ title: opts.title, creator: 'Ameresco Data Analyser' });
+    addFonts(this.doc);
+    this.doc.setFont(FONT, 'normal');
     const pw = this.doc.internal.pageSize.getWidth();
     const ph = this.doc.internal.pageSize.getHeight();
     this.left = opts.margin;
     this.width = pw - opts.margin * 2;
     this.top = 14;
-    this.bottom = ph - 18;
+    this.bottom = ph - 16;
     this.brand = opts.brand;
     this.y = this.top;
   }
@@ -104,7 +120,7 @@ export class Report {
   /** A one-line muted heading for documents that skip the big title. */
   subhead(text: string) {
     const d = this.doc;
-    d.setFont('helvetica', 'normal').setFontSize(9);
+    d.setFont(FONT, 'normal').setFontSize(9);
     this.setColor(MUTED);
     d.text(text, this.left, this.y + 6);
     this.y += 9;
@@ -112,12 +128,12 @@ export class Report {
 
   title(text: string, sub: string) {
     const d = this.doc;
-    d.setFont('helvetica', 'bold').setFontSize(22);
+    d.setFont(FONT, 'bold').setFontSize(24);
     this.setColor(INK);
-    d.text(text, this.left, this.y + 8);
-    d.setFont('helvetica', 'normal').setFontSize(10.5);
+    d.text(text, this.left, this.y + 9);
+    d.setFont(FONT, 'normal').setFontSize(10);
     this.setColor(MUTED);
-    d.text(sub, this.left, this.y + 15);
+    d.text(sub, this.left, this.y + 15.5);
     this.y += 21;
   }
 
@@ -125,16 +141,18 @@ export class Report {
     this.need(10 + keepWith);
     this.y += 4;
     const d = this.doc;
-    d.setFont('helvetica', 'bold').setFontSize(13);
-    this.setColor(this.brand);
+    d.setFont(FONT, 'bold').setFontSize(14);
+    this.setColor(INK);
     d.text(text, this.left, this.y + 5);
-    this.y += 9;
+    d.setFillColor(...this.brand);
+    d.rect(this.left, this.y + 7, 14, 0.8, 'F');
+    this.y += 10.5;
   }
 
   paragraph(text: string, opts: { size?: number; color?: RGB; bold?: boolean; width?: number } = {}) {
     const d = this.doc;
-    const size = opts.size ?? 9.5;
-    d.setFont('helvetica', opts.bold ? 'bold' : 'normal').setFontSize(size);
+    const size = opts.size ?? 9;
+    d.setFont(FONT, opts.bold ? 'bold' : 'normal').setFontSize(size);
     this.setColor(opts.color ?? INK);
     const lines = d.splitTextToSize(text, opts.width ?? this.width) as string[];
     const lineH = size * 0.42 + 1;
@@ -147,7 +165,7 @@ export class Report {
   }
 
   small(text: string) {
-    this.paragraph(text, { size: 7.5, color: MUTED });
+    this.paragraph(text, { size: 7.2, color: MUTED });
   }
 
   /** A shaded box around a paragraph, for warnings and key assumptions. */
@@ -160,29 +178,33 @@ export class Report {
     this.need(h + 2);
     d.setFillColor(...opts.fill).setDrawColor(...opts.border).setLineWidth(0.3);
     d.rect(this.left, this.y, this.width, h, 'FD');
-    d.setFont('helvetica', 'normal');
+    d.setFont(FONT, 'normal');
     this.setColor(INK);
     lines.forEach((line, i) => d.text(line, this.left + 4, this.y + 5.5 + i * 5));
     this.y += h + 3;
   }
 
-  /** A row of headline numbers. */
+  /**
+   * A row of headline numbers on an ink panel, like the result box on the
+   * web tools: white figures, pale labels, hairline dividers.
+   */
   tiles(cells: [string, string][]) {
     const d = this.doc;
-    const h = 17;
-    this.need(h + 2);
+    const h = 18;
+    this.need(h + 3);
     const w = this.width / cells.length;
-    d.setFillColor(...PANEL).setDrawColor(...RULE).setLineWidth(0.25);
-    d.rect(this.left, this.y, this.width, h, 'FD');
+    d.setFillColor(...INK);
+    d.roundedRect(this.left, this.y, this.width, h, 2, 2, 'F');
+    d.setDrawColor(43, 92, 115).setLineWidth(0.25);
     cells.forEach(([value, label], i) => {
-      const cx = this.left + w * i + w / 2;
-      if (i) d.line(this.left + w * i, this.y, this.left + w * i, this.y + h);
-      d.setFont('helvetica', 'bold').setFontSize(15);
-      this.setColor(this.brand);
-      d.text(value, cx, this.y + 8, { align: 'center' });
-      d.setFont('helvetica', 'normal').setFontSize(7);
-      this.setColor(MUTED);
-      d.text(label, cx, this.y + 13.5, { align: 'center' });
+      const x = this.left + w * i + 5;
+      if (i) d.line(this.left + w * i, this.y + 4, this.left + w * i, this.y + h - 4);
+      d.setFont(FONT, 'bold').setFontSize(16);
+      this.setColor(WHITE);
+      d.text(value, x, this.y + 8.5);
+      d.setFont(FONT, 'normal').setFontSize(7.2);
+      d.setTextColor(196, 214, 224);
+      d.text(label, x, this.y + 13.8, { maxWidth: w - 8 });
     });
     this.y += h + 3;
   }
@@ -205,16 +227,16 @@ export class Report {
       head: [head],
       body,
       startY: this.y,
-      margin: { left: opts.x ?? this.left, right: this.doc.internal.pageSize.getWidth() - (opts.x ?? this.left) - width, top: 14, bottom: 20 },
+      margin: { left: opts.x ?? this.left, right: this.doc.internal.pageSize.getWidth() - (opts.x ?? this.left) - width, top: 14, bottom: 17 },
       tableWidth: width,
       theme: 'plain',
       styles: {
-        font: 'helvetica', fontSize: opts.fontSize ?? 8, textColor: INK,
-        cellPadding: { top: (opts.fontSize ?? 8) < 8 ? 0.9 : 1.3, bottom: (opts.fontSize ?? 8) < 8 ? 0.9 : 1.3, left: 2, right: 2 },
+        font: FONT, fontSize: opts.fontSize ?? 7.6, textColor: INK,
+        cellPadding: { top: (opts.fontSize ?? 7.6) < 8 ? 0.9 : 1.3, bottom: (opts.fontSize ?? 7.6) < 8 ? 0.9 : 1.3, left: 2, right: 2 },
         lineColor: RULE, lineWidth: { bottom: 0.15 },
       },
-      headStyles: { fillColor: this.brand, textColor: WHITE, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: PANEL },
+      headStyles: { fillColor: INK, textColor: WHITE, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [246, 247, 248] },
       columnStyles,
       didParseCell: (data) => {
         if (data.section === 'head') data.cell.styles.halign = isLeft(data.column.index) ? 'left' : 'right';
@@ -266,11 +288,13 @@ export class Report {
     for (let p = 1; p <= pages; p++) {
       d.setPage(p);
       if (this.opts.logo) this.drawLogos(p === 1);
+      d.setFillColor(...INK);
+      d.rect(0, 0, pw, 4, 'F');
       d.setFillColor(...this.brand);
-      d.rect(0, 0, pw, 5, 'F');
+      d.rect(0, 4, pw * 0.22, 1, 'F');
       d.setDrawColor(...RULE).setLineWidth(0.25);
       d.line(this.left, ph - 13, pw - this.left, ph - 13);
-      d.setFont('helvetica', 'normal').setFontSize(7.5);
+      d.setFont(FONT, 'normal').setFontSize(7.5);
       this.setColor(MUTED);
       d.text(this.opts.footer, this.left, ph - 9);
       d.text(`Page ${p} of ${pages}`, pw - this.left, ph - 9, { align: 'right' });
@@ -324,7 +348,7 @@ interface Frame {
 
 function plotFrame(r: Report, f: Frame, opts: { xLabels?: boolean } = {}) {
   const d = r.doc;
-  d.setFont('helvetica', 'normal').setFontSize(7);
+  d.setFont(FONT, 'normal').setFontSize(7);
   d.setTextColor(...MUTED);
   d.setLineWidth(0.15);
   for (const t of f.ya.ticks) {
@@ -346,7 +370,7 @@ function plotFrame(r: Report, f: Frame, opts: { xLabels?: boolean } = {}) {
 
 function legend(r: Report, items: { name: string; color: RGB }[], y: number, x: number, maxW: number) {
   const d = r.doc;
-  d.setFont('helvetica', 'normal').setFontSize(7);
+  d.setFont(FONT, 'normal').setFontSize(7);
   let cx = x;
   let cy = y;
   for (const it of items) {
@@ -362,7 +386,7 @@ function legend(r: Report, items: { name: string; color: RGB }[], y: number, x: 
 }
 
 function chartTitle(r: Report, title: string) {
-  r.doc.setFont('helvetica', 'bold').setFontSize(9.5);
+  r.doc.setFont(FONT, 'bold').setFontSize(9.5);
   r.doc.setTextColor(...INK);
   r.doc.text(title, r.left, r.y + 4);
 }
@@ -414,7 +438,7 @@ export function lineChart(r: Report, opts: {
 
   let y = f.y + f.h + 9;
   if (opts.xCaption) {
-    d.setFont('helvetica', 'normal').setFontSize(7).setTextColor(...MUTED);
+    d.setFont(FONT, 'normal').setFontSize(7).setTextColor(...MUTED);
     d.text(opts.xCaption, f.x, y);
     y += 4.5;
   }
@@ -468,7 +492,7 @@ export function barChart(r: Report, opts: {
         if (v > 0) d.rect(x0 + (slot - group) / 2 + bw * k, py(v), bw * 0.92, f.y + f.h - py(v), 'F');
       });
     }
-    d.setFont('helvetica', 'normal').setFontSize(opts.angledLabels ? 6 : 7).setTextColor(...MUTED);
+    d.setFont(FONT, 'normal').setFontSize(opts.angledLabels ? 6 : 7).setTextColor(...MUTED);
     if (opts.angledLabels) {
       // Rotated text runs up and to the right from its start, so start it
       // below-left of the tick and let it finish under the bar.
@@ -485,7 +509,7 @@ export function barChart(r: Report, opts: {
     d.setDrawColor(...line.color).setLineWidth(0.35).setLineDashPattern([1.5, 1], 0);
     d.line(f.x, y, f.x + f.w, y);
     d.setLineDashPattern([], 0);
-    d.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(...line.color);
+    d.setFont(FONT, 'bold').setFontSize(6.5).setTextColor(...line.color);
     // Alternate sides so two close lines do not print their labels on top of each other.
     if (k % 2) d.text(line.label, f.x + 1, y - 1);
     else d.text(line.label, f.x + f.w - 1, y - 1, { align: 'right' });
@@ -531,18 +555,18 @@ export function findingsList(r: Report, findings: {
   const d = r.doc;
   const textW = r.width - 30;
   for (const f of findings) {
-    d.setFont('helvetica', 'normal').setFontSize(8.5);
+    d.setFont(FONT, 'normal').setFontSize(8.5);
     const lines = d.splitTextToSize(f.detail, textW) as string[];
     const h = 6 + lines.length * 3.8 + 3;
     r.need(h);
     const style = LEVEL_STYLE[f.level];
     d.setFillColor(...style.color);
     d.rect(r.left, r.y, 1.2, h - 2, 'F');
-    d.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(...style.color);
+    d.setFont(FONT, 'bold').setFontSize(6.5).setTextColor(...style.color);
     d.text(labels[f.level] ?? style.label, r.left + 3.5, r.y + 4);
     d.setFontSize(9.5).setTextColor(...INK);
     d.text(f.title, r.left + 19, r.y + 4);
-    d.setFont('helvetica', 'normal').setFontSize(8.5).setTextColor(...MUTED);
+    d.setFont(FONT, 'normal').setFontSize(8.5).setTextColor(...MUTED);
     lines.forEach((line, i) => d.text(line, r.left + 19, r.y + 8.5 + i * 3.8));
     r.y += h;
   }
@@ -555,7 +579,7 @@ export function carpetImage(r: Report, opts: {
   const height = opts.height ?? 62;
   r.need(height + 18);
   const d = r.doc;
-  d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...INK);
+  d.setFont(FONT, 'bold').setFontSize(9.5).setTextColor(...INK);
   d.text(opts.title, r.left, r.y + 4);
   const x = r.left + 12;
   const y = r.y + 8;
@@ -563,7 +587,7 @@ export function carpetImage(r: Report, opts: {
   d.addImage(opts.canvas.toDataURL('image/png'), 'PNG', x, y, w, height, undefined, 'FAST');
   d.setDrawColor(...hex('#94a3b8')).setLineWidth(0.2);
   d.rect(x, y, w, height);
-  d.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(...MUTED);
+  d.setFont(FONT, 'normal').setFontSize(6.5).setTextColor(...MUTED);
   for (const h of [0, 6, 12, 18, 24]) {
     d.text(`${String(h).padStart(2, '0')}:00`, x - 1.5, y + (h / 24) * height + 1, { align: 'right' });
   }
@@ -598,9 +622,9 @@ export function qualityBlock(r: Report, q: {
   const colour = { good: hex('#0ca30c'), check: hex('#c98a00'), poor: hex('#d03b3b') }[q.verdict];
   r.need(14);
   const d = r.doc;
-  d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...colour);
+  d.setFont(FONT, 'bold').setFontSize(9.5).setTextColor(...colour);
   d.text(`Data quality: ${labels[q.verdict].label.toUpperCase()}`, r.left, r.y + 4);
-  d.setFont('helvetica', 'normal').setTextColor(...INK);
+  d.setFont(FONT, 'normal').setTextColor(...INK);
   d.text(labels[q.verdict].summary, r.left + 42, r.y + 4);
   r.y += 7;
   const flagged = q.checks.filter((c) => c.status !== 'ok');
@@ -616,7 +640,7 @@ export function imageBlock(r: Report, opts: { title?: string; canvas: HTMLCanvas
   r.need(opts.height + (opts.title ? 8 : 2));
   const d = r.doc;
   if (opts.title) {
-    d.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...INK);
+    d.setFont(FONT, 'bold').setFontSize(9.5).setTextColor(...INK);
     d.text(opts.title, r.left, r.y + 4);
     r.y += 6;
   }
@@ -655,9 +679,9 @@ export function donutChart(r: Report, opts: {
     a = a1;
   }
   d.setTextColor(...INK);
-  d.setFont('helvetica', 'bold').setFontSize(9);
+  d.setFont(FONT, 'bold').setFontSize(9);
   d.text(opts.centre, cx, cy + 1, { align: 'center' });
-  d.setFont('helvetica', 'normal').setFontSize(6.5);
+  d.setFont(FONT, 'normal').setFontSize(6.5);
   d.setTextColor(...MUTED);
   d.text(opts.centreSub, cx, cy + 5, { align: 'center' });
   // Legend.
@@ -668,9 +692,9 @@ export function donutChart(r: Report, opts: {
     d.setFillColor(...s.color);
     d.rect(lx, ly - 3, 3.5, 3.5, 'F');
     d.setTextColor(...INK);
-    d.setFont('helvetica', 'bold').setFontSize(8.5);
+    d.setFont(FONT, 'bold').setFontSize(8.5);
     d.text(`${s.label}  ${(share * 100).toFixed(0)}%`, lx + 6, ly);
-    d.setFont('helvetica', 'normal').setFontSize(7.5);
+    d.setFont(FONT, 'normal').setFontSize(7.5);
     d.setTextColor(...MUTED);
     d.text(s.detail, lx + 6, ly + 4);
     ly += 11;

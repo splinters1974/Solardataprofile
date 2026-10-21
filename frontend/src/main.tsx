@@ -8,7 +8,10 @@ import { captureTemplate, readSealedEdition } from './local/customerEdition'
 
 // Keep an untouched copy of this page so it can make customer editions,
 // before React changes anything.
-if (import.meta.env.MODE === 'standalone') captureTemplate()
+if (import.meta.env.MODE === 'standalone') {
+  captureTemplate()
+  document.documentElement.classList.add('amr')
+}
 
 const standaloneRoot = import.meta.env.MODE === 'standalone'
   ? (readSealedEdition() ? <CustomerGate /> : <StandaloneApp />)

@@ -10,11 +10,11 @@ export function ChartCard({ title, subtitle, controls, file, children, footer }:
 }) {
   const body = useRef<HTMLDivElement>(null);
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <section className="bg-white rounded-xl border border-slate-300 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-slate-800">{title}</h3>
-          {subtitle && <p className="text-xs text-[#0065a5] mt-0.5">{subtitle}</p>}
+          <h3 className="text-lg font-bold tracking-tight text-slate-900">{title}</h3>
+          {subtitle && <p className="text-sm text-slate-600 mt-1">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {controls}
@@ -40,7 +40,7 @@ export function Toggle<T extends string>({ value, options, onChange }: {
     <div className="inline-flex rounded-full bg-slate-100 p-0.5 text-xs font-medium">
       {options.map(([k, label]) => (
         <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={value === k}
-          className={`px-3 py-1 rounded-full ${value === k ? 'bg-white text-[#0065a5] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+          className={`px-3 py-1 rounded-full ${value === k ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
           {label}
         </button>
       ))}
