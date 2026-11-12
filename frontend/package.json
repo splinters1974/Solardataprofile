@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "build:standalone": "tsc -b && vite build --mode standalone && node scripts/copy-standalone.mjs",
     "build:standard": "tsc -b && VITE_VARIANT=standard vite build --mode standalone && node scripts/copy-standalone.mjs standard",
+    "build:eon": "tsc -b && VITE_BRAND=eon vite build --mode standalone && node scripts/copy-standalone.mjs eon",
     "test:local": "tsx --test tests/*.test.ts"
   },
   "dependencies": {

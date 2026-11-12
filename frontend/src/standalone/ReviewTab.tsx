@@ -99,7 +99,7 @@ export default function ReviewTab({ site, onChange, locked, goTo }: {
               </>
             )}
             <label className="text-xs text-slate-500 flex-1 min-w-48">Reason (required)<br /><input className={`${smallInput} w-full`} value={draft.reason} placeholder="e.g. meter fault confirmed by the supplier" onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></label>
-            <button disabled={!draft.from || !draft.reason.trim()} className="text-sm font-semibold bg-[#0065a5] text-white rounded-lg px-3 py-1.5 disabled:opacity-40"
+            <button disabled={!draft.from || !draft.reason.trim()} className="text-sm font-semibold bg-[var(--brand)] text-white rounded-lg px-3 py-1.5 disabled:opacity-40"
               onClick={() => {
                 const x: Exclusion = { id: newId(), from: draft.from, to: draft.to || draft.from, reason: draft.reason.trim(), source: 'manual',
                   ...(draft.window ? { startSlot: draft.start, endSlot: draft.end } : {}) };

@@ -53,7 +53,7 @@ export function Hero({ eyebrow, title, sub, children, aside }: {
   eyebrow?: ReactNode; title: ReactNode; sub?: ReactNode; children?: ReactNode; aside?: ReactNode;
 }) {
   return (
-    <section className="-mt-8 mb-2 py-8 bg-slate-100 shadow-[0_0_0_100vmax_var(--color-slate-100)] [clip-path:inset(0_-100vmax)]">
+    <section className="first:-mt-8 mb-2 py-8 bg-slate-100 shadow-[0_0_0_100vmax_var(--color-slate-100)] [clip-path:inset(0_-100vmax)]">
       <div className={`grid gap-8 items-start ${aside ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]' : ''}`}>
         <div className="min-w-0 space-y-3">
           {eyebrow && <div className="text-sm text-slate-600">{eyebrow}</div>}
@@ -78,7 +78,7 @@ export function StatPanel({ lead, items, note }: {
 }) {
   return (
     <div className="rounded-xl bg-slate-900 text-white p-6 shadow-md">
-      <p className="text-sm font-semibold text-[#8fd16a]">{lead.label}</p>
+      <p className="text-sm font-semibold text-[var(--hero-label)]">{lead.label}</p>
       <p className="text-4xl font-extrabold tracking-tight tabular-nums mt-1">{lead.value}</p>
       {lead.hint && <p className="text-xs text-white/70 mt-1">{lead.hint}</p>}
       <div className="grid grid-cols-3 gap-3 border-t border-white/20 mt-4 pt-4">
@@ -120,7 +120,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, sticky = false, 
               >
                 {t.label}
                 {t.badge !== undefined && t.badge !== '' && t.badge !== 0 && (
-                  <span className={`ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${on ? 'bg-white text-slate-900' : 'bg-[#0065a5] text-white'}`}>{t.badge}</span>
+                  <span className={`ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 ${on ? 'bg-white text-slate-900' : 'bg-[var(--brand)] text-white'}`}>{t.badge}</span>
                 )}
               </button>
             );
@@ -136,7 +136,7 @@ export function ProductMark({ size = 'lg' }: { size?: 'lg' | 'md' }) {
   return (
     <span className="flex items-center gap-2">
       <span className={`${size === 'lg' ? 'text-xl' : 'text-lg'} font-extrabold tracking-tight text-slate-900 leading-tight`}>{PRODUCT}</span>
-      <span className={`text-[11px] font-bold uppercase tracking-wider text-white rounded px-2 py-0.5 ${IS_STANDARD ? 'bg-[#0065a5]' : 'bg-[#008540]'}`} title={`This is the ${VARIANT} version`}>
+      <span className={`text-[11px] font-bold uppercase tracking-wider text-white rounded px-2 py-0.5 ${IS_STANDARD ? 'bg-[var(--brand)]' : 'bg-[var(--badge)]'}`} title={`This is the ${VARIANT} version`}>
         {VARIANT}
       </span>
     </span>
@@ -175,8 +175,8 @@ export const LevelChip = ({ level }: { level: Level }) => (
 );
 
 const CONF_UI: Record<Confidence, string> = {
-  high: 'bg-[#0065a5] text-white border-[#0065a5]',
-  medium: 'bg-white text-[#0065a5] border-[#0065a5]',
+  high: 'bg-[var(--info)] text-white border-[var(--info)]',
+  medium: 'bg-white text-[var(--info)] border-[var(--info)]',
   low: 'bg-white text-slate-500 border-slate-300 border-dashed',
 };
 
@@ -187,7 +187,7 @@ export const ConfidenceChip = ({ confidence, title }: { confidence: Confidence; 
 );
 
 const STATUS_UI: Record<ActionStatus, string> = {
-  new: 'bg-slate-100 text-slate-700', review: 'bg-blue-50 text-[#0065a5]', visit: 'bg-amber-50 text-[#8a6100]',
+  new: 'bg-slate-100 text-slate-700', review: 'bg-blue-50 text-[var(--brand)]', visit: 'bg-amber-50 text-[#8a6100]',
   confirmed: 'bg-indigo-50 text-indigo-700', agreed: 'bg-teal-50 text-teal-700', implemented: 'bg-green-50 text-[#08780a]',
   closed: 'bg-slate-50 text-slate-400',
 };

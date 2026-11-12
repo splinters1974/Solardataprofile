@@ -9,7 +9,7 @@
 import { jsPDF } from 'jspdf';
 import { autoTable, type RowInput } from 'jspdf-autotable';
 import { MONTHS_SHORT } from '../dates';
-import { LOGO_ASPECT } from '../brand';
+import { COMPANY, LOGO_ASPECT } from '../brand';
 import { SCHIBSTED_BOLD, SCHIBSTED_REGULAR } from './fonts';
 
 export type RGB = [number, number, number];
@@ -105,7 +105,7 @@ export class Report {
   constructor(opts: ReportOptions) {
     this.opts = opts;
     this.doc = new jsPDF({ orientation: opts.orientation, unit: 'mm', format: 'a4' });
-    this.doc.setProperties({ title: opts.title, creator: 'Ameresco Data Analyser' });
+    this.doc.setProperties({ title: opts.title, creator: `${COMPANY} Data Analyser` });
     addFonts(this.doc);
     this.doc.setFont(FONT, 'normal');
     const pw = this.doc.internal.pageSize.getWidth();
@@ -315,21 +315,25 @@ export class Report {
   }
 
   /**
-   * Ameresco logo top right, the customer's (if set) to its left behind a
+   * Brand logo top right, the customer's (if set) to its left behind a
    * thin divider. Full size on page 1; smaller on later pages so both fit
    * in the strip above the content without moving anything down.
    */
   private drawLogos(first: boolean) {
     const d = this.doc;
     const pw = d.internal.pageSize.getWidth();
-    const w = first ? 54 : 35;
+    // Fit the brand logo in a box (54 x 11 mm on page 1, 35 x 7 mm after),
+    // so a wide wordmark and a squarer mark both sit right.
+    const boxW = first ? 54 : 35;
+    const boxH = first ? 11 : 7;
+    const h = Math.min(boxH, boxW / LOGO_ASPECT);
+    const w = h * LOGO_ASPECT;
     const top = first ? 8 : 6.5;
-    const h = w / LOGO_ASPECT;
     const ameLeft = pw - this.left - w;
     d.addImage(this.opts.logo!, 'JPEG', ameLeft, top, w, h, undefined, 'FAST');
     if (!customerLogo) return;
     // Fit inside a box without stretching: 40 x 13 mm on page 1, 26 x the
-    // Ameresco logo's height on later pages.
+    // brand logo's height on later pages.
     const maxW = first ? 40 : 26;
     const maxH = first ? 13 : h;
     const ratio = customerLogo.width / customerLogo.height;

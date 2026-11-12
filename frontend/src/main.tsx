@@ -5,12 +5,14 @@ import App from './App.tsx'
 import StandaloneApp from './standalone/StandaloneApp.tsx'
 import CustomerGate from './standalone/CustomerGate.tsx'
 import { captureTemplate, readSealedEdition } from './local/customerEdition'
+import { IS_EON } from './local/brand'
 
 // Keep an untouched copy of this page so it can make customer editions,
 // before React changes anything.
 if (import.meta.env.MODE === 'standalone') {
   captureTemplate()
   document.documentElement.classList.add('amr')
+  if (IS_EON) document.documentElement.classList.add('eon')
 }
 
 const standaloneRoot = import.meta.env.MODE === 'standalone'

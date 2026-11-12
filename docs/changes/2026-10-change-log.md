@@ -4,6 +4,24 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 12 November 2026: E.ON white-label of Advanced (2.7)
+
+- **New file:** `standalone/EON-Data-Analyser-Advanced.html`, built with `npm run build:eon`. It's the same engine and screens as Advanced. The Ameresco Standard and Advanced files are unchanged.
+- **Name.** Every mention of Ameresco becomes E.ON:
+  - header and footer
+  - "prepared by" lines
+  - customer password page
+  - PDF footers and PDF properties
+  - browser tab title and icon
+  - customer notes in settings
+- The E.ON file contains no Ameresco text or logo, and saved project files use a brand-neutral tag. The Ameresco build still opens projects from either.
+- **Colours.**
+  - **E.ON red:** buttons, links, active highlights, tab badges, the Advanced badge, the label on the headline panel, and the PDF accent strip and heading rules.
+  - **Dark blue:** text and the information panels.
+  - **Unchanged:** green for money and the chart colours (they are checked for colour-blind separation).
+- **Logo:** a placeholder "E.ON" wordmark in E.ON red until the official artwork arrives. To swap it, replace `EON_LOGO` and `EON_LOGO_ASPECT` in `frontend/src/local/eonLogo.ts` and rebuild. The PDFs now fit any logo shape in a fixed box, so a squarer mark won't swamp the page.
+- **Fix (all builds):** an error message at the top of the page no longer sits under the grey headline band.
+
 ## 21 October 2026: new look everywhere, UK logo, no split sections (2.6)
 
 - **Advanced and the user guide now have the 2.5 look.** Both apps are rebuilt. The guide is restyled to match (Schibsted Grotesk, ink headings, mist panels, new cover) and every screenshot is retaken.

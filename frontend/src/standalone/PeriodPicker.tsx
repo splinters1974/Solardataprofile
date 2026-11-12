@@ -24,7 +24,7 @@ export default function PeriodPicker({ site, onChange }: { site: SiteSummary; on
     return <p className="text-xs text-slate-500">Analysis period: the whole file. {fileText}</p>;
   }
   return (
-    <div className={`rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 ${multi ? 'bg-[#e6f0f7] border-[#b9d3ef]' : 'bg-white border-slate-200'}`}>
+    <div className={`rounded-xl border px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 ${multi ? 'bg-[var(--brand-tint)] border-[var(--brand-line)]' : 'bg-white border-slate-200'}`}>
       <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
         Analysis period
         <select className={`${smallInput} font-normal`} value={value} onChange={(e) => {

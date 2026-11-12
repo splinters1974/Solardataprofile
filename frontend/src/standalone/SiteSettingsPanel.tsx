@@ -1,3 +1,4 @@
+import { COMPANY } from '../local/brand';
 import { SITE_TYPES, presetCalendar, DEFAULT_DETECTION, type SiteSettings, type SiteType } from '../local/site';
 import type { SiteSummary } from '../local/localClient';
 import CalendarEditor from './CalendarEditor';
@@ -10,7 +11,7 @@ import { inputCls } from './format';
  * calendar, rates, how to read the file, and analysis choices. In a
  * customer edition the customer can change the facts they know best (name,
  * type, floor area, calendar, rates); how the file was read, meter grouping
- * and the analysis method stay as Ameresco set them.
+ * and the analysis method stay as we set them.
  */
 export default function SiteSettingsPanel({ site, defaultRate, onChange, locked = false, customer = false, section = 'all' }: {
   site: SiteSummary;
@@ -35,9 +36,9 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
   return (
     <div className="space-y-4">
       {customer && (
-        <p className="text-sm text-slate-600 bg-[#e6f0f7] border border-[#b9d3ef] rounded-lg px-4 py-2.5">
+        <p className="text-sm text-slate-600 bg-[var(--brand-tint)] border border-[var(--brand-line)] rounded-lg px-4 py-2.5">
           You can change the site name, building type, floor area and rates here, and the hours on the Calendar tab.
-          How the file was read, meter grouping and the analysis method were set by Ameresco and are shown for reference.
+          How the file was read, meter grouping and the analysis method were set by {COMPANY} and are shown for reference.
         </p>
       )}
       <Card title="Site details">
@@ -137,7 +138,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
           </Field>
         </fieldset>
         <details className="mt-4">
-          <summary className="text-sm text-[#0065a5] cursor-pointer">Advanced: unusual-day and persistent-change thresholds</summary>
+          <summary className="text-sm text-[var(--brand)] cursor-pointer">Advanced: unusual-day and persistent-change thresholds</summary>
           <p className="text-xs text-slate-500 mt-2 mb-2">Screening thresholds, not universal energy standards.</p>
           <fieldset disabled={locked || customer} className="grid gap-3 grid-cols-2 md:grid-cols-4">
             {([

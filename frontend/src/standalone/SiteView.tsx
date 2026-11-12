@@ -88,7 +88,7 @@ export default function SiteView({ site, rate, locked, showNotes, refresh, onBac
   return (
     <div className="space-y-4">
       <Hero
-        eyebrow={<button onClick={onBack} className="text-[#0065a5] hover:text-[#00528a] font-semibold">← All sites</button>}
+        eyebrow={<button onClick={onBack} className="text-[var(--brand)] hover:text-[var(--brand-dark)] font-semibold">← All sites</button>}
         title={site.settings.name}
         sub={(
           <p className="text-sm text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">

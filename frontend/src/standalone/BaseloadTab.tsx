@@ -13,7 +13,7 @@ function ExcessRow({ e, chosen }: { e: ExcessResult | null; chosen: boolean }) {
   if (!e) return null;
   return (
     <tr className={`border-t border-slate-100 ${chosen ? 'bg-blue-50/50' : ''}`}>
-      <td className="py-2 pr-3">{e.label}{chosen && <span className="ml-2 text-[10px] font-semibold text-[#0065a5]">IN USE</span>}</td>
+      <td className="py-2 pr-3">{e.label}{chosen && <span className="ml-2 text-[10px] font-semibold text-[var(--brand)]">IN USE</span>}</td>
       <td className="pr-3 text-right tabular-nums">{kw(e.refKw)}</td>
       <td className="pr-3 text-right tabular-nums">{kwh(e.observed.kwh)}</td>
       <td className="pr-3 text-right tabular-nums">{gbp(e.observed.cost)}</td>

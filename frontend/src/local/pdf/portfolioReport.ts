@@ -7,7 +7,7 @@
 import { fmtDayMonYear, fmtLong } from '../dates';
 import { pdfFooter } from '../edition';
 import { RAMP_HEX } from '../carpet';
-import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
+import { BRAND_ACCENT, LOGO } from '../brand';
 import { SITE_TYPES } from '../site';
 import { describeCalendar } from '../calendar';
 import { VERDICT_TEXT } from '../dataQuality';
@@ -19,7 +19,7 @@ import type { SiteSummary } from '../localClient';
 import { carpetImage, fmt, hex, paginate, Report } from './common';
 import { estateOpportunities, opportunitiesAppendix, topThree } from './appendix';
 
-const BRAND = hex(BRAND_BLUE);
+const BRAND = hex(BRAND_ACCENT);
 
 export interface PortfolioSite {
   site: SiteSummary;
@@ -85,7 +85,7 @@ export function buildPortfolioReport(title: string, sites: PortfolioSite[], oppo
 
 function portfolioReport(title: string, sites: PortfolioSite[], opportunities: Opportunity[], breaks: Set<number>): Report {
   const r = new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: LOGO, breaks,
     footer: pdfFooter(title, 'portfolio energy review'),
     title: `${title} - Portfolio Energy Review`,
   });
@@ -155,7 +155,7 @@ export function buildSiteSummary(p: PortfolioSite & { includeNotes?: boolean }):
 function siteSummary(p: PortfolioSite & { includeNotes?: boolean }, breaks: Set<number>): Report {
   const s = p.site;
   const r = new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: LOGO, breaks,
     footer: pdfFooter(s.settings.name, 'site summary'),
     title: `${s.settings.name} - Site Summary`,
   });

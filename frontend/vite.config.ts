@@ -21,17 +21,22 @@ function localApi(): Plugin {
   }
 }
 
+const EON = process.env.VITE_BRAND === 'eon'
+
 /**
- * The offline file has no favicon.svg beside it: inline a small mark in
- * Ameresco blue and green instead, and give the tab the product name.
+ * The offline file has no favicon.svg beside it: inline a small mark in the
+ * brand's colours instead (Ameresco blue and green, or E.ON red), and give
+ * the tab the product name.
  */
 function inlineIcon(): Plugin {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='white'/><ellipse cx='16' cy='17' rx='13' ry='6.5' fill='none' stroke='%230065a5' stroke-width='3' transform='rotate(-12 16 17)'/><ellipse cx='17' cy='16' rx='6' ry='13' fill='none' stroke='%23008540' stroke-width='3' transform='rotate(18 17 16)'/></svg>`
+  const svg = EON
+    ? `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23ea1c0a'/><text x='16' y='23' text-anchor='middle' font-family='Arial,sans-serif' font-weight='700' font-size='20' fill='white'>e</text></svg>`
+    : `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='white'/><ellipse cx='16' cy='17' rx='13' ry='6.5' fill='none' stroke='%230065a5' stroke-width='3' transform='rotate(-12 16 17)'/><ellipse cx='17' cy='16' rx='6' ry='13' fill='none' stroke='%23008540' stroke-width='3' transform='rotate(18 17 16)'/></svg>`
   return {
     name: 'inline-icon',
     transformIndexHtml: (html) => html
       .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`)
-      .replace(/<title>[^<]*<\/title>/, `<title>Ameresco Data Analyser ${process.env.VITE_VARIANT === 'standard' ? 'Standard' : 'Advanced'}</title>`),
+      .replace(/<title>[^<]*<\/title>/, `<title>${EON ? 'E.ON' : 'Ameresco'} Data Analyser ${process.env.VITE_VARIANT === 'standard' ? 'Standard' : 'Advanced'}</title>`),
   }
 }
 
@@ -42,7 +47,7 @@ export default defineConfig(({ mode }) => {
     return {
       base: './',
       plugins: [localApi(), inlineIcon(), react(), tailwindcss(), viteSingleFile()],
-      build: { outDir: process.env.VITE_VARIANT === 'standard' ? 'dist-standard' : 'dist-standalone', chunkSizeWarningLimit: 5000 },
+      build: { outDir: EON ? 'dist-eon' : process.env.VITE_VARIANT === 'standard' ? 'dist-standard' : 'dist-standalone', chunkSizeWarningLimit: 5000 },
     }
   }
 

@@ -23,7 +23,7 @@ export default function BulkSettingsPanel({ siteCount, unconfirmed, onApply, dat
   if (!open) {
     const todo = unconfirmed > 0;
     return (
-      <div className={`rounded-xl border-2 px-5 py-4 flex flex-wrap items-center gap-4 ${todo ? 'border-[#0065a5] bg-[#e6f0f7]' : 'border-slate-200 bg-white'}`}>
+      <div className={`rounded-xl border-2 px-5 py-4 flex flex-wrap items-center gap-4 ${todo ? 'border-[var(--info)] bg-[var(--brand-tint)]' : 'border-slate-200 bg-white'}`}>
         <div className="flex-1 min-w-64">
           <p className="text-base font-bold text-slate-800">
             {todo ? `Step 1: set building type and opening hours (${unconfirmed} of ${siteCount} site${siteCount === 1 ? '' : 's'} not yet confirmed)` : `All ${siteCount} calendars confirmed`}
@@ -35,7 +35,7 @@ export default function BulkSettingsPanel({ siteCount, unconfirmed, onApply, dat
           </p>
         </div>
         <button onClick={() => setOpen(true)}
-          className={`text-base font-semibold rounded-lg px-6 py-3 shadow-sm ${todo ? 'bg-[#0065a5] hover:bg-[#00528a] text-white' : 'bg-white border border-[#0065a5] text-[#0065a5] hover:bg-blue-50'}`}>
+          className={`text-base font-semibold rounded-lg px-6 py-3 shadow-sm ${todo ? 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white' : 'bg-white border border-[var(--brand)] text-[var(--brand)] hover:bg-blue-50'}`}>
           Set building type and hours for all sites
         </button>
       </div>
@@ -69,7 +69,7 @@ export default function BulkSettingsPanel({ siteCount, unconfirmed, onApply, dat
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={() => { onApply({ type, calendar: structuredClone(calendar) }); setApplied(describeCalendar(calendar)); }}
-          className="text-sm font-semibold bg-[#0065a5] hover:bg-[#00528a] text-white px-4 py-2 rounded-lg"
+          className="text-sm font-semibold bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-2 rounded-lg"
         >
           Apply to all {siteCount} sites
         </button>

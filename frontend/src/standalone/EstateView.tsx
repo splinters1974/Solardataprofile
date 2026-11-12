@@ -37,7 +37,7 @@ export default function EstateView({ sites, openSite }: { sites: SiteSummary[]; 
                 <tbody>
                   {c.rows.map((r) => (
                     <tr key={r.id} className="border-t border-slate-100">
-                      <td className="py-1.5"><button onClick={() => openSite(r.id)} className="text-[#0065a5] hover:underline">{r.name}</button></td>
+                      <td className="py-1.5"><button onClick={() => openSite(r.id)} className="text-[var(--brand)] hover:underline">{r.name}</button></td>
                       <td className="text-right tabular-nums">{r.floorAreaM2 ? `${num(r.floorAreaM2)} m²` : '-'}</td>
                       <td className="text-right tabular-nums">{r.matchedKwh === null ? '-' : kwh(r.matchedKwh)}</td>
                       <td className="text-right tabular-nums">{r.matchedKwh === null ? '-' : `${r.completeDays} of ${c.days}`}</td>
@@ -62,7 +62,7 @@ export default function EstateView({ sites, openSite }: { sites: SiteSummary[]; 
             <ul className="text-sm text-slate-600 mt-1">
               {g.members.map((m) => (
                 <li key={m.id}>
-                  <button onClick={() => openSite(m.id)} className="text-[#0065a5] hover:underline">{m.name}</button>
+                  <button onClick={() => openSite(m.id)} className="text-[var(--brand)] hover:underline">{m.name}</button>
                   {m.meterId && ` · ${m.meterId}`} · {m.role === 'main' ? 'main' : m.role === 'sub' ? 'submeter (not added)' : 'separate supply'} · {fmtDayMonYear(m.from)} to {fmtDayMonYear(m.to)}
                 </li>
               ))}

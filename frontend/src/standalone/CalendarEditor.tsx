@@ -36,7 +36,7 @@ export function PeriodsEditor({ periods, onChange, disabled }: { periods: Period
       })}
       {!disabled && (
         <>
-          <button onClick={() => onChange([...periods, { open: 16, close: 36 }])} className="text-xs text-[#0065a5] hover:underline">+ period</button>
+          <button onClick={() => onChange([...periods, { open: 16, close: 36 }])} className="text-xs text-[var(--brand)] hover:underline">+ period</button>
           <button onClick={() => onChange([{ open: 0, close: 48 }])} className="text-xs text-slate-500 hover:underline">24 hours</button>
           {periods.length > 0 && <button onClick={() => onChange([])} className="text-xs text-slate-500 hover:underline">closed</button>}
         </>
@@ -90,7 +90,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
       <div>
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
           <p className="text-sm font-semibold text-slate-700">Weekly hours <span className="font-normal text-slate-400">(anything outside these is closed hours)</span></p>
-          {!locked && <button className="text-xs text-[#0065a5] hover:underline" onClick={() => set({ week: cal.week.map((x, i) => (i > 0 && i < 5 ? cal.week[0].map((p) => ({ ...p })) : x)) })}>Copy Monday to Tuesday-Friday</button>}
+          {!locked && <button className="text-xs text-[var(--brand)] hover:underline" onClick={() => set({ week: cal.week.map((x, i) => (i > 0 && i < 5 ? cal.week[0].map((p) => ({ ...p })) : x)) })}>Copy Monday to Tuesday-Friday</button>}
         </div>
         <div className="space-y-1.5">
           {DAY_NAMES.map((name, d) => (
@@ -136,7 +136,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
           {!locked && (
             <div className="flex gap-2 mt-2">
               <input type="date" className={smallInput} value={newHoliday} onChange={(e) => setNewHoliday(e.target.value)} aria-label="Extra holiday" />
-              <button disabled={!newHoliday} className="text-xs text-[#0065a5] hover:underline disabled:opacity-40"
+              <button disabled={!newHoliday} className="text-xs text-[var(--brand)] hover:underline disabled:opacity-40"
                 onClick={() => { set({ holidaysAdded: [...new Set([...cal.holidaysAdded, newHoliday])] }); setNewHoliday(''); }}>+ add a holiday</button>
             </div>
           )}
@@ -195,7 +195,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
               <input className={smallInput} placeholder="Label, e.g. Summer holiday" value={newClosure.label} onChange={(e) => setNewClosure({ ...newClosure, label: e.target.value })} />
               <input type="date" className={smallInput} value={newClosure.from} onChange={(e) => setNewClosure({ ...newClosure, from: e.target.value })} aria-label="From" />
               <input type="date" className={smallInput} value={newClosure.to} onChange={(e) => setNewClosure({ ...newClosure, to: e.target.value })} aria-label="To" />
-              <button disabled={!newClosure.from} className="text-xs text-[#0065a5] hover:underline disabled:opacity-40"
+              <button disabled={!newClosure.from} className="text-xs text-[var(--brand)] hover:underline disabled:opacity-40"
                 onClick={() => {
                   const to = newClosure.to || newClosure.from;
                   set({ closures: [...cal.closures, { id: newId(), from: newClosure.from, to, label: newClosure.label || 'Closure' }] });
@@ -206,7 +206,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
               <summary className={linkBtn}>Paste several closures</summary>
               <textarea rows={4} className={`${smallInput} w-full mt-2 font-mono text-xs`} value={paste} onChange={(e) => setPaste(e.target.value)}
                 placeholder={'One per line: from, to, label\n14/04/2025 - 25/04/2025 Easter holiday\n23/07/2025 - 02/09/2025 Summer holiday'} />
-              <button className="text-xs text-[#0065a5] hover:underline" onClick={() => {
+              <button className="text-xs text-[var(--brand)] hover:underline" onClick={() => {
                 const ranges = parseRanges(paste);
                 if (ranges.length) { set({ closures: [...cal.closures, ...ranges] }); setPaste(''); }
               }}>Add {parseRanges(paste).length || ''} closure{parseRanges(paste).length === 1 ? '' : 's'}</button>
@@ -230,7 +230,7 @@ export default function CalendarEditor({ calendar: cal, onChange, dataFrom, data
           </div>
         ))}
         {!locked && (
-          <button className="text-xs text-[#0065a5] hover:underline" onClick={() => {
+          <button className="text-xs text-[var(--brand)] hover:underline" onClick={() => {
             const d = dataTo || new Date().toISOString().slice(0, 10);
             const ex: DatedHours = { id: newId(), from: d, to: d, label: 'Exceptional hours', periods: [{ open: 14, close: 44 }] };
             set({ exceptions: [...cal.exceptions, ex] });

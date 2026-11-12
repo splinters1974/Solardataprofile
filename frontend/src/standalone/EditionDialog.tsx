@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { defaultPassword } from '../local/customerEdition';
 import { downloadCustomerEdition, friendlyError } from '../local/localClient';
 
-const input = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0065a5]';
+const input = 'w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)]';
 
 /**
  * Make a locked, password-protected copy of this app holding the sites
@@ -95,7 +95,7 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
           <button
             onClick={create}
             disabled={busy || !customer.trim()}
-            className="text-sm font-semibold bg-[#0065a5] hover:bg-[#00528a] disabled:opacity-50 text-white px-4 py-2 rounded-lg"
+            className="text-sm font-semibold bg-[var(--brand)] hover:bg-[var(--brand-dark)] disabled:opacity-50 text-white px-4 py-2 rounded-lg"
           >
             {busy ? 'Encrypting…' : 'Create file'}
           </button>

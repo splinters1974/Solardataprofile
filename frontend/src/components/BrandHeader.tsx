@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { AMERESCO_LOGO } from '../local/brand';
+import { COMPANY_FULL, LOGO } from '../local/brand';
 
 /**
  * The app's logo.
  *
  * Drop the artwork at `frontend/public/logo.png` and it appears here; the
  * wordmark is part of the image, so no separate title is drawn alongside it.
- * Until that file exists, this falls back to the Ameresco UK logo and the
+ * Until that file exists, this falls back to the brand logo and the
  * product name rather than a broken image.
  */
 export default function BrandHeader() {
-  // A logo.png beside the hosted build still wins; otherwise the Ameresco UK
+  // A logo.png beside the hosted build still wins; otherwise the brand
   // logo (embedded, so it also works offline) and the product name.
   const [logoFailed, setLogoFailed] = useState(import.meta.env.MODE === 'standalone');
 
@@ -27,7 +27,7 @@ export default function BrandHeader() {
 
   return (
     <div className="flex items-center gap-4">
-      <img src={AMERESCO_LOGO} alt="Ameresco UK" className="h-10 w-auto" />
+      <img src={LOGO} alt={COMPANY_FULL} className="h-10 w-auto" />
       <span className="h-9 w-px bg-slate-200" aria-hidden />
       <div>
         <h1 className="text-lg font-bold text-slate-800 leading-tight">

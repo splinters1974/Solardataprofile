@@ -19,7 +19,7 @@ export function ChartCard({ title, subtitle, controls, file, children, footer }:
         <div className="flex flex-wrap items-center gap-2">
           {controls}
           <button type="button" onClick={() => void downloadChartPng(body.current, file)} title="Download this chart as a picture (PNG)"
-            className="text-[#008540] hover:text-[#006832] border border-slate-200 hover:border-[#008540] rounded-md p-1.5" aria-label="Download chart">
+            className="text-[var(--accent-2)] hover:opacity-80 border border-slate-200 hover:border-[var(--accent-2)] rounded-md p-1.5" aria-label="Download chart">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
               <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 12.5v1h11v-1" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

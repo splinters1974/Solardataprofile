@@ -34,7 +34,7 @@ function WeekGrid({ site, weekStart, onPick, selected }: { site: SiteSummary; we
               const i = index.get(d) ?? -1;
               const plan = planDay(site.settings.calendar, d);
               return [
-                <button key={`${d}-l`} onClick={() => onPick(d)} className={`text-xs text-left pr-1 truncate ${d === selected ? 'font-bold text-[#0065a5]' : 'text-slate-600 hover:text-[#0065a5]'}`}>
+                <button key={`${d}-l`} onClick={() => onPick(d)} className={`text-xs text-left pr-1 truncate ${d === selected ? 'font-bold text-[var(--brand)]' : 'text-slate-600 hover:text-[var(--brand)]'}`}>
                   {fmtDowDayMon(d)}
                 </button>,
                 ...Array.from({ length: 48 }, (_, s) => {
@@ -117,8 +117,8 @@ function DayInspector({ site, date, onPick }: { site: SiteSummary; date: string;
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => onPick(addDays(date, -1))}>← Previous day</button>
-          <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => onPick(addDays(date, 1))}>Next day →</button>
+          <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => onPick(addDays(date, -1))}>← Previous day</button>
+          <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => onPick(addDays(date, 1))}>Next day →</button>
         </div>
       </div>
       {quality && <Note tone="warn">Data question on this day: {quality.join('; ')}. It is not used as anyone else's reference until reviewed.</Note>}
@@ -174,7 +174,7 @@ function PeriodCompare({ site }: { site: SiteSummary }) {
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <span className="text-xs text-slate-500">Quick pick:</span>
         {([[28, 'Last 4 weeks'], [91, 'Last 3 months'], [182, 'Last 6 months']] as const).map(([d, label]) => (
-          <button key={d} type="button" onClick={() => preset(d)} className="text-xs border border-[#0065a5] text-[#0065a5] rounded-full px-3 py-1 hover:bg-blue-50">{label}</button>
+          <button key={d} type="button" onClick={() => preset(d)} className="text-xs border border-[var(--brand)] text-[var(--brand)] rounded-full px-3 py-1 hover:bg-blue-50">{label}</button>
         ))}
         <label>From <input type="date" className={smallInput} value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label>To <input type="date" className={smallInput} value={to} onChange={(e) => setTo(e.target.value)} /></label>
@@ -217,9 +217,9 @@ export default function HeatmapTab({ site, date, onDate }: { site: SiteSummary; 
         subtitle="Days as rows, half hours as columns, with opening hours outlined."
         action={(
           <div className="flex gap-2">
-            <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => onDate(addDays(weekStart, -7))}>← Week</button>
+            <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => onDate(addDays(weekStart, -7))}>← Week</button>
             <input type="date" className={smallInput} value={selected} min={f.dates[0]} max={f.dates[f.dates.length - 1]} onChange={(e) => e.target.value && onDate(e.target.value)} />
-            <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => onDate(addDays(weekStart, 7))}>Week →</button>
+            <button className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => onDate(addDays(weekStart, 7))}>Week →</button>
           </div>
         )}
       >

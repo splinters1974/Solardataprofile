@@ -62,7 +62,7 @@ export default function QualityPanel({ report, actions }: { report: QualityRepor
                       onClick={() => actions.exclude(c.dates!, c.title)}>Exclude these {c.dates.length} day{c.dates.length > 1 ? 's' : ''}</button>
                     <button className="text-xs font-medium border border-slate-300 rounded-full px-3 py-1 hover:border-green-500"
                       onClick={() => actions.keep(c.dates!)}>Reviewed: keep as genuine</button>
-                    <button className="text-xs font-medium text-[#0065a5] hover:underline" onClick={() => actions.inspect(c.dates![0])}>
+                    <button className="text-xs font-medium text-[var(--brand)] hover:underline" onClick={() => actions.inspect(c.dates![0])}>
                       Inspect {listDates(c.dates, 1)} →
                     </button>
                   </div>

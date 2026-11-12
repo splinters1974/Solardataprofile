@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { AMERESCO_LOGO } from '../local/brand';
+import { COMPANY, COMPANY_FULL, LOGO } from '../local/brand';
 import {
   clearAll, countedInTotals, downloadExcel, downloadPortfolioReport, downloadSitesTable, editionShowsNotes, forgetSession,
   friendlyError, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
@@ -49,7 +49,7 @@ function Uploader({ onFiles, busy, compact = false }: { onFiles: (f: File[]) => 
     <div
       {...getRootProps()}
       className={`border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors ${compact ? 'px-5 py-3' : 'px-6 py-8'} ${
-        isDragActive ? 'border-[#0065a5] bg-[#e6f0f7]' : 'border-slate-300 hover:border-[#0065a5] bg-white'
+        isDragActive ? 'border-[var(--brand)] bg-[var(--brand-tint)]' : 'border-slate-300 hover:border-[var(--brand)] bg-white'
       } ${busy ? 'opacity-60 cursor-wait' : ''}`}
     >
       <input {...getInputProps()} />
@@ -71,7 +71,7 @@ type View = 'sites' | 'opportunities' | 'estate';
  * removals, summary exports only. The customer can change what they know
  * best (hours, closures, rates, capacity, carbon, exclusions, scenarios) and
  * save that as a new copy; action tracking and the analysis method stay
- * as Ameresco set them, and reports then say they include customer changes.
+ * as we set them, and reports then say they include customer changes.
  */
 export default function StandaloneApp({ mode = 'internal', customer = '' }: {
   mode?: 'internal' | 'customer';
@@ -196,7 +196,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
       <header className="sticky top-0 z-40 bg-white border-b border-slate-300 px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-4">
-            <img src={AMERESCO_LOGO} alt="Ameresco" className="h-10 w-auto" />
+            <img src={LOGO} alt={COMPANY_FULL} className="h-10 w-auto" />
             <span className="h-9 w-px bg-slate-300" aria-hidden />
             <div>
               <ProductMark />
@@ -238,7 +238,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
       </header>
 
       {isCustomer && (
-        <div className={`border-b px-6 py-2.5 ${unsaved ? 'bg-[#fdf6e7] border-[#e8c77a]' : 'bg-[#e6f0f7] border-[#b9d3ef]'}`}>
+        <div className={`border-b px-6 py-2.5 ${unsaved ? 'bg-[#fdf6e7] border-[#e8c77a]' : 'bg-[var(--brand-tint)] border-[var(--brand-line)]'}`}>
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-64 text-sm text-slate-700">
               <p className="font-semibold text-slate-800">
@@ -274,7 +274,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
           <>
             {ranked.length === 0 && !isCustomer && (
               <Hero
-                eyebrow="Ameresco UK · Half-hourly electricity · Works offline"
+                eyebrow={`${COMPANY_FULL} · Half-hourly electricity · Works offline`}
                 title={<>Where is this site's<br className="hidden md:block" /> energy going?</>}
                 sub="Drop in half-hourly meter files. You get when each site uses power, what runs when it should be shut, the costs that go with it, and reports you can hand to the customer."
                 aside={<div className="rounded-xl bg-white border border-slate-300 p-6 shadow-md space-y-3">
@@ -298,7 +298,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
             {ranked.length > 0 && (
               <>
                 <Hero
-                  eyebrow={isCustomer ? 'Energy dashboard prepared by Ameresco' : 'Portfolio'}
+                  eyebrow={isCustomer ? `Energy dashboard prepared by ${COMPANY}` : 'Portfolio'}
                   title={title || (isCustomer ? customer : 'All sites')}
                   sub={`${sites.length} meter${sites.length === 1 ? '' : 's'}${allFrom ? ` · data from ${fmtDayMonYear(allFrom)} to ${fmtDayMonYear(allTo)}` : ''}. Ranked by the cost of energy used when buildings should be shut.`}
                   aside={(
@@ -326,7 +326,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                     </button>
                     {!isCustomer && (
                       <button onClick={() => setShowEdition(true)} title="A locked, password-protected copy of this dashboard for the customer"
-                        className={`${btn} bg-white border border-[#008540] text-[#008540] hover:bg-[#ebf6ef]`}>Customer edition…</button>
+                        className={`${btn} bg-white border border-[var(--accent-2)] text-[var(--accent-2)] hover:bg-slate-50`}>Customer edition…</button>
                     )}
                   </div>
                 </Hero>
@@ -362,7 +362,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                           <button onClick={() => { removeCustomerLogo(); setCustomerLogo(null); }} className="text-xs text-slate-500 hover:text-red-700">Remove</button>
                         </div>
                       ) : (
-                        <label className="inline-block cursor-pointer text-sm border border-dashed border-slate-300 hover:border-[#0065a5] rounded-lg px-3 py-1.5 text-slate-600">
+                        <label className="inline-block cursor-pointer text-sm border border-dashed border-slate-300 hover:border-[var(--brand)] rounded-lg px-3 py-1.5 text-slate-600">
                           Add logo…
                           <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" className="hidden"
                             onChange={async (e) => {
@@ -387,7 +387,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 </div>
                 {warnings.length > 0 && <Note tone="warn">{warnings.map((w, i) => <p key={i}>{w}</p>)}</Note>}
                 {multiYear.length > 0 && (
-                  <div className="rounded-xl border border-[#b9d3ef] bg-[#e6f0f7] px-5 py-3.5 flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                  <div className="rounded-xl border border-[var(--brand-line)] bg-[var(--brand-tint)] px-5 py-3.5 flex flex-wrap items-center gap-3 text-sm text-slate-700">
                     <p className="flex-1 min-w-64">
                       <strong>{multiYear.length} file{multiYear.length > 1 ? 's hold' : ' holds'} more than a year of data.</strong>{' '}
                       Each site is analysed over its own chosen period ({allLast12 ? 'the last 12 months of its file' : 'periods differ'}); change one site at the top of its page.
@@ -457,7 +457,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                           const counts = (['high', 'medium', 'low'] as const)
                             .map((l) => [l, m.findings.filter((f) => f.level === l).length] as const).filter(([, c]) => c > 0);
                           return (
-                            <tr key={s.id} onClick={() => openSite(s.id)} className="border-b border-slate-200 last:border-0 hover:bg-[#e6f0f7]/60 cursor-pointer">
+                            <tr key={s.id} onClick={() => openSite(s.id)} className="border-b border-slate-200 last:border-0 hover:bg-[var(--brand-tint)]/60 cursor-pointer">
                               <td className="pl-5 pr-1 py-3 text-right tabular-nums text-slate-400">{s.rank ?? '-'}</td>
                               <td className="px-1.5 py-3 min-w-44">
                                 <p className="font-bold text-slate-900">{s.settings.name}</p>
@@ -506,7 +506,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 )}
                 <p className="text-xs text-slate-500">
                   {isCustomer
-                    ? 'Prepared by Ameresco. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings. Figures change with any settings you adjust.'
+                    ? `Prepared by ${COMPANY}. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings. Figures change with any settings you adjust.`
                     : 'Every site starts as Office / commercial with unconfirmed preset hours. Check each calendar (or set them all at once above) before relying on closed-hours figures.'}
                 </p>
               </>
@@ -518,7 +518,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
         <div className="max-w-7xl mx-auto px-6 py-8 flex flex-wrap gap-x-10 gap-y-4 items-start text-sm">
           <div className="min-w-56">
             <p className="font-extrabold text-white text-base">{PRODUCT_FULL}</p>
-            <p className="text-xs text-white/60 mt-1">By Ameresco UK. Half-hourly electricity analysis.</p>
+            <p className="text-xs text-white/60 mt-1">By {COMPANY_FULL}. Half-hourly electricity analysis.</p>
           </div>
           <p className="flex-1 min-w-64 text-xs text-white/70 leading-relaxed">
             Works offline: files are read on this computer and never uploaded. Costs are energy cost at the rates entered, associated with

@@ -51,9 +51,9 @@ export default function CapacityWeek({ frame, siteName, powerFactor, capacityKva
       file={chartFileName(siteName, `capacity-week-${week}`)}
       controls={(
         <div className="flex gap-1">
-          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => setWeek(addDays(week, -7))}>← Week</button>
-          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => setWeek(monday(peakDate))}>Peak week</button>
-          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => setWeek(addDays(week, 7))}>Week →</button>
+          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => setWeek(addDays(week, -7))}>← Week</button>
+          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => setWeek(monday(peakDate))}>Peak week</button>
+          <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => setWeek(addDays(week, 7))}>Week →</button>
         </div>
       )}
       footer={(

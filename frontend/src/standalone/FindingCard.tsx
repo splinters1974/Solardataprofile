@@ -65,11 +65,11 @@ export default function FindingCard({ f, action, onAction, locked, showNotes, go
           <ConfidenceChip confidence={f.confidence} title={f.confidenceReasons.join('; ')} />
           <StatusChip status={a.status} />
           {siteName && (goTo
-            ? <button onClick={() => goTo('overview')} className="text-xs font-medium text-[#0065a5] hover:underline ml-1">{siteName} →</button>
+            ? <button onClick={() => goTo('overview')} className="text-xs font-medium text-[var(--brand)] hover:underline ml-1">{siteName} →</button>
             : <span className="text-xs text-slate-500 ml-1">{siteName}</span>)}
         </div>
         <button onClick={() => setOpen((v) => !v)} className="text-left mt-1 group" aria-expanded={open}>
-          <span className="font-semibold text-slate-800 group-hover:text-[#0065a5]">{f.title}</span>
+          <span className="font-semibold text-slate-800 group-hover:text-[var(--brand)]">{f.title}</span>
           <span className="text-xs text-slate-400 ml-2">{open ? 'Hide detail' : 'Show calculation and evidence'}</span>
         </button>
         <p className="text-sm text-slate-600 mt-0.5 leading-relaxed">{f.detail}</p>
@@ -96,7 +96,7 @@ export default function FindingCard({ f, action, onAction, locked, showNotes, go
             {goTo && f.links.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {f.links.map((l, i) => (
-                  <button key={i} onClick={() => goTo(l.tab, l.date)} className="text-xs font-medium border border-[#0065a5] text-[#0065a5] rounded-full px-3 py-1 hover:bg-blue-50">
+                  <button key={i} onClick={() => goTo(l.tab, l.date)} className="text-xs font-medium border border-[var(--brand)] text-[var(--brand)] rounded-full px-3 py-1 hover:bg-blue-50">
                     {l.label}{l.date ? `: ${fmtDayMonYear(l.date)}` : ''} →
                   </button>
                 ))}

@@ -39,7 +39,7 @@ export default function AnomaliesTab({ site, goTo }: { site: SiteSummary; goTo: 
                   <td className="text-right tabular-nums">{c.flaggedDays} of {c.eligibleDays}</td>
                   <td className="text-right tabular-nums">{c.meanDeviation >= 0 ? '+' : ''}{pct(c.meanDeviation)}</td>
                   <td className="text-right tabular-nums">{kwh(c.actualKwh)} vs {kwh(c.expectedKwh)}</td>
-                  <td className="text-right"><button className="text-xs text-[#0065a5] hover:underline" onClick={() => goTo('heatmap', c.from)}>Inspect →</button></td>
+                  <td className="text-right"><button className="text-xs text-[var(--brand)] hover:underline" onClick={() => goTo('heatmap', c.from)}>Inspect →</button></td>
                 </tr>
               ))}
             </tbody>
@@ -51,7 +51,7 @@ export default function AnomaliesTab({ site, goTo }: { site: SiteSummary; goTo: 
       <Card title="Unusual days" action={(
         <div className="flex text-xs border border-slate-300 rounded-lg overflow-hidden">
           {(['size', 'date'] as const).map((k) => (
-            <button key={k} onClick={() => setSort(k)} className={`px-3 py-1 ${sort === k ? 'bg-[#0065a5] text-white' : 'bg-white text-slate-600'}`}>{k === 'size' ? 'Largest first' : 'By date'}</button>
+            <button key={k} onClick={() => setSort(k)} className={`px-3 py-1 ${sort === k ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-600'}`}>{k === 'size' ? 'Largest first' : 'By date'}</button>
           ))}
         </div>
       )}>
@@ -66,10 +66,10 @@ export default function AnomaliesTab({ site, goTo }: { site: SiteSummary; goTo: 
                     <td>{e.dayLabel}</td>
                     <td className="text-right tabular-nums">{kwh(e.actualKwh)}</td>
                     <td className="text-right tabular-nums">{kwh(e.expectedKwh)}</td>
-                    <td className={`text-right tabular-nums font-semibold ${e.direction === 'high' ? 'text-[#b42c2c]' : 'text-[#0065a5]'}`}>{e.deviation >= 0 ? '+' : ''}{pct(e.deviation)}</td>
+                    <td className={`text-right tabular-nums font-semibold ${e.direction === 'high' ? 'text-[#b42c2c]' : 'text-[var(--brand)]'}`}>{e.deviation >= 0 ? '+' : ''}{pct(e.deviation)}</td>
                     <td className="pl-3 text-xs text-slate-500 whitespace-nowrap">{num(e.samples)} days, {fmtDayMonYear(e.baselineFrom)} to {fmtDayMonYear(e.baselineTo)}</td>
                     <td className="text-xs">{e.quality ? <span className="text-[#8a6100]">{e.quality}</span> : <span className="text-slate-400">ok</span>}</td>
-                    <td className="text-right"><button className="text-xs text-[#0065a5] hover:underline" onClick={() => goTo('heatmap', e.date)}>Inspect →</button></td>
+                    <td className="text-right"><button className="text-xs text-[var(--brand)] hover:underline" onClick={() => goTo('heatmap', e.date)}>Inspect →</button></td>
                   </tr>
                 ))}
               </tbody>

@@ -29,7 +29,7 @@ function DayPicker({ days, onChange, disabled }: { days: boolean[]; onChange: (d
   return (
     <span className="inline-flex gap-1">
       {DAYS.map((d, k) => (
-        <label key={d} className={`text-[11px] border rounded px-1.5 py-0.5 cursor-pointer ${days[k] ? 'bg-[#0065a5] text-white border-[#0065a5]' : 'bg-white text-slate-500 border-slate-300'}`}>
+        <label key={d} className={`text-[11px] border rounded px-1.5 py-0.5 cursor-pointer ${days[k] ? 'bg-[var(--brand)] text-white border-[var(--brand)]' : 'bg-white text-slate-500 border-slate-300'}`}>
           <input type="checkbox" disabled={disabled} className="sr-only" checked={days[k]} onChange={(e) => onChange(days.map((x, j) => (j === k ? e.target.checked : x)))} />{d}
         </label>
       ))}
@@ -90,7 +90,7 @@ function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef, peakKw, 
                 {!locked && sc.windows.length > 1 && <button className="text-xs text-slate-400" onClick={() => set({ windows: sc.windows.filter((_, j) => j !== k) })}>×</button>}
               </span>
             ))}
-            {!locked && <button className="text-xs text-[#0065a5]" onClick={() => set({ windows: [...sc.windows, { start: 40, end: 44 }] })}>+ window</button>}
+            {!locked && <button className="text-xs text-[var(--brand)]" onClick={() => set({ windows: [...sc.windows, { start: 40, end: 44 }] })}>+ window</button>}
             <DayPicker days={sc.days} disabled={locked} onChange={(d) => set({ days: d })} />
           </>
         )}
@@ -111,7 +111,7 @@ function ScenarioEditor({ sc, onChange, onRemove, locked, hasClosedRef, peakKw, 
                 Current peak {kw(peakKw)}. Try:
                 {[0.9, 0.8, 0.7].map((f) => (
                   <button key={f} type="button" onClick={() => set({ capKw: Math.round(peakKw * f * 10) / 10 })}
-                    className="border border-[#0065a5] text-[#0065a5] rounded-full px-2 py-0.5 hover:bg-blue-50">{Math.round(f * 100)}% ({kw(peakKw * f)})</button>
+                    className="border border-[var(--brand)] text-[var(--brand)] rounded-full px-2 py-0.5 hover:bg-blue-50">{Math.round(f * 100)}% ({kw(peakKw * f)})</button>
                 ))}
               </span>
             )}
@@ -157,7 +157,7 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
       <Card title="Scenarios" action={!locked && (
         <div className="flex flex-wrap gap-2">
           {(Object.keys(SCENARIO_LABEL) as Scenario['kind'][]).map((k) => (
-            <button key={k} onClick={() => onChange([...list, newScenario(k)])} className="text-xs font-medium border border-[#0065a5] text-[#0065a5] rounded-full px-3 py-1 hover:bg-blue-50">
+            <button key={k} onClick={() => onChange([...list, newScenario(k)])} className="text-xs font-medium border border-[var(--brand)] text-[var(--brand)] rounded-full px-3 py-1 hover:bg-blue-50">
               + {SCENARIO_LABEL[k]}
             </button>
           ))}
@@ -220,7 +220,7 @@ export default function ScenariosTab({ site, run, onChange, locked }: {
             <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-xs font-medium">
               {([['all', 'All days'], ['open', `Days the site opens (${run.profiles.open.days})`], ['closed', `Closed days (${run.profiles.closed.days})`]] as const).map(([k, label]) => (
                 <button key={k} type="button" disabled={!run.profiles[k].days} onClick={() => setDayView(k)}
-                  className={`px-3 py-1.5 disabled:opacity-40 ${dayView === k ? 'bg-[#0065a5] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{label}</button>
+                  className={`px-3 py-1.5 disabled:opacity-40 ${dayView === k ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{label}</button>
               ))}
             </div>
           </div>

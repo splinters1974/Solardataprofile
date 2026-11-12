@@ -46,7 +46,7 @@ export default function CapacityTab({ site, onChange, locked, goTo }: {
                 <td className="text-right tabular-nums">{num(p.kva, 1)}</td>
                 <td className="text-right tabular-nums">{p.utilisation === null ? '-' : pct(p.utilisation)}</td>
                 <td className="pl-3">{p.open ? 'open' : 'closed'}</td>
-                <td className="text-right"><button className="text-xs text-[#0065a5] hover:underline" onClick={() => goTo('heatmap', p.date)}>Inspect →</button></td>
+                <td className="text-right"><button className="text-xs text-[var(--brand)] hover:underline" onClick={() => goTo('heatmap', p.date)}>Inspect →</button></td>
               </tr>
             ))}
           </tbody>

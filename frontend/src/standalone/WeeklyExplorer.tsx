@@ -116,8 +116,8 @@ export default function WeeklyExplorer({ frame, calendar, siteName, after, price
           file={chartFileName(siteName, `week-${week}`)}
           controls={(
             <div className="flex gap-1">
-              <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => setSelected(addDays(week, -7))}>← Week</button>
-              <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[#0065a5]" onClick={() => setSelected(addDays(week, 7))}>Week →</button>
+              <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => setSelected(addDays(week, -7))}>← Week</button>
+              <button type="button" className="text-xs border border-slate-300 rounded px-2 py-1 hover:border-[var(--brand)]" onClick={() => setSelected(addDays(week, 7))}>Week →</button>
             </div>
           )}
           footer={<>Shaded: closed under the calendar. Bars are half-hour averages in kW.{after ? ' Green line: the same half hours with the active savings scenarios.' : ''}</>}

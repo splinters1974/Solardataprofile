@@ -65,7 +65,7 @@ export default function TariffEditor({ tariff, flatP, onChange, problems, locked
           </div>
           {!locked && (
             <div className="flex flex-wrap items-center gap-4">
-              <button className="text-xs text-[#0065a5] hover:underline" onClick={() => onChange({ ...t, bands: [...t.bands, { id: newId(), name: 'Band', rateP: flatP, days: [true, true, true, true, true, true, true], start: 0, end: 0 }] })}>+ add band</button>
+              <button className="text-xs text-[var(--brand)] hover:underline" onClick={() => onChange({ ...t, bands: [...t.bands, { id: newId(), name: 'Band', rateP: flatP, days: [true, true, true, true, true, true, true], start: 0, end: 0 }] })}>+ add band</button>
               <label className="flex items-center gap-1.5 text-sm text-slate-600">
                 <input type="checkbox" checked={t.holidaysAsSunday} onChange={(e) => onChange({ ...t, holidaysAsSunday: e.target.checked })} />
                 Bank holidays use Sunday's bands

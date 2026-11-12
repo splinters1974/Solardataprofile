@@ -58,7 +58,7 @@ export default function FullPeriodChart({ frame }: { frame: Frame }) {
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-3 py-1.5 ${mode === m ? 'bg-[#0065a5] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 ${mode === m ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
               {text}
             </button>

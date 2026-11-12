@@ -3,6 +3,8 @@
  * earlier, simpler tool; this build is the Advanced version. The name
  * appears in the header, the customer gate, file names and every PDF footer.
  */
+import { COMPANY } from './brand';
+
 export const PRODUCT = 'Data Analyser';
 /**
  * Built twice from one codebase: `npm run build:standalone` makes Advanced,
@@ -15,7 +17,7 @@ export const PRODUCT_FULL = `${PRODUCT} ${VARIANT}`;
 /**
  * Set once a customer has changed anything in their edition (hours, rates,
  * capacity, scenarios, exclusions). Reports made after that say so, so a PDF
- * carrying Ameresco's name never passes off the customer's assumptions as ours.
+ * carrying our name never passes off the customer's assumptions as ours.
  */
 let customerEdits: string | null = null;
 export const markCustomerEdits = (customer: string) => { customerEdits = customer; };
@@ -25,5 +27,5 @@ export const customerEditsBy = () => customerEdits;
 /** Footer text for every PDF page. */
 export function pdfFooter(...parts: string[]): string {
   const note = customerEdits ? [`includes changes made by ${customerEdits}`] : [];
-  return [`Ameresco ${PRODUCT_FULL}`, ...parts, ...note].join('  ·  ');
+  return [`${COMPANY} ${PRODUCT_FULL}`, ...parts, ...note].join('  ·  ');
 }

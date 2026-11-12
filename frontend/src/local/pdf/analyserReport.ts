@@ -10,7 +10,7 @@ import type {
 import { fmtLong } from '../dates';
 import { CATEGORICAL, CHART, DAY_TYPE_COLOURS } from '../chartColours';
 import { pdfFooter } from '../edition';
-import { AMERESCO_LOGO, BRAND_BLUE } from '../brand';
+import { BRAND_ACCENT, LOGO } from '../brand';
 import { RAMP_HEX } from '../carpet';
 import { VERDICT_TEXT } from '../dataQuality';
 import { inWindow } from '../headroom';
@@ -23,7 +23,7 @@ import {
   type RGB,
 } from './common';
 
-const BRAND = hex(BRAND_BLUE);
+const BRAND = hex(BRAND_ACCENT);
 
 const SERIES_COLOURS: Record<string, RGB> = {
   Monday: hex(CATEGORICAL[0]), Tuesday: hex(CATEGORICAL[1]), Wednesday: hex(CATEGORICAL[2]),
@@ -80,7 +80,7 @@ interface Section {
 
 function newReport(i: AnalyserReportInput, what: string, breaks?: Set<number>) {
   return new Report({
-    orientation: 'landscape', brand: BRAND, margin: 15, logo: AMERESCO_LOGO, breaks,
+    orientation: 'landscape', brand: BRAND, margin: 15, logo: LOGO, breaks,
     footer: pdfFooter(i.siteName, what),
     title: `${i.siteName}: ${what}`,
   });

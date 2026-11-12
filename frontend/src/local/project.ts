@@ -8,6 +8,7 @@
  * schema name and version; files from a newer version are refused rather
  * than half-read.
  */
+import { IS_EON } from './brand';
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import type { Frame, RawData } from './frame';
 import type { LongSeries, ParseInfo } from './parser';
@@ -17,7 +18,9 @@ import type { Scenario } from './scenarios';
 import type { CarbonFactor } from './findings';
 import type { CustomerLogo } from './pdf/common';
 
-export const PROJECT_SCHEMA = 'ameresco-data-analyser-project';
+/** Tag written into project files. The white-label build writes a neutral one, which the Ameresco build also reads. */
+export const PROJECT_SCHEMA = IS_EON ? 'data-analyser-project' : 'ameresco-data-analyser-project';
+const KNOWN_SCHEMAS = [PROJECT_SCHEMA, 'data-analyser-project'];
 export const PROJECT_VERSION = 1;
 
 export interface SerialSite {
@@ -40,7 +43,7 @@ export interface SerialSite {
 }
 
 export interface ProjectFile {
-  schema: typeof PROJECT_SCHEMA;
+  schema: string;
   version: number;
   savedAt: string;
   title: string;
@@ -98,7 +101,7 @@ export function decodeProject(bytes: Uint8Array): ProjectFile {
     throw new Error('That file is not a Data Analyser project.');
   }
   const p = JSON.parse(text) as ProjectFile;
-  if (p.schema !== PROJECT_SCHEMA) throw new Error('That file is not a Data Analyser project.');
+  if (!KNOWN_SCHEMAS.includes(p.schema)) throw new Error('That file is not a Data Analyser project.');
   if (p.version > PROJECT_VERSION) {
     throw new Error(`This project was saved by a newer version of the Data Analyser (format ${p.version}). Open it in that version.`);
   }

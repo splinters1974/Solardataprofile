@@ -57,7 +57,7 @@ export default function CarbonPanel({ metrics: m, carbon, run, siteName }: {
 function Big({ value, label, tone }: { value: string; label: string; tone?: 'green' }) {
   return (
     <div className="flex items-baseline gap-3">
-      <dt className={`text-3xl font-bold tabular-nums ${tone === 'green' ? 'text-[#008540]' : 'text-[#0065a5]'}`}>{value}</dt>
+      <dt className={`text-3xl font-bold tabular-nums ${tone === 'green' ? 'text-[#008540]' : 'text-[var(--brand)]'}`}>{value}</dt>
       <dd className="text-sm text-slate-600">{label}</dd>
     </div>
   );
