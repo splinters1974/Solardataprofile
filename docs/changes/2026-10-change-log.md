@@ -4,6 +4,18 @@ Brief: Claude implementation brief, 13 October 2026. Gap analysis: `2026-10-gap-
 Deliverables: `standalone/Ameresco-Data-Analyser-Advanced.html` and `standalone/Ameresco-Data-Analyser-Advanced-User-Guide.pdf` (source `docs/user-guide/guide.html`).
 The previous tool is kept as `standalone/Ameresco-Data-Analyser-Standard.html` with its original guide.
 
+## 12 November 2026: E.ON user guide (2.7.1)
+
+- **New:** `standalone/EON-Data-Analyser-User-Guide.pdf`, 27 pages, the same content as the Ameresco guide, built from the same source by `docs/user-guide/make-eon.mjs`.
+- **What changes in the E.ON edition:**
+  - E.ON name, logo and red accents
+  - E.ON file names
+  - all 36 screenshots retaken from the E.ON file (`docs/user-guide/img-eon/`)
+- **What's left out:** the Standard-version and change-history boxes, which don't apply to E.ON.
+- The build stops with an error if any mention of Ameresco is left.
+- The screenshots use made-up demo sites, regenerated for this run.
+- The Ameresco guide is re-rendered with the app's file size corrected (2.6 MB).
+
 ## 12 November 2026: E.ON white-label of Advanced (2.7)
 
 - **New file:** `standalone/EON-Data-Analyser-Advanced.html`, built with `npm run build:eon`. It's the same engine and screens as Advanced. The Ameresco Standard and Advanced files are unchanged.

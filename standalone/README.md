@@ -10,7 +10,7 @@ Both are built from the same engine, so the same file gives the same numbers in 
 | `EON-Data-Analyser-Advanced.html` | **E.ON white-label** of Advanced: E.ON name and logo, E.ON red for buttons and accents, dark blue text. Its customer editions and PDFs carry E.ON only. The logo is a placeholder wordmark until the official artwork is supplied (swap it in `frontend/src/local/eonLogo.ts`). |
 | `Ameresco-Data-Analyser-Advanced.html` | **Advanced** (green badge). Everything in Standard, plus Base load, Unusual days, Savings scenarios, the Opportunities and Estate comparison views, opportunity tracking, project files, the week-by-week explorer and the carbon panel. |
 
-One guide covers both: `Ameresco-Data-Analyser-User-Guide.pdf`. The badge shows next to the name, on the customer password page and in every PDF footer.
+One guide covers both Ameresco versions: `Ameresco-Data-Analyser-User-Guide.pdf`. The E.ON edition has its own guide, `EON-Data-Analyser-User-Guide.pdf`. The badge shows next to the name, on the customer password page and in every PDF footer.
 
 What changed and what's still not done: `docs/changes/2026-10-change-log.md`.
 

@@ -1,8 +1,10 @@
 import { chromium } from 'playwright';
-const dir = process.argv[2];
+// node render.mjs <dir> [input.html] [output.pdf] [footer text]
+const [dir, input = 'guide-built.html', output = 'Ameresco-Data-Analyser-User-Guide.pdf',
+  footer = 'Ameresco UK &middot; Data Analyser Standard and Advanced &middot; User guide &middot; Internal'] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
 const page = await browser.newPage();
-await page.goto(`file://${dir}/guide-built.html`, { waitUntil: 'networkidle' });
+await page.goto(`file://${dir}/${input}`, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 // Keep each sub-section (an h2 and what follows it, up to the next heading)
 // on one page: the browser moves it to the next page rather than split it.
@@ -24,9 +26,9 @@ await page.evaluate(() => {
   }
 });
 await page.pdf({
-  path: `${dir}/Ameresco-Data-Analyser-User-Guide.pdf`, format: 'A4', printBackground: true, preferCSSPageSize: true,
+  path: `${dir}/${output}`, format: 'A4', printBackground: true, preferCSSPageSize: true,
   displayHeaderFooter: true, headerTemplate: '<span></span>',
   footerTemplate: `<div style="width:100%;font-family:'Schibsted Grotesk','Liberation Sans',sans-serif;font-size:7.5pt;color:#5f6d74;padding:0 17mm;display:flex;justify-content:space-between">
-    <span>Ameresco UK &middot; Data Analyser Standard and Advanced &middot; User guide &middot; Internal</span><span><span class="pageNumber"></span></span></div>`,
+    <span>${footer}</span><span><span class="pageNumber"></span></span></div>`,
 });
 await browser.close();
