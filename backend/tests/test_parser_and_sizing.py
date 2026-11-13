@@ -10,12 +10,20 @@ from app.services.solar_sizing import align_generation, recommend_system_size
 
 
 def _uk_generation_profile(year: int = 2020) -> pd.DataFrame:
-    """A stand-in for the PVGIS 1 kWp reference year: seasonal, daylight-only."""
+    """
+    A stand-in for the PVGIS 1 kWp reference year: seasonal, daylight-only.
+
+    Scaled to about 900 kWh/kWp a year, which is roughly what PVGIS gives a
+    south-facing 35 degree roof in middle England after system losses. The
+    absolute level matters: it was 582 here for a while, low enough that
+    every sizing test was reasoning about a site that does not exist in
+    this country, and low enough to have masked a real feed fault.
+    """
     idx = pd.date_range(f"{year}-01-01", periods=366, freq="D")
     shape = np.array([max(0.0, np.sin(np.pi * (s - 16) / 32)) for s in range(48)])
     shape = shape / shape.sum()
     rows = [
-        shape * 2.9 * (0.55 + 0.45 * np.cos(2 * np.pi * (ts.dayofyear - 172) / 365))
+        shape * 4.49 * (0.55 + 0.45 * np.cos(2 * np.pi * (ts.dayofyear - 172) / 365))
         for ts in idx
     ]
     return pd.DataFrame(np.vstack(rows), index=idx, columns=range(48))

@@ -59,13 +59,31 @@ class TestAppraisal:
         assert result.irr is None
         assert result.npv < 0
 
-    def test_capex_is_a_flat_rate_at_every_size(self):
-        """Quoted as one inclusive £/kWp, not a size-tiered curve."""
+    def test_capex_rate_falls_through_the_size_bands(self):
         house = Assumptions()
-        assert house.capex_per_kwp == 800.0
-        assert house.capex_rate(5.0) == house.capex_rate(5000.0) == 800.0
+        assert house.capex_rate(100.0) == 1000.0
+        assert house.capex_rate(300.0) == 900.0
+        assert house.capex_rate(750.0) == 800.0
+        assert house.capex_rate(1500.0) == 700.0
+        assert house.capex_rate(3000.0) == 600.0
 
-    def test_capex_can_be_overridden(self):
+    def test_a_bigger_array_never_costs_less_in_total(self):
+        """
+        Read naively the bands have cliffs: 200 kWp at £1,000 is £200,000 and
+        201 kWp at £900 is £180,900, so the client pays less for more. The
+        total is clamped non-decreasing to kill that, which also stops the
+        sizing search chasing the cliff instead of a real saving.
+        """
+        house = Assumptions()
+        sizes = [round(0.5 * i, 1) for i in range(1, 6001)]
+        totals = [house.capex_total(k) for k in sizes]
+        assert totals == sorted(totals)
+
+        # Cost holds flat across a boundary until the cheaper rate catches up.
+        assert house.capex_total(201.0) == house.capex_total(200.0) == 200_000.0
+        assert house.capex_total(230.0) == pytest.approx(207_000.0)
+
+    def test_capex_can_be_overridden_with_one_flat_rate(self):
         fixed = Assumptions(capex_per_kwp=777.0)
         assert fixed.capex_rate(5.0) == 777.0
         assert fixed.capex_rate(5000.0) == 777.0
@@ -108,23 +126,86 @@ class TestAppraisal:
 
 
 class TestEconomicSelection:
-    def test_recommendation_lands_inside_the_band(self):
+    def test_recommendation_respects_both_constraints(self):
         cons = _consumption("2018-11-01", level=60.0)
         r = recommend_system_size(cons, _uk_generation_profile(),
-                                  target_sc_min=0.70, target_sc_max=0.90)
-        assert 0.70 <= r["sc_rate"] <= 0.90
+                                  max_payback_years=8.0, min_sc_rate=0.50)
+        assert r["simple_payback_years"] is not None
+        assert r["simple_payback_years"] <= 8.0
+        assert r["sc_rate"] >= 0.50
 
-    def test_recommendation_has_the_best_payback_in_the_band(self):
+    def test_recommendation_is_the_largest_array_that_clears_the_hurdle(self):
         cons = _consumption("2018-11-01", level=60.0)
         r = recommend_system_size(cons, _uk_generation_profile(),
-                                  target_sc_min=0.70, target_sc_max=0.90)
-        in_band = [
+                                  max_payback_years=8.0, min_sc_rate=0.50)
+        eligible = [
             p for p in r["sizing_curve"]
-            if 0.70 <= p["sc_rate"] <= 0.90
+            if p["sc_rate"] >= 0.50
             and p["simple_payback_years"] is not None
+            and p["simple_payback_years"] <= 8.0
         ]
-        best = min(p["simple_payback_years"] for p in in_band)
-        assert r["simple_payback_years"] == best
+        assert r["kwp"] == max(p["kwp"] for p in eligible)
+
+    def test_a_looser_hurdle_buys_a_bigger_array(self):
+        """
+        The whole point of the rule: relax what the business case must clear
+        and the tool covers more of the site's demand.
+
+        Run on a cheap tariff so the payback hurdle is the binding constraint.
+        At 25p the array pays back inside eight years across almost the whole
+        curve, and the self-consumption floor sets the answer instead.
+        """
+        cons = _consumption("2018-11-01", level=60.0)
+        gen = _uk_generation_profile()
+        lean = Assumptions(import_price_p_kwh=12.0)
+        tight = recommend_system_size(
+            cons, gen, max_payback_years=10.0, assumptions=lean)
+        loose = recommend_system_size(
+            cons, gen, max_payback_years=12.0, assumptions=lean)
+
+        assert loose["kwp"] > tight["kwp"]
+        assert loose["self_consumed_kwh"] > tight["self_consumed_kwh"]
+        assert loose["sc_rate"] < tight["sc_rate"]
+
+    def test_the_self_consumption_floor_binds_when_payback_does_not(self):
+        """
+        At a 25p import price solar clears an eight year payback across a very
+        wide range of sizes, so the hurdle alone would let the tool recommend a
+        mostly-exporting array. The floor is what stops that, and raising it
+        pulls the recommendation back.
+        """
+        cons = _consumption("2018-11-01", level=60.0)
+        gen = _uk_generation_profile()
+        sizes = [
+            recommend_system_size(cons, gen, min_sc_rate=f)["kwp"]
+            for f in (0.4, 0.5, 0.6, 0.7, 0.8)
+        ]
+        assert sizes == sorted(sizes, reverse=True)
+
+    def test_an_unreachable_hurdle_is_reported_not_hidden(self):
+        cons = _consumption("2018-11-01", level=60.0)
+        r = recommend_system_size(cons, _uk_generation_profile(),
+                                  max_payback_years=0.5)
+        assert r["warning"] is not None
+        assert "0.5 years" in r["warning"]
+
+    def test_the_old_rule_would_have_picked_the_smallest_array(self):
+        """
+        Guards the reason this rule changed. Payback worsens monotonically
+        with size, so "shortest payback in a band" always returned the small
+        end of that band. Anything that reintroduces a payback-minimising
+        selection will show up here.
+        """
+        cons = _consumption("2018-11-01", level=60.0)
+        r = recommend_system_size(cons, _uk_generation_profile(),
+                                  max_payback_years=8.0, min_sc_rate=0.50)
+        eligible = [
+            p for p in r["sizing_curve"]
+            if p["sc_rate"] >= 0.50 and p["simple_payback_years"] is not None
+            and p["simple_payback_years"] <= 8.0
+        ]
+        fastest = min(p["simple_payback_years"] for p in eligible)
+        assert r["simple_payback_years"] > fastest
 
     def test_worthless_export_pushes_the_array_smaller(self):
         cons = _consumption("2018-11-01", level=60.0)
@@ -144,13 +225,14 @@ class TestEconomicSelection:
             full["annual_consumption_kwh"], rel=0.02
         )
 
-    def test_alternative_is_never_smaller_than_the_recommendation(self):
+    def test_the_alternative_is_the_faster_smaller_option(self):
         cons = _consumption("2018-11-01", level=60.0)
         r = recommend_system_size(cons, _uk_generation_profile())
-        alt = r["alternative_max_onsite"]
+        alt = r["alternative_best_payback"]
         if alt:
-            assert alt["kwp"] >= r["kwp"]
-            assert alt["self_consumed_kwh"] >= r["self_consumed_kwh"]
+            assert alt["kwp"] <= r["kwp"]
+            assert alt["simple_payback_years"] <= r["simple_payback_years"]
+            assert alt["self_consumed_kwh"] <= r["self_consumed_kwh"]
 
     def test_a_small_site_gets_a_small_array(self):
         """
@@ -160,11 +242,9 @@ class TestEconomicSelection:
         could not reach 80%" when the real answer was a fraction of that.
         """
         cons = _consumption("2024-01-01", level=0.05)  # ~876 kWh/year
-        r = recommend_system_size(cons, _uk_generation_profile(),
-                                  target_sc_min=0.80, target_sc_max=0.90)
+        r = recommend_system_size(cons, _uk_generation_profile())
 
-        assert r["warning"] is None
-        assert 0.80 <= r["sc_rate"] <= 0.90
+        assert r["kwp"] > 0
         # The grid has to resolve below the old 0.5 kWp floor to find this.
         assert r["sizing_curve"][0]["kwp"] < 0.1
 
@@ -181,12 +261,11 @@ class TestEconomicSelection:
     def test_a_flat_load_is_sizeable_at_every_scale(self, level):
         """Flat profiles are the simplest input anyone will test with."""
         cons = _consumption("2024-01-01", level=level)
-        r = recommend_system_size(cons, _uk_generation_profile(),
-                                  target_sc_min=0.80, target_sc_max=0.90)
+        r = recommend_system_size(cons, _uk_generation_profile())
 
-        assert r["warning"] is None, f"{level} kWh/HH: {r['warning']}"
-        assert 0.80 <= r["sc_rate"] <= 0.90
         assert r["kwp"] > 0
+        assert r["sc_rate"] >= 0.50
+        assert r["simple_payback_years"] is not None
 
     def test_the_search_starts_well_below_the_full_offset_size(self):
         cons = _consumption("2024-01-01", level=1.0)
@@ -198,12 +277,44 @@ class TestEconomicSelection:
         assert curve[0]["sc_rate"] > 0.98  # a tiny array is fully absorbed
         assert len(set(p["kwp"] for p in curve)) == len(curve)  # no collisions
 
-    def test_inverted_band_is_rejected(self):
+    def test_a_nonsense_hurdle_is_rejected(self):
         with pytest.raises(ValueError):
             recommend_system_size(
                 _consumption("2018-11-01"), _uk_generation_profile(),
-                target_sc_min=0.9, target_sc_max=0.5,
+                max_payback_years=0,
             )
+
+    def test_yield_per_kwp_is_reported(self):
+        """
+        Everything downstream is a multiple of this, so it has to be visible
+        rather than buried inside the generation total.
+        """
+        cons = _consumption("2018-11-01", level=60.0)
+        gen = _uk_generation_profile()
+        r = recommend_system_size(cons, gen)
+        assert r["annual_yield_kwh_per_kwp"] == pytest.approx(
+            gen.values.sum(), rel=0.02
+        )
+
+
+class TestYieldSanity:
+    def test_a_believable_uk_yield_passes_quietly(self):
+        from app.services.pvgis_client import yield_sanity_warning
+        assert yield_sanity_warning(_uk_generation_profile(), 35, 0) is None
+
+    def test_a_yield_well_below_the_uk_range_is_flagged(self):
+        """The failure mode this exists for: a live feed quietly 35% out."""
+        from app.services.pvgis_client import yield_sanity_warning
+        thin = _uk_generation_profile() * 0.6
+        warning = yield_sanity_warning(thin, 35, 0)
+        assert warning is not None
+        assert "below" in warning
+
+    def test_an_oddly_oriented_roof_is_left_alone(self):
+        """A north wall really does yield a few hundred. Not an alarm."""
+        from app.services.pvgis_client import yield_sanity_warning
+        thin = _uk_generation_profile() * 0.4
+        assert yield_sanity_warning(thin, 90, 180) is None
 
 
 class TestReport:

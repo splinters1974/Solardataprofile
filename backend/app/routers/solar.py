@@ -33,16 +33,18 @@ def build_response(result: dict, lat: float, lon: float, postcode: str) -> Solar
         exported_kwh=result["exported_kwh"],
         summer_export_kwh=result["summer_export_kwh"],
         days_analysed=result["days_analysed"],
+        annual_yield_kwh_per_kwp=result.get("annual_yield_kwh_per_kwp", 0.0),
         economics=Economics(**asdict(result["_appraisal"])),
         location=LocationInfo(lat=lat, lon=lon, postcode=postcode.upper()),
         monthly_chart=[MonthlySolarPoint(**m) for m in result["monthly_chart"]],
         sizing_curve=[_curve_point(s) for s in result["sizing_curve"]],
-        alternative_max_onsite=(
-            _curve_point(result["alternative_max_onsite"])
-            if result.get("alternative_max_onsite")
+        alternative_best_payback=(
+            _curve_point(result["alternative_best_payback"])
+            if result.get("alternative_best_payback")
             else None
         ),
         warning=result.get("warning"),
+        yield_warning=result.get("yield_warning"),
     )
 
 

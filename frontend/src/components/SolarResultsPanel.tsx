@@ -69,7 +69,7 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const e = result.economics;
-  const alt = result.alternative_max_onsite;
+  const alt = result.alternative_best_payback;
 
   async function handleDownload() {
     setDownloading(true);
@@ -101,6 +101,14 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
         </div>
       </div>
 
+      {/* Red, not amber: this one says do not trust anything below it. */}
+      {result.yield_warning && (
+        <div className="bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-800">
+          <span className="font-semibold">Check the irradiance data. </span>
+          {result.yield_warning}
+        </div>
+      )}
+
       {result.warning && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
           ⚠ {result.warning}
@@ -129,7 +137,7 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
           <Row label="Summer export (Jun–Aug)" value={`${result.summer_export_kwh.toLocaleString()} kWh`} />
           <Row
             label="Yield"
-            value={`${Math.round(result.annual_generation_kwh / result.recommended_kwp).toLocaleString()} kWh/kWp`}
+            value={`${Math.round(result.annual_yield_kwh_per_kwp).toLocaleString()} kWh/kWp`}
           />
         </div>
         <div>
@@ -164,14 +172,15 @@ export default function SolarResultsPanel({ result, onDownloadReport }: Props) {
       {alt && (
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm">
           <p className="font-medium text-slate-700 mb-1">
-            Alternative: maximum energy on site
+            Alternative: fastest payback
           </p>
           <p className="text-slate-600">
-            {alt.kwp.toLocaleString()} kWp is the largest array that still holds
-            self-consumption at or above your minimum. It uses{' '}
-            {alt.self_consumed_kwh.toLocaleString()} kWh on site against{' '}
-            {result.self_consumed_kwh.toLocaleString()} kWh, at{' '}
-            {years(alt.simple_payback_years)} payback and {money(alt.npv)} NPV.
+            {alt.kwp.toLocaleString()} kWp pays back in{' '}
+            {years(alt.simple_payback_years)} against{' '}
+            {years(e.simple_payback_years)} for the recommendation. It is the
+            smaller option: {alt.self_consumed_kwh.toLocaleString()} kWh used on
+            site against {result.self_consumed_kwh.toLocaleString()} kWh, and{' '}
+            {money(alt.npv)} NPV against {money(e.npv)}.
           </p>
         </div>
       )}

@@ -181,27 +181,45 @@ def _payback_key(r: dict) -> float:
 def recommend_system_size(
     consumption: pd.DataFrame,
     gen_1kwp: pd.DataFrame,
-    target_sc_min: float = 0.70,
-    target_sc_max: float = 0.90,
+    max_payback_years: float = 8.0,
+    min_sc_rate: float = 0.50,
     assumptions: Assumptions | None = None,
 ) -> dict:
     """
-    Size the array on economics, constrained by self-consumption.
+    Take the largest array that still pays back inside the hurdle.
 
-    The rule: of the sizes that keep self-consumption inside the requested
-    band, take the one with the shortest simple payback. Self-consumption
-    is the constraint because exported units earn a fraction of what
-    displaced import saves; payback is the decision metric because that is
-    what a business case turns on.
+    Two constraints, both hard: simple payback at or under the hurdle, and
+    self-consumption at or above the floor. Of the sizes that clear both,
+    the biggest wins, because the point of the exercise is to cover as much
+    of the site's demand as the business case will carry.
+
+    An earlier version picked the shortest payback inside a self-consumption
+    band. That rule was degenerate: under a flat capex rate payback worsens
+    steadily with size, because each extra kWp is exported at 5p rather than
+    avoiding 25p, so "shortest payback" always returned the smallest array
+    the band allowed. The optimiser did nothing and the band ceiling chose
+    the answer, and it minimised the array when the brief was to maximise
+    on-site cover.
+
+    Selecting on NPV instead does not fix it. Export at 5p over a 25 year
+    life nearly pays for itself against this capex, so NPV keeps rewarding
+    size until the marginal kWp is only single-digit-percent self-consumed:
+    a mostly-exporting array at a payback no client would fund.
+
+    Both constraints earn their place, and which one binds depends on the
+    tariff. At 25p import the array clears an eight year payback across most
+    of the curve, so the floor sets the answer. On a cheaper tariff the
+    hurdle bites first. Note also that the banded capex curve means payback
+    is not monotonic in size: the rate step at each band boundary can shorten
+    it again, so the largest eligible size has to be found by scanning the
+    whole curve rather than walking out until the test first fails.
     """
     if float(consumption.values.sum()) <= 0:
         raise ValueError(
             "The uploaded data contains no consumption. Check the file and try again."
         )
-    if target_sc_min > target_sc_max:
-        raise ValueError(
-            "Minimum self-consumption cannot be higher than the maximum."
-        )
+    if max_payback_years <= 0:
+        raise ValueError("The payback hurdle must be greater than zero years.")
 
     # Last line of defence against a broken irradiance feed. Without this a
     # zero-generation profile produces a complete, confident-looking report
@@ -228,47 +246,65 @@ def recommend_system_size(
         for k in candidates
     ]
 
-    in_band = [
-        r for r in results if target_sc_min <= r["sc_rate"] <= target_sc_max
+    meets_floor = [r for r in results if r["sc_rate"] >= min_sc_rate]
+    eligible = [
+        r for r in meets_floor
+        if r["simple_payback_years"] is not None
+        and r["simple_payback_years"] <= max_payback_years
     ]
     warning = None
 
-    if in_band:
-        best = min(in_band, key=_payback_key)
-    elif any(r["sc_rate"] >= target_sc_min for r in results):
-        # Every size sits above the band: solar never saturates this load.
-        above = [r for r in results if r["sc_rate"] >= target_sc_min]
-        best = max(above, key=lambda r: r["kwp"])
+    if eligible:
+        best = max(eligible, key=lambda r: r["kwp"])
+        if best is results[-1]:
+            # The hurdle never bound, so the answer is an artefact of how far
+            # the search ran rather than a finding about the site.
+            warning = (
+                "Every size tested pays back inside "
+                f"{max_payback_years:g} years, so this figure is the top of the "
+                "search range rather than a real ceiling. Tighten the payback "
+                "hurdle or raise the self-consumption floor."
+            )
+    elif meets_floor:
+        # Nothing clears the hurdle. Show the closest thing to it and say so,
+        # rather than reporting a size that fails the test as if it passed.
+        best = min(meets_floor, key=_payback_key)
+        closest = (
+            "never" if best["simple_payback_years"] is None
+            else f"{best['simple_payback_years']:g} years"
+        )
         warning = (
-            f"Self-consumption stays above {int(target_sc_max * 100)}% at every "
-            "size tested, so the load absorbs everything the array can make. "
-            "Roof area or grid capacity will set the size here, not the "
-            "consumption profile."
+            f"No size pays back inside {max_payback_years:g} years. The best "
+            f"available is {closest} at {best['kwp']} kWp, shown here. Either "
+            "the tariff, the capital cost or the hurdle needs revisiting."
         )
     else:
         best = max(results, key=lambda r: r["sc_rate"])
         warning = (
-            f"Could not reach {int(target_sc_min * 100)}% self-consumption at any "
+            f"Could not reach {int(min_sc_rate * 100)}% self-consumption at any "
             f"size. Best is {int(best['sc_rate'] * 100)}% at {best['kwp']} kWp, "
             "because generation overlaps poorly with when this site draws power. "
             "Worth testing storage or a load-shifting case."
         )
 
-    # The largest system that still meets the minimum: maximum energy used
-    # on site, usually at a slightly longer payback. Useful in the room.
-    at_or_above_min = [r for r in results if r["sc_rate"] >= target_sc_min]
-    max_onsite = max(at_or_above_min, key=lambda r: r["kwp"]) if at_or_above_min else best
+    # The fastest-payback size, for when the conversation is about the best
+    # return rather than the most cover. Always the small end of the curve.
+    pool = meets_floor or results
+    fastest = min(pool, key=_payback_key)
 
     gen_best = gen_1kwp * best["kwp"]
     best["monthly_chart"] = _monthly_chart(consumption, gen_best)
     best["sizing_curve"] = results
     best["warning"] = warning
-    best["alternative_max_onsite"] = None if max_onsite is best else max_onsite
+    best["alternative_best_payback"] = None if fastest is best else fastest
     best["assumptions"] = assumptions
-    best["target_sc_min"] = target_sc_min
-    best["target_sc_max"] = target_sc_max
+    best["max_payback_years"] = max_payback_years
+    best["min_sc_rate"] = min_sc_rate
     best["days_analysed"] = days
     best["annual_consumption_kwh"] = round(
         float(consumption.values.sum()) * scale_to_year, 1
+    )
+    best["annual_yield_kwh_per_kwp"] = round(
+        float(gen_1kwp.values.sum()) * scale_to_year, 1
     )
     return best

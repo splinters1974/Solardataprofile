@@ -37,6 +37,51 @@ MIN_PLAUSIBLE_YIELD = 50.0
 MAX_PLAUSIBLE_YIELD = 3_000.0
 
 
+# What a working feed should return for a sanely oriented UK roof, kWh/kWp
+# per year after losses. PVGIS puts a south-facing 35 degree array at roughly
+# 750 in the far north of Scotland and 1,050 on the south coast, so anything
+# outside this wider band points at the feed rather than the roof. Verify
+# against the PVGIS web tool at re.jrc.ec.europa.eu/pvg_tools/en/ before
+# treating an out-of-band figure as real.
+UK_YIELD_FLOOR = 600.0
+UK_YIELD_CEILING = 1_200.0
+
+# Outside these the array is oriented oddly enough that a low yield is a
+# genuine finding about the roof, not a symptom of a broken fetch.
+SANE_TILT_MAX = 60
+SANE_ASPECT_MAX = 90
+
+
+def yield_sanity_warning(
+    profile: pd.DataFrame, tilt: int, aspect: int
+) -> str | None:
+    """
+    Flag a yield that a working feed should not produce for this roof.
+
+    Everything downstream is a multiple of kWh/kWp, so a feed that is quietly
+    30% out puts the same 30% through the array size, the payback and the
+    carbon number without anything looking wrong. The wide plausibility
+    bounds above catch a dead feed; this catches a live one that is lying.
+
+    Only applied to roofs pointing somewhere sensible. A north-facing wall
+    really does yield a few hundred kWh/kWp and should not raise an alarm.
+    """
+    total = float(profile.values.sum())
+    if tilt > SANE_TILT_MAX or abs(aspect) > SANE_ASPECT_MAX:
+        return None
+    if UK_YIELD_FLOOR <= total <= UK_YIELD_CEILING:
+        return None
+
+    direction = "below" if total < UK_YIELD_FLOOR else "above"
+    return (
+        f"The irradiance data gives {total:,.0f} kWh/kWp a year for this "
+        f"location and roof, which is {direction} the {UK_YIELD_FLOOR:,.0f} to "
+        f"{UK_YIELD_CEILING:,.0f} range a UK roof at this tilt and orientation "
+        "should return. Every figure in this appraisal scales with that number, "
+        "so check it against the PVGIS web tool before issuing anything."
+    )
+
+
 def _is_plausible(profile: pd.DataFrame) -> bool:
     """
     Reject a profile that cannot be real irradiance.

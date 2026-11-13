@@ -52,8 +52,8 @@ def _size(client, session_id, **overrides):
         "session_id": session_id,
         "postcode": "LA9 4QQ",
         "site_name": "Test Leisure Centre",
-        "target_sc_min": 0.70,
-        "target_sc_max": 0.90,
+        "max_payback_years": 8.0,
+        "min_sc_rate": 0.50,
         "roof_tilt": 35,
         "roof_aspect": 0,
     }
@@ -165,10 +165,9 @@ class TestSizing:
     def test_unknown_session_is_404(self, client):
         assert _size(client, "no-such-session").status_code == 404
 
-    def test_inverted_band_is_422(self, client, hh_csv):
+    def test_a_nonsense_hurdle_is_422(self, client, hh_csv):
         body = _upload(client, hh_csv)
-        response = _size(client, body["session_id"],
-                         target_sc_min=0.9, target_sc_max=0.5)
+        response = _size(client, body["session_id"], max_payback_years=0)
         assert response.status_code == 422
 
 

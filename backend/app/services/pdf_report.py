@@ -442,40 +442,45 @@ def build_report(
         "Grey is what the site draws. Green is solar the site uses as it is "
         "generated, which displaces import at "
         f"{assumptions.import_price_p_kwh:.1f}p/kWh. Amber is surplus exported at "
-        f"{assumptions.export_price_p_kwh:.1f}p/kWh. Sizing is driven by keeping "
-        "the amber band small enough that the array still pays back quickly.",
+        f"{assumptions.export_price_p_kwh:.1f}p/kWh. Green is the valuable half, "
+        "so the summer amber is the price of covering more of the year: sizing "
+        "for no export at all would mean a much smaller array carrying the site "
+        "for far less of the winter.",
         styles["body"],
     ))
     story.append(_monthly_chart(result["monthly_chart"]))
     story.append(Spacer(1, 12))
 
+    hurdle = result.get("max_payback_years", 8.0)
+    floor = result.get("min_sc_rate", 0.50)
+
     story.append(Paragraph("Why this size", styles["h2"]))
     story.append(Paragraph(
-        "Payback improves with scale at first, because fixed costs spread over "
-        "more panels. Past the point where the site can absorb what the array "
-        "makes, surplus is exported at a fraction of the import price and payback "
-        "worsens again. The recommendation sits at the turning point, inside the "
-        f"{_pct(result.get('target_sc_min', 0.70), 0)} to "
-        f"{_pct(result.get('target_sc_max', 0.90), 0)} self-consumption band.",
+        "Every extra kWp is worth less than the one before it. Once the site "
+        "cannot absorb any more generation at midday, the surplus earns the "
+        f"{assumptions.export_price_p_kwh:.1f}p export rate instead of avoiding "
+        f"{assumptions.import_price_p_kwh:.1f}p of import, so payback lengthens "
+        "steadily as the array grows. The recommendation is therefore the "
+        f"largest array that still pays back inside {hurdle:g} years while "
+        f"keeping at least {_pct(floor, 0)} of its output on site: the most "
+        "demand this site can cover on a business case that still stands up.",
         styles["body"],
     ))
     story.append(_payback_chart(result["sizing_curve"], result["kwp"]))
     story.append(Spacer(1, 10))
 
-    alt = result.get("alternative_max_onsite")
+    alt = result.get("alternative_best_payback")
     if alt:
-        story.append(Paragraph("Alternative: maximum energy on site", styles["h2"]))
+        story.append(Paragraph("Alternative: fastest payback", styles["h2"]))
         story.append(Paragraph(
-            f"If the priority is displacing as much grid import as possible "
-            f"rather than the shortest payback, {_kwp(alt['kwp'])} kWp is the "
-            f"largest array that still keeps self-consumption at or above "
-            f"{_pct(result.get('target_sc_min', 0.70), 0)}. It generates "
-            f"{alt['annual_generation_kwh']:,.0f} kWh a year and uses "
-            f"{alt['self_consumed_kwh']:,.0f} kWh on site, at "
-            f"{_years(alt['simple_payback_years'])} payback and "
-            f"{_money(alt['npv'])} NPV against "
-            f"{_years(appraisal.simple_payback_years)} and "
-            f"{_money(appraisal.npv)} for the recommendation.",
+            "If the priority is the quickest return rather than the most cover, "
+            f"{_kwp(alt['kwp'])} kWp pays back in "
+            f"{_years(alt['simple_payback_years'])} against "
+            f"{_years(appraisal.simple_payback_years)} for the recommendation. "
+            f"It is the smaller option: {alt['self_consumed_kwh']:,.0f} kWh used "
+            f"on site a year against {result['self_consumed_kwh']:,.0f} kWh, and "
+            f"{_money(alt['npv'])} NPV against {_money(appraisal.npv)}. Faster "
+            "money back, less of the site's demand covered.",
             styles["body"],
         ))
 
@@ -500,14 +505,21 @@ def build_report(
         ["Annual output degradation", _pct(assumptions.degradation_rate, 2)],
         ["Grid carbon factor", f"{assumptions.carbon_factor:.3f} kgCO2e/kWh"],
         ["Roof pitch and orientation", f"{tilt}° at {_aspect_label(aspect)}"],
+        ["Specific yield",
+         f"{result.get('annual_yield_kwh_per_kwp', 0):,.0f} kWh per kWp per year"],
         ["Irradiance source",
          f"PVGIS, {PVGIS_WEATHER_YEAR} weather year, {system_loss}% system loss"],
+        ["Payback hurdle", f"largest array paying back within {hurdle:g} years"],
+        ["Self-consumption floor", f"at least {_pct(floor, 0)} of output used on site"],
         ["Consumption data", f"{days_analysed} days, {date_from} to {date_to}"],
     ], [doc.width * 0.42, doc.width * 0.58]))
 
-    if data_warnings:
+    notes = list(data_warnings)
+    if result.get("yield_warning"):
+        notes.insert(0, result["yield_warning"])
+    if notes:
         story.append(Paragraph("Data notes", styles["h2"]))
-        for item in data_warnings:
+        for item in notes:
             story.append(Paragraph(f"• {item}", styles["body"]))
 
     story.append(Paragraph("Indicative cashflow", styles["h2"]))
