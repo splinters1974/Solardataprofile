@@ -1,4 +1,4 @@
-import { COMPANY } from '../local/brand';
+import { SET_BY } from '../local/brand';
 import { SITE_TYPES, presetCalendar, DEFAULT_DETECTION, type SiteSettings, type SiteType } from '../local/site';
 import type { SiteSummary } from '../local/localClient';
 import CalendarEditor from './CalendarEditor';
@@ -38,7 +38,7 @@ export default function SiteSettingsPanel({ site, defaultRate, onChange, locked 
       {customer && (
         <p className="text-sm text-slate-600 bg-[var(--brand-tint)] border border-[var(--brand-line)] rounded-lg px-4 py-2.5">
           You can change the site name, building type, floor area and rates here, and the hours on the Calendar tab.
-          How the file was read, meter grouping and the analysis method were set by {COMPANY} and are shown for reference.
+          How the file was read, meter grouping and the analysis method were set by {SET_BY} and are shown for reference.
         </p>
       )}
       <Card title="Site details">

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Half Hourly Insights: free half-hourly electricity analysis</title>
+  <meta name="description" content="Load your half-hourly meter data and see where the electricity goes: out-of-hours use, base load, peaks against capacity and unusual days, priced at your rates. Free, and it runs in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Half Hourly Insights: free half-hourly electricity analysis">
+  <meta property="og:description" content="Load your half-hourly meter data and see where the electricity goes: out-of-hours use, base load, peaks against capacity and unusual days, priced at your rates. Free, and it runs in your browser.">
+  <meta property="og:image" content="images/og-image.png">
+  <meta property="og:site_name" content="Half Hourly Insights">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="preload" href="fonts/schibsted-grotesk-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="site-nav" id="siteNav" aria-label="Main">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Half Hourly Insights home">
+      <svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="15" width="5" height="10" rx="1" fill="#0065A4"/><rect x="10" y="9" width="5" height="16" rx="1" fill="#0065A4"/><rect x="17" y="3" width="5" height="22" rx="1" fill="#F8C05D"/><rect x="24" y="12" width="5" height="13" rx="1" fill="#0065A4"/><rect x="1" y="26" width="32" height="3" rx="1.5" fill="#063C55"/></svg>
+      <span class="nav-logo-name">Half Hourly Insights</span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html" class="active" aria-current="page">Home</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="get-your-data.html">Get your data</a></li><li><a href="sectors.html">Sectors</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li>
+      <li><a href="analyser/" class="nav-cta">Open the analyser</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+<main id="main">
+<div class="hero-wrap">
+<div class="hero-media" aria-hidden="true"><img src="images/hero-heatmap.jpg" width="1600" height="900" alt="" fetchpriority="high"></div>
+<section class="hero" aria-labelledby="hero-h">
+  <div class="hero-copy">
+    <p class="hero-pre">Free for UK businesses and public bodies. No sign-up.</p>
+    <h1 id="hero-h">Where is your electricity going?</h1>
+    <p class="hero-lead">Load your half-hourly meter data. In a minute you can see what runs when the building is shut, what never switches off, how close you get to your supply capacity, and what each pattern costs at your rates.</p>
+    <div class="hero-points">
+      <div><strong>Findings first</strong><span>Ranked by cost, with the evidence behind each one</span></div>
+      <div><strong>Many sites</strong><span>One file per meter, the whole estate ranked</span></div>
+      <div><strong>Private</strong><span>Runs in your browser; nothing is uploaded</span></div>
+    </div>
+  </div>
+  <div class="start-card">
+    <h2>Start with your meter file</h2>
+    <p>Excel or CSV, one file per meter. Day-per-row, day-per-column and timestamped layouts all work.</p>
+    <a href="analyser/" class="btn btn-gold btn-lg">Open the analyser</a>
+    <div class="start-result">
+      <div class="k">From the example file (a made-up office)</div>
+      <div class="big">33%</div>
+      <div class="small">of its electricity used when the building was shut</div>
+    </div>
+    <p class="or">No data to hand? <a href="samples/example-office.csv" download>Download an example file</a> (a made-up office) and load that.</p>
+  </div>
+</section>
+</div>
+
+<section class="section">
+  <div class="section-inner">
+    <div class="head-row">
+      <h2 class="section-title">The patterns a bill can't show you</h2>
+      <p>A bill tells you how much. Half-hourly data tells you when, and that is where most avoidable use hides.</p>
+    </div>
+    <div class="reasons">
+      <div><h3>Out-of-hours use</h3><p>Energy used when the building should be shut, above what never switches off. Usually the cheapest saving: controls and schedules, not capital.</p></div>
+      <div><h3>Base load</h3><p>The demand that never goes away, overnight and at weekends. Every kilowatt of it runs all year, so small cuts add up.</p></div>
+      <div><h3>Peaks and capacity</h3><p>Your highest half hours against your agreed supply capacity, and how much new load (heat pumps, EV charging) the site could take.</p></div>
+      <div><h3>Unusual days</h3><p>Days that don't match their usual pattern, and lasting changes that show when something was left on, or a fix worked.</p></div>
+      <div><h3>Bank holidays and weekends</h3><p>Days the site should be quiet but isn't, checked against the opening hours you set.</p></div>
+      <div><h3>Savings scenarios</h3><p>What-ifs such as cutting out-of-hours use or lowering peak demand, without counting the same saving twice.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section privacy-band">
+  <div class="section-inner">
+    <h2 class="section-title">Your data never leaves your computer</h2>
+    <p class="section-lead">The analyser is one web page that does all its work in your browser. Meter files are read on your machine and nothing is sent to us or anyone else.</p>
+    <div class="reasons">
+      <div><h3>No upload</h3><p>There is no server doing the analysis. Once the page has loaded, you can switch off your connection and keep working.</p></div>
+      <div><h3>No account</h3><p>No sign-up, no email address, no tracking cookies.</p></div>
+      <div><h3>You keep the outputs</h3><p>PDFs, spreadsheets and project files save to your computer. Save a project to pick up where you left off.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section band-mist">
+  <div class="section-inner">
+    <div class="split">
+      <div>
+        <span class="section-kicker">The analyser</span>
+        <h2 class="section-title">Findings first, evidence underneath</h2>
+        <p class="section-lead">Each site opens on its top three investigations, ranked by cost, with how confident the evidence is. Every figure says whether it was measured or estimated.</p>
+        <ul class="ticks">
+          <li><strong>Site and estate PDFs</strong> ready to send, plus Excel for your own analysis</li>
+          <li><strong>A year at a glance:</strong> every half hour in one heatmap</li>
+          <li><strong>Data checks</strong> for gaps, zero days, clock changes and duplicate rows before any figure is shown</li>
+          <li><strong>Customer dashboards:</strong> a locked, password-protected copy to send to a client</li>
+        </ul>
+      </div>
+      <div>
+        <div class="shot"><img src="images/shot-site.png" width="1360" height="900" alt="The analyser showing a site's headline figures, energy split and top investigations" loading="lazy"></div>
+        <p class="shot-caption">A site page from the example file. All data on this site is made up.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-inner">
+    <div class="head-row">
+      <h2 class="section-title">Three steps</h2>
+      <p>No account, no installation. Works in Chrome or Edge on any recent computer.</p>
+    </div>
+    <div class="steps">
+      <div><div class="step-head"><span class="step-n">1</span><span class="step-line"></span></div><h3>Load your files</h3><p>Drag in one file per meter. The analyser reads the layout, checks the data and tells you exactly what it found.</p></div>
+      <div><div class="step-head"><span class="step-n">2</span><span class="step-line"></span></div><h3>Set the hours</h3><p>Tell it when each building is open. Out-of-hours findings depend on this, so it asks you to confirm.</p></div>
+      <div><div class="step-head"><span class="step-n">3</span><span class="step-line"></span></div><h3>Read and share</h3><p>Work through the findings, then download PDFs, Excel or a customer dashboard.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-strip">
+  <div class="cta-strip-inner">
+    <h2 class="cta-strip-title">Want a second pair of eyes on the results?</h2>
+    <div class="cta-strip-btns">
+      <a href="analyser/" class="btn btn-gold btn-lg">Open the analyser</a>
+      <a href="contact.html" class="btn btn-outline-white btn-lg">Talk to an expert</a>
+    </div>
+    <p class="cta-strip-lead">The analyser shows where to look. If you want help turning findings into savings, or a full energy audit across your estate, get in touch.</p>
+  </div>
+</section>
+
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="15" width="5" height="10" rx="1" fill="#0065A4"/><rect x="10" y="9" width="5" height="16" rx="1" fill="#0065A4"/><rect x="17" y="3" width="5" height="22" rx="1" fill="#F8C05D"/><rect x="24" y="12" width="5" height="13" rx="1" fill="#0065A4"/><rect x="1" y="26" width="32" height="3" rx="1.5" fill="#FFFFFF"/></svg><span class="footer-logo-name">Half Hourly Insights</span></div>
+        <p class="footer-desc">Free half-hourly electricity analysis for UK businesses and public bodies. It runs in your browser: your meter data never leaves your computer.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Analyser</div>
+        <ul><li><a href="analyser/">Open the analyser</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="samples/example-office.csv" download>Example data file</a></li><li><a href="faq.html">FAQ</a></li></ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Guides</div>
+        <ul><li><a href="get-your-data.html">Getting your half-hourly data</a></li><li><a href="sectors.html">What to look for by sector</a></li></ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">About</div>
+        <ul><li><a href="contact.html">Contact</a></li><li><a href="privacy.html">Privacy</a></li></ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">&copy; 2026 Half Hourly Insights</div>
+      <div class="footer-disclaimer">Results are estimates from the data you load, not a guarantee of savings. Costs are energy cost at the rates you enter. Guides are general information, not advice.</div>
+    </div>
+  </div>
+</footer>
+<script>
+  document.getElementById('navToggle').addEventListener('click', function (e) {
+    var open = document.getElementById('siteNav').classList.toggle('nav-mobile-open');
+    e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
+    e.currentTarget.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+</script>
+</body>
+</html>

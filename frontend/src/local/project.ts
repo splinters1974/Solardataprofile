@@ -8,7 +8,7 @@
  * schema name and version; files from a newer version are refused rather
  * than half-read.
  */
-import { IS_EON } from './brand';
+import { IS_EON, IS_HHI } from './brand';
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import type { Frame, RawData } from './frame';
 import type { LongSeries, ParseInfo } from './parser';
@@ -19,7 +19,7 @@ import type { CarbonFactor } from './findings';
 import type { CustomerLogo } from './pdf/common';
 
 /** Tag written into project files. The white-label build writes a neutral one, which the Ameresco build also reads. */
-export const PROJECT_SCHEMA = IS_EON ? 'data-analyser-project' : 'ameresco-data-analyser-project';
+export const PROJECT_SCHEMA = IS_EON || IS_HHI ? 'data-analyser-project' : 'ameresco-data-analyser-project';
 const KNOWN_SCHEMAS = [PROJECT_SCHEMA, 'data-analyser-project'];
 export const PROJECT_VERSION = 1;
 

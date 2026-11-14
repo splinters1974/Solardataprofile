@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { COMPANY, COMPANY_FULL, LOGO } from '../local/brand';
+import { COMPANY_FULL, IS_HHI, LOGO, PREPARED } from '../local/brand';
 import { readSealedEdition } from '../local/customerEdition';
 import { openCustomerEdition } from '../local/localClient';
 import StandaloneApp from './StandaloneApp';
@@ -37,7 +37,7 @@ export default function CustomerGate() {
     <div className="min-h-screen bg-white flex flex-col">
       <header className="bg-white border-b border-slate-300 px-6 py-2.5">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
-          <img src={LOGO} alt={COMPANY_FULL} className="h-10 w-auto" />
+          <img src={LOGO} alt={COMPANY_FULL} className={IS_HHI ? 'h-9 w-auto' : 'h-10 w-auto'} />
           <span className="h-9 w-px bg-slate-300" aria-hidden />
           <ProductMark />
         </div>
@@ -45,7 +45,7 @@ export default function CustomerGate() {
       <main className="flex-1 bg-slate-100 px-6 py-12 md:py-20">
         <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] items-center">
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">Energy dashboard prepared by {COMPANY}{made ? `, ${made}` : ''}</p>
+            <p className="text-sm text-slate-600">Energy dashboard {PREPARED}{made ? `, ${made}` : ''}</p>
             <h1 className="text-4xl md:text-5xl leading-[1.05] font-extrabold tracking-tight text-slate-900 break-words">{sealed?.customer ?? 'Customer'}</h1>
             <p className="text-base text-slate-600 max-w-xl">
               When your sites use electricity, what runs while they are shut, and what it costs. You can adjust opening hours, rates and

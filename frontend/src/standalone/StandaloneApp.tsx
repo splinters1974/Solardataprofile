@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { COMPANY, COMPANY_FULL, LOGO } from '../local/brand';
+import { COMPANY_FULL, IS_HHI, LOGO, PREPARED } from '../local/brand';
 import {
   clearAll, countedInTotals, downloadExcel, downloadPortfolioReport, downloadSitesTable, editionShowsNotes, forgetSession,
   friendlyError, getDefaultRate, getTitle, listSites, loadCustomerLogo, openProject, removeCustomerLogo, saveProject,
@@ -196,7 +196,9 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
       <header className="sticky top-0 z-40 bg-white border-b border-slate-300 px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-4">
-            <img src={LOGO} alt={COMPANY_FULL} className="h-10 w-auto" />
+            {IS_HHI && !isCustomer && /^https?:/.test(location.protocol)
+              ? <a href="../" title="Half Hourly Insights home"><img src={LOGO} alt={COMPANY_FULL} className="h-9 w-auto" /></a>
+              : <img src={LOGO} alt={COMPANY_FULL} className={IS_HHI ? 'h-9 w-auto' : 'h-10 w-auto'} />}
             <span className="h-9 w-px bg-slate-300" aria-hidden />
             <div>
               <ProductMark />
@@ -274,7 +276,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
           <>
             {ranked.length === 0 && !isCustomer && (
               <Hero
-                eyebrow={`${COMPANY_FULL} · Half-hourly electricity · Works offline`}
+                eyebrow={IS_HHI ? 'Free · No sign-up · Your data stays on your computer' : `${COMPANY_FULL} · Half-hourly electricity · Works offline`}
                 title={<>Where is this site's<br className="hidden md:block" /> energy going?</>}
                 sub="Drop in half-hourly meter files. You get when each site uses power, what runs when it should be shut, the costs that go with it, and reports you can hand to the customer."
                 aside={<div className="rounded-xl bg-white border border-slate-300 p-6 shadow-md space-y-3">
@@ -298,7 +300,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
             {ranked.length > 0 && (
               <>
                 <Hero
-                  eyebrow={isCustomer ? `Energy dashboard prepared by ${COMPANY}` : 'Portfolio'}
+                  eyebrow={isCustomer ? `Energy dashboard ${PREPARED}` : 'Portfolio'}
                   title={title || (isCustomer ? customer : 'All sites')}
                   sub={`${sites.length} meter${sites.length === 1 ? '' : 's'}${allFrom ? ` · data from ${fmtDayMonYear(allFrom)} to ${fmtDayMonYear(allTo)}` : ''}. Ranked by the cost of energy used when buildings should be shut.`}
                   aside={(
@@ -506,7 +508,7 @@ export default function StandaloneApp({ mode = 'internal', customer = '' }: {
                 )}
                 <p className="text-xs text-slate-500">
                   {isCustomer
-                    ? `Prepared by ${COMPANY}. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings. Figures change with any settings you adjust.`
+                    ? `${PREPARED[0].toUpperCase()}${PREPARED.slice(1)}. Costs are estimated energy cost at the rates shown, associated with patterns of use, not guaranteed savings. Figures change with any settings you adjust.`
                     : 'Every site starts as Office / commercial with unconfirmed preset hours. Check each calendar (or set them all at once above) before relying on closed-hours figures.'}
                 </p>
               </>

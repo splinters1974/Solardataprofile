@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How it works | Half Hourly Insights</title>
+  <meta name="description" content="What the analyser does with your half-hourly data: how it reads files, checks quality, sets the base load, prices out-of-hours use and builds findings.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="How it works | Half Hourly Insights">
+  <meta property="og:description" content="What the analyser does with your half-hourly data: how it reads files, checks quality, sets the base load, prices out-of-hours use and builds findings.">
+  <meta property="og:image" content="images/og-image.png">
+  <meta property="og:site_name" content="Half Hourly Insights">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="preload" href="fonts/schibsted-grotesk-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="site-nav" id="siteNav" aria-label="Main">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" aria-label="Half Hourly Insights home">
+      <svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="15" width="5" height="10" rx="1" fill="#0065A4"/><rect x="10" y="9" width="5" height="16" rx="1" fill="#0065A4"/><rect x="17" y="3" width="5" height="22" rx="1" fill="#F8C05D"/><rect x="24" y="12" width="5" height="13" rx="1" fill="#0065A4"/><rect x="1" y="26" width="32" height="3" rx="1.5" fill="#063C55"/></svg>
+      <span class="nav-logo-name">Half Hourly Insights</span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li><li><a href="how-it-works.html" class="active" aria-current="page">How it works</a></li><li><a href="get-your-data.html">Get your data</a></li><li><a href="sectors.html">Sectors</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li>
+      <li><a href="analyser/" class="nav-cta">Open the analyser</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+<main id="main">
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <span class="page-hero-kicker">How it works</span>
+    <h1 class="page-hero-title">What the analyser does with your data</h1>
+    <p class="page-hero-lead">Plain-English notes on every step, from reading the file to the figures in the report. The full method is in the analyser itself: every finding has a "show calculation and evidence" link.</p>
+  </div>
+</section><div class="guide">
+  <article class="guide-main prose">
+
+<p class="answer">The analyser reads every half-hourly reading, checks it, works out what the site uses when it's open and when it's shut, and prices the difference at your rates. It shows where to look, not what to fix.</p>
+
+<h2 id="files">1. Reading your files</h2>
+<p>Load one file per meter, as Excel (.xlsx, .xls) or CSV. Three layouts work:</p>
+<ul><li><strong>Day per row:</strong> a date, then 48 half-hourly readings (the most common supplier format).</li><li><strong>Day per column:</strong> the same, turned on its side.</li><li><strong>Timestamped:</strong> one reading per row with its date and time.</li></ul>
+<p>The analyser tells you how it read each file: which column held the dates, whether readings were kWh or kW, and anything it ignored. Files covering more than a year are analysed over the last 12 months by default; you can pick any other period, and long-term trends still use the whole file.</p>
+
+<h2 id="checks">2. Checking the data</h2>
+<p>Before showing any figure, the analyser looks for problems that would make it wrong:</p>
+<ul><li>missing readings and gaps (left out, never counted as zero)</li><li>days of zero readings, which usually mean a meter or data fault</li><li>clock-change days and duplicate rows, which it holds back for you to decide</li><li>single readings far above the normal peak</li></ul>
+<p>Each site gets a verdict (Good, Check or Poor) and you can exclude anything you know is wrong, with a reason that's kept with the analysis.</p>
+
+<h2 id="calendar">3. Opening hours</h2>
+<p>Out-of-hours findings depend on knowing when a building should be open. Every site starts with typical office hours, clearly marked as unconfirmed. Set the hours for all sites at once or one by one, including closures, bank holidays and overnight shifts. Findings that rely on unconfirmed hours carry lower confidence.</p>
+
+<h2 id="base">4. Base load and out-of-hours use</h2>
+<p>The <strong>base load</strong> is the level the site rarely drops below: the 5th percentile of all valid half-hourly demand. It's what never switches off, such as servers, fridges and standby loads.</p>
+<p><strong>Closed-hours excess</strong> is energy used while the site is shut, above that base load. This is the figure the analyser ranks sites by, because it is often the cheapest consumption to tackle: through controls, time clocks and building management settings rather than new equipment.</p>
+
+<h2 id="costs">5. Costs and annual figures</h2>
+<p>Costs are energy cost at the rates you enter: one flat rate, or time bands such as day and night. They exclude standing charges, capacity charges and other fixed costs. They show what a pattern costs now, not a guaranteed saving.</p>
+<p>Annual figures are scaled from the valid readings. With less than about 11 months of good data they are marked indicative, and under six months they aren't shown at all.</p>
+
+<h2 id="findings">6. Findings</h2>
+<p>Each finding has two separate labels. <strong>Impact</strong> is how much it matters, based on cost and share of use. <strong>Confidence</strong> is how good the evidence is, based on data quality and whether the hours are confirmed. A high-impact, low-confidence finding is worth checking, not quoting.</p>
+
+<h2 id="capacity">7. Capacity and headroom</h2>
+<p>Enter your agreed supply capacity (in kVA, from your bill or connection agreement) and an assumed power factor. The analyser compares every half hour against it and works out how much constant new load the site could add before it runs short. It's a screen, not confirmation from your network operator.</p>
+
+<h2 id="limits">What it can't tell you</h2>
+<ul><li>Whole-site data shows when demand happens, not which equipment causes it. Findings are things to check on site.</li><li>Figures aren't adjusted for weather or changes in occupancy.</li><li>Carbon figures use the factor you enter, one value for the year.</li></ul>
+
+  </article>
+  <aside class="guide-side">
+    <nav class="toc" aria-label="On this page"><div class="toc-title">On this page</div><ol>
+      <li><a href="#files">Reading your files</a></li><li><a href="#checks">Checking the data</a></li><li><a href="#calendar">Opening hours</a></li><li><a href="#base">Base load and out-of-hours use</a></li><li><a href="#costs">Costs and annual figures</a></li><li><a href="#findings">Findings</a></li><li><a href="#capacity">Capacity and headroom</a></li><li><a href="#limits">What it can't tell you</a></li></ol></nav>
+    <div class="side-cta"><strong>Try it on your own data</strong><p>Free, no sign-up, and your file stays on your computer.</p><a href="analyser/" class="btn">Open the analyser</a></div>
+  </aside>
+</div><section class="cta-strip">
+  <div class="cta-strip-inner">
+    <h2 class="cta-strip-title">See it on your own data</h2>
+    <div class="cta-strip-btns">
+      <a href="analyser/" class="btn btn-gold btn-lg">Open the analyser</a>
+      <a href="contact.html" class="btn btn-outline-white btn-lg">Talk to an expert</a>
+    </div>
+    <p class="cta-strip-lead">Free, no sign-up, and nothing is uploaded.</p>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo"><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="15" width="5" height="10" rx="1" fill="#0065A4"/><rect x="10" y="9" width="5" height="16" rx="1" fill="#0065A4"/><rect x="17" y="3" width="5" height="22" rx="1" fill="#F8C05D"/><rect x="24" y="12" width="5" height="13" rx="1" fill="#0065A4"/><rect x="1" y="26" width="32" height="3" rx="1.5" fill="#FFFFFF"/></svg><span class="footer-logo-name">Half Hourly Insights</span></div>
+        <p class="footer-desc">Free half-hourly electricity analysis for UK businesses and public bodies. It runs in your browser: your meter data never leaves your computer.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Analyser</div>
+        <ul><li><a href="analyser/">Open the analyser</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="samples/example-office.csv" download>Example data file</a></li><li><a href="faq.html">FAQ</a></li></ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Guides</div>
+        <ul><li><a href="get-your-data.html">Getting your half-hourly data</a></li><li><a href="sectors.html">What to look for by sector</a></li></ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">About</div>
+        <ul><li><a href="contact.html">Contact</a></li><li><a href="privacy.html">Privacy</a></li></ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">&copy; 2026 Half Hourly Insights</div>
+      <div class="footer-disclaimer">Results are estimates from the data you load, not a guarantee of savings. Costs are energy cost at the rates you enter. Guides are general information, not advice.</div>
+    </div>
+  </div>
+</footer>
+<script>
+  document.getElementById('navToggle').addEventListener('click', function (e) {
+    var open = document.getElementById('siteNav').classList.toggle('nav-mobile-open');
+    e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
+    e.currentTarget.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+</script>
+</body>
+</html>

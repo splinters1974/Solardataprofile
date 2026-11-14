@@ -22,6 +22,7 @@ function localApi(): Plugin {
 }
 
 const EON = process.env.VITE_BRAND === 'eon'
+const HHI = process.env.VITE_BRAND === 'hhi'
 
 /**
  * The offline file has no favicon.svg beside it: inline a small mark in the
@@ -29,14 +30,16 @@ const EON = process.env.VITE_BRAND === 'eon'
  * the tab the product name.
  */
 function inlineIcon(): Plugin {
-  const svg = EON
+  const svg = HHI
+    ? `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'><rect x='3' y='15' width='5' height='10' rx='1' fill='%230065A4'/><rect x='10' y='9' width='5' height='16' rx='1' fill='%230065A4'/><rect x='17' y='3' width='5' height='22' rx='1' fill='%23F8C05D'/><rect x='24' y='12' width='5' height='13' rx='1' fill='%230065A4'/><rect x='1' y='26' width='32' height='3' rx='1.5' fill='%23063C55'/></svg>`
+    : EON
     ? `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23ea1c0a'/><text x='16' y='23' text-anchor='middle' font-family='Arial,sans-serif' font-weight='700' font-size='20' fill='white'>e</text></svg>`
     : `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='white'/><ellipse cx='16' cy='17' rx='13' ry='6.5' fill='none' stroke='%230065a5' stroke-width='3' transform='rotate(-12 16 17)'/><ellipse cx='17' cy='16' rx='6' ry='13' fill='none' stroke='%23008540' stroke-width='3' transform='rotate(18 17 16)'/></svg>`
   return {
     name: 'inline-icon',
     transformIndexHtml: (html) => html
       .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml,${svg}" />`)
-      .replace(/<title>[^<]*<\/title>/, `<title>${EON ? 'E.ON' : 'Ameresco'} Data Analyser ${process.env.VITE_VARIANT === 'standard' ? 'Standard' : 'Advanced'}</title>`),
+      .replace(/<title>[^<]*<\/title>/, HHI ? '<title>Analyser | Half Hourly Insights</title>' : `<title>${EON ? 'E.ON' : 'Ameresco'} Data Analyser ${process.env.VITE_VARIANT === 'standard' ? 'Standard' : 'Advanced'}</title>`),
   }
 }
 
@@ -47,7 +50,8 @@ export default defineConfig(({ mode }) => {
     return {
       base: './',
       plugins: [localApi(), inlineIcon(), react(), tailwindcss(), viteSingleFile()],
-      build: { outDir: EON ? 'dist-eon' : process.env.VITE_VARIANT === 'standard' ? 'dist-standard' : 'dist-standalone', chunkSizeWarningLimit: 5000 },
+      define: { __BRAND__: JSON.stringify(process.env.VITE_BRAND ?? '') },
+      build: { outDir: HHI ? 'dist-hhi' : EON ? 'dist-eon' : process.env.VITE_VARIANT === 'standard' ? 'dist-standard' : 'dist-standalone', chunkSizeWarningLimit: 5000 },
     }
   }
 

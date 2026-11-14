@@ -3,7 +3,7 @@
  * earlier, simpler tool; this build is the Advanced version. The name
  * appears in the header, the customer gate, file names and every PDF footer.
  */
-import { COMPANY } from './brand';
+import { COMPANY, IS_HHI } from './brand';
 
 export const PRODUCT = 'Data Analyser';
 /**
@@ -27,5 +27,5 @@ export const customerEditsBy = () => customerEdits;
 /** Footer text for every PDF page. */
 export function pdfFooter(...parts: string[]): string {
   const note = customerEdits ? [`includes changes made by ${customerEdits}`] : [];
-  return [`${COMPANY} ${PRODUCT_FULL}`, ...parts, ...note].join('  ·  ');
+  return [IS_HHI ? COMPANY : `${COMPANY} ${PRODUCT_FULL}`, ...parts, ...note].join('  ·  ');
 }
