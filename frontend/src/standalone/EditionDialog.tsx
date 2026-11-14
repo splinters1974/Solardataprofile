@@ -43,8 +43,9 @@ export default function EditionDialog({ initialCustomer, siteCount, onClose }: {
           <p className="text-sm text-slate-500 mt-0.5">
             A locked copy of this dashboard holding the {siteCount} site{siteCount === 1 ? '' : 's'} loaded now,
             with their current settings, logo, findings, action statuses and savings scenarios. The customer can explore every chart,
-            try a different flat unit rate and download PDFs and a summary spreadsheet. They cannot change site settings, calendars,
-            scenarios or actions, or get the half-hourly data out as a spreadsheet.
+            change opening hours and closures, rates, carbon factor, supply capacity, excluded readings and savings scenarios, save
+            their changes as a new copy with the same password, and download PDFs and a summary spreadsheet. They cannot add or
+            remove sites, change action tracking or the analysis method, or get the half-hourly data out as a spreadsheet.
           </p>
         </div>
 
