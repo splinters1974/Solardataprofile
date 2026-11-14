@@ -10,8 +10,6 @@ const { file, dist } = {
   advanced: { file: 'Ameresco-Data-Analyser-Advanced.html', dist: 'dist-standalone' },
   standard: { file: 'Ameresco-Data-Analyser-Standard.html', dist: 'dist-standard' },
   eon: { file: 'EON-Data-Analyser-Advanced.html', dist: 'dist-eon' },
-  // The public website's analyser page.
-  hhi: { file: '../website/site/analyser/index.html', dist: 'dist-hhi' },
 }[build];
 const target = resolve(here, `../../standalone/${file}`);
 mkdirSync(dirname(target), { recursive: true });
